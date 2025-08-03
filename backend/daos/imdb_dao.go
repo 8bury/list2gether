@@ -32,13 +32,13 @@ func (dao *ImdbDAO) GetMovieByIMDBId(imdbId string) (*models.ImdbResponse, error
 	fullURL := baseURL + "?" + params.Encode()
 	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
-		fmt.Printf("Error creating request for IMDB API: %v\n", err)
+		log.Printf("Error creating request for IMDB API: %v\n", err)
 		return nil, err
 	}
 
 	resp, err := dao.client.Do(req)
 	if err != nil {
-		fmt.Printf("Error making request to IMDB API: %v\n", err)
+		log.Printf("Error making request to IMDB API: %v\n", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
