@@ -1,4 +1,4 @@
-package model
+package models
 
 type List struct {
 	ID     uint             `gorm:"primaryKey"`
@@ -16,7 +16,7 @@ type MovieListEntry struct {
 type Status int
 
 const (
-    ToWatch Status = iota
-    Watched
-    Watching
+	ToWatch Status = iota
+	Watched
+	Watching
 )
