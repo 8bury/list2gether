@@ -27,7 +27,7 @@ func (c *MovieController) GetMovieByIMDBId(ctx *gin.Context) {
 		return
 	}
 	if movie == nil {
-		ctx.JSON(404, gin.H{"error": "Movie not found"})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Movie not found"})
 		return
 	}
 	ctx.JSON(http.StatusOK, movie)
