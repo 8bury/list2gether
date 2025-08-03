@@ -25,13 +25,15 @@ func NewImdbDAO(db *gorm.DB) *ImdbDAO {
 
 
 func (dao *ImdbDAO) GetMovieByIMDBId(imdbId string) (*models.ImdbResponse, error) {
-	req, err := http.NewRequest("GET", "http://www.omdbapi.com/" + imdbId + "?apikey=" + os.Getenv("OMDB_KEY"), nil)
+	req, err := http.NewRequest("GET", "http://www.omdbapi.com/?i=" + imdbId + "&apikey=" + os.Getenv("OMDB_KEY"), nil)
 	if err != nil {
+		fmt.Printf("Error creating request for IMDB API: %v\n", err)
 		return nil, err
 	}
 
 	resp, err := dao.client.Do(req)
 	if err != nil {
+		fmt.Printf("Error making request to IMDB API: %v\n", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -42,6 +44,7 @@ func (dao *ImdbDAO) GetMovieByIMDBId(imdbId string) (*models.ImdbResponse, error
 
 	var imdbResponse models.ImdbResponse
 	if err := json.NewDecoder(resp.Body).Decode(&imdbResponse); err != nil {
+		fmt.Printf("Error decoding IMDB API response: %v\n", err)
 		return nil, err
 	}
 
@@ -59,6 +62,7 @@ func (dao *ImdbDAO) RegisterMovieInDatabase(movie *models.ImdbResponse) (*models
 	}
 
 	if err := dao.db.Create(databaseMovie).Error; err != nil {
+		fmt.Printf("Error registering movie in database: %v\n", err)
 		return nil, err
 	}
 
