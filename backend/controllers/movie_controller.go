@@ -23,7 +23,7 @@ func (c *MovieController) GetMovieByIMDBId(ctx *gin.Context) {
 	imdbId := ctx.Param("imdbid")
 	movie, err := c.MovieService.GetMovieByIMDBId(imdbId)
 	if err != nil {
-		ctx.JSON(500, gin.H{"error": "Failed to retrieve movie"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve movie"})
 		return
 	}
 	if movie == nil {
