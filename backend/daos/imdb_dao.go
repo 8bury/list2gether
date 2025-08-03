@@ -49,7 +49,7 @@ func (dao *ImdbDAO) GetMovieByIMDBId(imdbId string) (*models.ImdbResponse, error
 
 	var imdbResponse models.ImdbResponse
 	if err := json.NewDecoder(resp.Body).Decode(&imdbResponse); err != nil {
-		fmt.Printf("Error decoding IMDB API response: %v\n", err)
+		log.Printf("Error decoding IMDB API response: %v\n", err)
 		return nil, err
 	}
 
