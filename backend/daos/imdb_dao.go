@@ -25,7 +25,12 @@ func NewImdbDAO(db *gorm.DB) *ImdbDAO {
 
 
 func (dao *ImdbDAO) GetMovieByIMDBId(imdbId string) (*models.ImdbResponse, error) {
-	req, err := http.NewRequest("GET", "http://www.omdbapi.com/?i=" + imdbId + "&apikey=" + os.Getenv("OMDB_KEY"), nil)
+	baseURL := "http://www.omdbapi.com/"
+	params := url.Values{}
+	params.Set("i", imdbId)
+	params.Set("apikey", os.Getenv("OMDB_KEY"))
+	fullURL := baseURL + "?" + params.Encode()
+	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		fmt.Printf("Error creating request for IMDB API: %v\n", err)
 		return nil, err
