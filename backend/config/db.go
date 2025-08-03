@@ -13,7 +13,7 @@ import (
 func connectDatabase() *gorm.DB {
 	err := godotenv.Load(".env")
 	if err != nil {
-		fmt.Println("Erro ao carregar o arquivo .env:", err)
+		fmt.Println("Error loading .env file:", err)
 	}
 	dsn := os.Getenv("DB_DSN")
 
