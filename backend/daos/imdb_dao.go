@@ -67,7 +67,7 @@ func (dao *ImdbDAO) RegisterMovieInDatabase(movie *models.ImdbResponse) (*models
 	}
 
 	if err := dao.db.Create(databaseMovie).Error; err != nil {
-		fmt.Printf("Error registering movie in database: %v\n", err)
+		log.Printf("Error registering movie in database: %v\n", err)
 		return nil, err
 	}
 
