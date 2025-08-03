@@ -13,6 +13,22 @@ func NewMovieController(router *gin.Engine, movieService *services.MovieService)
 	controller := &MovieController{
 		MovieService: movieService,
 	}
-	// group := router.Group("/movies")
+	group := router.Group("/movies")
+
+	group.GET("/:imdbid", controller.GetMovieByIMDBId)
 	return controller
+}
+
+func (c *MovieController) GetMovieByIMDBId(ctx *gin.Context) {
+	imdbId := ctx.Param("imdbid")
+	movie, err := c.MovieService.GetMovieByIMDBId(imdbId)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve movie"})
+		return
+	}
+	if movie == nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Movie not found"})
+		return
+	}
+	ctx.JSON(http.StatusOK, movie)
 }

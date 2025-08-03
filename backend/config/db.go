@@ -1,16 +1,24 @@
 package config
 
 import (
+	"fmt"
 	"os"
+
 	"github.com/8bury/list2gether/models"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"github.com/joho/godotenv"
 )
 
 func connectDatabase() *gorm.DB {
-	godotenv.Load("../.env")
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println("Error loading .env file:", err)
+	}
 	dsn := os.Getenv("DB_DSN")
+
+	fmt.Print("Connecting to database with DSN: ", dsn, "\n")
+
 	db, err := gorm.Open(mysql.Open(dsn))
 	if err != nil {
 		panic("failed to connect to database")

@@ -12,6 +12,8 @@ var (
 	MovieController *controllers.MovieController
 	MovieService    *services.MovieService
 	MovieDAO        *daos.MovieDAO
+	ImdbService     *services.ImdbService
+	ImdbDAO         *daos.ImdbDAO
 )
 
 func InitializeDependencies(router *gin.Engine) {
@@ -22,11 +24,13 @@ func InitializeDependencies(router *gin.Engine) {
 }
 
 func initializeDaos(db *gorm.DB) {
+	ImdbDAO = daos.NewImdbDAO(db)
 	MovieDAO = daos.NewMovieDAO(db)
 }
 
 func initializeServices() {
-	MovieService = services.NewMovieService(MovieDAO)
+	ImdbService = services.NewImdbService(ImdbDAO)
+	MovieService = services.NewMovieService(MovieDAO, ImdbService)
 }
 
 func initializeControllers(router *gin.Engine) {
