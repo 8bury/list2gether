@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"net/http"
+
 	"github.com/8bury/list2gether/services"
 	"github.com/gin-gonic/gin"
 )
@@ -21,6 +23,12 @@ func NewMovieController(router *gin.Engine, movieService *services.MovieService)
 
 func (c *MovieController) GetMovieByIMDBId(ctx *gin.Context) {
 	imdbId := ctx.Param("imdbid")
+
+	if imdbId == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "IMDB ID is required"})
+		return
+	}
+	
 	movie, err := c.MovieService.GetMovieByIMDBId(imdbId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve movie"})
