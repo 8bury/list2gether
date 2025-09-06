@@ -1,20 +1,11 @@
 package config
 
 import (
-	"github.com/8bury/list2gether/controllers"
-	"github.com/8bury/list2gether/daos"
-	"github.com/8bury/list2gether/services"
-	"gorm.io/gorm"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-var (
-	MovieController *controllers.MovieController
-	MovieService    *services.MovieService
-	MovieDAO        *daos.MovieDAO
-	ImdbService     *services.ImdbService
-	ImdbDAO         *daos.ImdbDAO
-)
+var ()
 
 func InitializeDependencies(router *gin.Engine) {
 	db := connectDatabase()
@@ -24,15 +15,15 @@ func InitializeDependencies(router *gin.Engine) {
 }
 
 func initializeDaos(db *gorm.DB) {
-	ImdbDAO = daos.NewImdbDAO(db)
-	MovieDAO = daos.NewMovieDAO(db)
+	//ImdbDAO = daos.NewImdbDAO(db)
+	//MovieDAO = daos.NewMovieDAO(db)
 }
 
 func initializeServices() {
-	ImdbService = services.NewImdbService(ImdbDAO)
-	MovieService = services.NewMovieService(MovieDAO, ImdbService)
+	//ImdbService = services.NewImdbService(ImdbDAO)
+	//MovieService = services.NewMovieService(MovieDAO, ImdbService)
 }
 
 func initializeControllers(router *gin.Engine) {
-	MovieController = controllers.NewMovieController(router, MovieService)
+	//MovieController = controllers.NewMovieController(router, MovieService)
 }
