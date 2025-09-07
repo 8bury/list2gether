@@ -153,3 +153,46 @@ export async function addListMovie(listId: number, body: AddListMovieBodyDTO): P
   })
 }
 
+export interface UpdateListMovieBodyDTO {
+  status?: MovieStatus
+  rating?: number | null
+  notes?: string | null
+}
+
+export interface UpdateListMovieResponseDTO {
+  success: boolean
+  message: string
+  data: {
+    list_id: number
+    movie_id: number
+    title: string
+    media_type: 'movie' | 'tv'
+    old_status?: MovieStatus | null
+    new_status?: MovieStatus | null
+    old_rating?: number | null
+    new_rating?: number | null
+    old_notes?: string | null
+    new_notes?: string | null
+    watched_at?: string | null
+    updated_at?: string
+  }
+}
+
+export async function updateListMovie(listId: number, movieId: number, body: UpdateListMovieBodyDTO): Promise<UpdateListMovieResponseDTO> {
+  const token = localStorage.getItem('access_token')
+  return requestJson<UpdateListMovieResponseDTO>(`/api/lists/${listId}/movies/${movieId}`, {
+    method: 'PATCH',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body,
+  })
+}
+
+
+export async function deleteListMovie(listId: number, movieId: number): Promise<void> {
+  const token = localStorage.getItem('access_token')
+  await requestJson<void>(`/api/lists/${listId}/movies/${movieId}` , {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
