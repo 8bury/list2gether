@@ -26,6 +26,7 @@ func InitializeDependencies(router *gin.Engine) {
 	db := connectDatabase()
 	initializeDaos(db)
 	initializeServices()
+	middleware.SetupCORS(router)
 	initializeControllers(router)
 }
 
