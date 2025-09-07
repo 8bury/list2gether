@@ -8,6 +8,7 @@ type MovieList struct {
 	ID          int64     `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
 	Name        string    `gorm:"not null;size:255;column:name" json:"name"`
 	Description *string   `gorm:"type:text;column:description" json:"description"`
+	InviteCode  string    `gorm:"uniqueIndex;not null;size:10;column:invite_code" json:"invite_code"`
 	CreatedBy   int64     `gorm:"not null;column:created_by" json:"created_by"`
 	CreatedAt   time.Time `gorm:"autoCreateTime;column:created_at" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime;column:updated_at" json:"updated_at"`

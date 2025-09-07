@@ -12,7 +12,9 @@ import (
 var (
 	userDAO         daos.UserDAO
 	refreshTokenDAO daos.RefreshTokenDAO
+	movieListDAO    daos.MovieListDAO
 	authService     services.AuthService
+	listService     services.ListService
 	authMiddleware  *middleware.AuthMiddleware
 )
 
@@ -26,13 +28,16 @@ func InitializeDependencies(router *gin.Engine) {
 func initializeDaos(db *gorm.DB) {
 	userDAO = daos.NewUserDAO(db)
 	refreshTokenDAO = daos.NewRefreshTokenDAO(db)
+	movieListDAO = daos.NewMovieListDAO(db)
 }
 
 func initializeServices() {
 	authService = services.NewAuthService(userDAO, refreshTokenDAO)
+	listService = services.NewListService(movieListDAO)
 	authMiddleware = middleware.NewAuthMiddleware(authService.JWTSecret())
 }
 
 func initializeControllers(router *gin.Engine) {
 	controllers.NewAuthController(router, authService, authMiddleware)
+	controllers.NewListController(router, listService, authMiddleware)
 }
