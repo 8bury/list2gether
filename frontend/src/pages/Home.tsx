@@ -17,6 +17,7 @@ export default function HomePage() {
   const [confirmDelete, setConfirmDelete] = useState<UserListDTO | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showJoinModal, setShowJoinModal] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -82,17 +83,29 @@ export default function HomePage() {
       <main className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-semibold">Suas listas</h2>
-          <button
-            className="auth-button"
-            onClick={() => {
-              setError(null)
-              setCreateName('')
-              setCreateDescription('')
-              setShowCreateModal(true)
-            }}
-          >
-            Nova lista
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="border border-neutral-600 rounded-lg px-3 py-2 text-sm"
+              onClick={() => {
+                setError(null)
+                setInviteCode('')
+                setShowJoinModal(true)
+              }}
+            >
+              Entrar por código
+            </button>
+            <button
+              className="auth-button"
+              onClick={() => {
+                setError(null)
+                setCreateName('')
+                setCreateDescription('')
+                setShowCreateModal(true)
+              }}
+            >
+              Nova lista
+            </button>
+          </div>
         </div>
         {loading && <div className="text-neutral-300">Carregando…</div>}
         {error && <div className="auth-error max-w-lg">{error}</div>}
@@ -153,10 +166,9 @@ export default function HomePage() {
                     if (!inviteCode.trim()) return
                     setJoining(true)
                     try {
-                      await joinList(inviteCode.trim())
+                      const res = await joinList(inviteCode.trim())
                       setInviteCode('')
-                      const res = await getUserLists()
-                      setLists(res.lists)
+                      navigate(`/list/${res.list.id}`)
                     } catch (err) {
                       const message = (err as any)?.payload?.error || (err as Error).message
                       setError(message)
@@ -258,6 +270,53 @@ export default function HomePage() {
                   }}
                 >
                   {creating ? 'Criando…' : 'Criar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showJoinModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+              <h3 className="text-lg font-semibold mb-2">Entrar em lista</h3>
+              <div className="grid gap-3 mb-4">
+                <input
+                  className="auth-input"
+                  placeholder="Código de convite (10 caracteres)"
+                  value={inviteCode}
+                  maxLength={10}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="border border-neutral-600 rounded-lg px-3 py-2 text-sm"
+                  onClick={() => setShowJoinModal(false)}
+                  disabled={joining}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="auth-button"
+                  disabled={joining || inviteCode.trim().length === 0}
+                  onClick={async () => {
+                    if (!inviteCode.trim()) return
+                    setJoining(true)
+                    setError(null)
+                    try {
+                      const res = await joinList(inviteCode.trim())
+                      setInviteCode('')
+                      setShowJoinModal(false)
+                      navigate(`/list/${res.list.id}`)
+                    } catch (err) {
+                      const message = (err as any)?.payload?.error || (err as Error).message
+                      setError(message)
+                    } finally {
+                      setJoining(false)
+                    }
+                  }}
+                >
+                  {joining ? 'Entrando…' : 'Entrar'}
                 </button>
               </div>
             </div>
