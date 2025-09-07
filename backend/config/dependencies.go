@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/8bury/list2gether/controllers"
 	"github.com/8bury/list2gether/daos"
 	"github.com/8bury/list2gether/middleware"
@@ -15,6 +17,7 @@ var (
 	movieListDAO    daos.MovieListDAO
 	authService     services.AuthService
 	listService     services.ListService
+	searchService   services.SearchService
 	authMiddleware  *middleware.AuthMiddleware
 )
 
@@ -34,10 +37,12 @@ func initializeDaos(db *gorm.DB) {
 func initializeServices() {
 	authService = services.NewAuthService(userDAO, refreshTokenDAO)
 	listService = services.NewListService(movieListDAO)
+	searchService = services.NewSearchService(os.Getenv("TMDB_API_TOKEN"))
 	authMiddleware = middleware.NewAuthMiddleware(authService.JWTSecret())
 }
 
 func initializeControllers(router *gin.Engine) {
 	controllers.NewAuthController(router, authService, authMiddleware)
 	controllers.NewListController(router, listService, authMiddleware)
+	controllers.NewSearchController(router, searchService, authMiddleware)
 }
