@@ -35,4 +35,51 @@ export async function getUserLists(params?: { role?: 'owner' | 'participant'; li
   })
 }
 
+export interface CreateListBodyDTO {
+  name: string
+  description?: string
+}
+
+export interface CreateListResponseDTO {
+  id: number
+  name: string
+  description?: string | null
+  invite_code: string
+  created_by: number
+  created_at: string
+  updated_at: string
+}
+
+export async function createList(body: CreateListBodyDTO): Promise<CreateListResponseDTO> {
+  const token = localStorage.getItem('access_token')
+  return requestJson<CreateListResponseDTO>('/api/lists', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body,
+  })
+}
+
+export interface JoinListResponseDTO {
+  message: string
+  list: {
+    id: number
+    name: string
+    description?: string | null
+    created_by: number
+    created_at: string
+    creator: { id: number; username: string; email: string }
+    member_count: number
+  }
+  your_role: 'owner' | 'participant'
+}
+
+export async function joinList(inviteCode: string): Promise<JoinListResponseDTO> {
+  const token = localStorage.getItem('access_token')
+  return requestJson<JoinListResponseDTO>('/api/lists/join', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: { invite_code: inviteCode },
+  })
+}
+
 

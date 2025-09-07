@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
-import { getUserLists, type UserListDTO } from '../services/lists'
+import { getUserLists, createList, joinList, type UserListDTO } from '../services/lists'
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -9,6 +9,11 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<number | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [createDescription, setCreateDescription] = useState('')
+  const [joining, setJoining] = useState(false)
+  const [inviteCode, setInviteCode] = useState('')
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -55,7 +60,79 @@ export default function HomePage() {
         {loading && <div className="text-neutral-300">Carregando…</div>}
         {error && <div className="auth-error max-w-lg">{error}</div>}
         {!loading && !error && lists.length === 0 && (
-          <div className="text-neutral-300">Você ainda não possui listas.</div>
+          <div className="grid gap-4 max-w-2xl">
+            <div className="border border-neutral-800 rounded-xl p-5 bg-neutral-900/40">
+              <h3 className="text-lg font-medium mb-2">Crie sua primeira lista</h3>
+              <div className="grid gap-3">
+                <input
+                  className="auth-input"
+                  placeholder="Nome da lista"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                />
+                <input
+                  className="auth-input"
+                  placeholder="Descrição (opcional)"
+                  value={createDescription}
+                  onChange={(e) => setCreateDescription(e.target.value)}
+                />
+                <button
+                  className="auth-button w-fit"
+                  disabled={creating || createName.trim().length === 0}
+                  onClick={async () => {
+                    if (!createName.trim()) return
+                    setCreating(true)
+                    try {
+                      await createList({ name: createName.trim(), description: createDescription.trim() || undefined })
+                      setCreateName('')
+                      setCreateDescription('')
+                      const res = await getUserLists()
+                      setLists(res.lists)
+                    } catch (err) {
+                      const message = (err as any)?.payload?.error || (err as Error).message
+                      setError(message)
+                    } finally {
+                      setCreating(false)
+                    }
+                  }}
+                >
+                  {creating ? 'Criando…' : 'Criar lista'}
+                </button>
+              </div>
+            </div>
+            <div className="border border-neutral-800 rounded-xl p-5 bg-neutral-900/40">
+              <h3 className="text-lg font-medium mb-2">Ou entre com um código</h3>
+              <div className="grid gap-3">
+                <input
+                  className="auth-input"
+                  placeholder="Código de convite (10 caracteres)"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                />
+                <button
+                  className="auth-button w-fit"
+                  disabled={joining || inviteCode.trim().length === 0}
+                  onClick={async () => {
+                    if (!inviteCode.trim()) return
+                    setJoining(true)
+                    try {
+                      await joinList(inviteCode.trim())
+                      setInviteCode('')
+                      const res = await getUserLists()
+                      setLists(res.lists)
+                    } catch (err) {
+                      const message = (err as any)?.payload?.error || (err as Error).message
+                      setError(message)
+                    } finally {
+                      setJoining(false)
+                    }
+                  }}
+                >
+                  {joining ? 'Entrando…' : 'Entrar na lista'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
         <ul className="space-y-3">
           {lists.map((list) => (
