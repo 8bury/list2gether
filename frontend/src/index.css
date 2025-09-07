@@ -1,68 +1,47 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@layer base {
+  html, body, #root {
+    height: 100%;
   }
-  a:hover {
-    color: #747bff;
+  body {
+    @apply bg-black text-white antialiased;
   }
-  button {
-    background-color: #f9f9f9;
+  a {
+    @apply underline underline-offset-2 hover:opacity-80;
   }
 }
+
+@layer components {
+  .auth-card {
+    @apply w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-xl p-7 shadow-xl;
+  }
+  .auth-title {
+    @apply text-2xl font-semibold mb-4 tracking-tight;
+  }
+  .auth-form {
+    @apply flex flex-col gap-3;
+  }
+  .auth-label {
+    @apply flex flex-col gap-1 text-sm text-neutral-300;
+  }
+  .auth-input {
+    @apply bg-neutral-950 border border-neutral-800 text-white px-3 py-2 rounded-lg outline-none focus:border-white;
+  }
+  .auth-button {
+    @apply mt-2 bg-white text-black border border-white rounded-lg px-4 py-2 font-medium disabled:opacity-70 disabled:cursor-not-allowed;
+  }
+  .auth-error {
+    @apply bg-red-950/60 border border-red-800 text-red-200 px-3 py-2 rounded-lg mb-3;
+  }
+  .auth-success {
+    @apply bg-green-950/60 border border-green-800 text-green-200 px-3 py-2 rounded-lg mb-3;
+  }
+  .auth-footnote {
+    @apply mt-4 text-sm text-neutral-300;
+  }
+}
+
+
