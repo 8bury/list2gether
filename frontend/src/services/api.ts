@@ -10,7 +10,6 @@ export type JsonRequestOptions = Omit<RequestInit, 'body'> & { body?: unknown }
 const getApiBaseUrl = (): string => {
   const baseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
   if (!baseUrl || baseUrl.trim().length === 0) {
-    // Fallback for local development if .env is missing
     return 'http://localhost:8080'
   }
   return baseUrl.replace(/\/$/, '')
@@ -41,7 +40,6 @@ export async function requestJson<T>(path: string, options: JsonRequestOptions =
       try {
         errorPayload = (await response.json()) as ApiError
       } catch {
-        // ignore
       }
     }
     const message = errorPayload?.error || `Request failed with status ${response.status}`
@@ -55,7 +53,7 @@ export async function requestJson<T>(path: string, options: JsonRequestOptions =
     return (await response.json()) as T
   }
 
-  // @ts-expect-error caller should know when response is not JSON
+  // @ts-expect-error
   return undefined
 }
 

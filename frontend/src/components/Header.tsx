@@ -16,7 +16,6 @@ export default function Header() {
         await logoutApi(refreshToken)
       }
     } catch (_) {
-      // ignore failures; we'll still clear local state
     } finally {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')

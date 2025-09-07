@@ -91,3 +91,51 @@ export async function deleteList(listId: number): Promise<void> {
 }
 
 
+export type MovieStatus = 'not_watched' | 'watching' | 'watched' | 'dropped'
+
+export interface GenreDTO {
+  id: number
+  name: string
+}
+
+export interface MovieDTO {
+  id: number
+  title: string
+  original_title?: string | null
+  original_lang?: string | null
+  overview?: string | null
+  release_date?: string | null
+  poster_path?: string | null
+  popularity?: number | null
+  media_type: 'movie' | 'tv'
+  seasons_count?: number | null
+  episodes_count?: number | null
+  series_status?: string | null
+  genres?: GenreDTO[]
+  poster_url?: string | null
+}
+
+export interface ListMovieItemDTO {
+  id: number
+  list_id: number
+  movie_id: number
+  status: MovieStatus
+  added_by?: number | null
+  added_at: string
+  watched_at?: string | null
+  updated_at: string
+  rating?: number | null
+  notes?: string | null
+  movie: MovieDTO
+}
+
+export async function getListMovies(listId: number): Promise<ListMovieItemDTO[]> {
+  const token = localStorage.getItem('access_token')
+  const res = await requestJson<{ movies: ListMovieItemDTO[]; count: number }>(`/api/lists/${listId}/movies`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+  if (res && Array.isArray(res.movies)) return res.movies
+  return []
+}
+

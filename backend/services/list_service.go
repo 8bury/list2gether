@@ -25,6 +25,7 @@ type ListService interface {
 	AddMediaToList(ctx context.Context, listID int64, userID int64, mediaID int64, mediaType string) (*models.ListMovie, *models.Movie, error)
 	RemoveMovieFromList(listID int64, userID int64, movieID int64) (*models.Movie, error)
 	UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, *models.Movie, *models.MovieStatus, *int, *string, error)
+	ListMovies(listID int64, userID int64) ([]models.ListMovie, error)
 }
 
 type listService struct {
@@ -501,4 +502,30 @@ func (s *listService) UpdateMovie(listID int64, userID int64, movieID int64, sta
 	}
 
 	return updatedListMovie, movie, oldStatus, oldRating, oldNotes, nil
+}
+
+func (s *listService) ListMovies(listID int64, userID int64) ([]models.ListMovie, error) {
+	if _, err := s.lists.FindByID(listID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrListNotFound
+		}
+		return nil, err
+	}
+
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrForbiddenMembership
+		}
+		return nil, err
+	}
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return nil, ErrForbiddenMembership
+	}
+
+	items, err := s.lists.FindListMoviesWithMovie(listID)
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
 }

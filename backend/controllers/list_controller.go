@@ -31,6 +31,7 @@ func NewListController(router *gin.Engine, service services.ListService, authMid
 	group.POST("/join", c.authMiddleware.Handler(), c.join)
 	group.DELETE("/:id", c.authMiddleware.Handler(), c.delete)
 	group.POST("/:id/movies", c.authMiddleware.Handler(), c.addMovie)
+	group.GET("/:id/movies", c.authMiddleware.Handler(), c.listMovies)
 	group.DELETE("/:id/movies/:movieId", c.authMiddleware.Handler(), c.removeMovie)
 	group.PATCH("/:id/movies/:movieId", c.authMiddleware.Handler(), c.updateMovie)
 	return c
@@ -661,5 +662,107 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 			"watched_at": updatedListMovie.WatchedAt,
 			"updated_at": updatedListMovie.UpdatedAt.Format(time.RFC3339),
 		},
+	})
+}
+
+func (c *ListController) listMovies(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	items, svcErr := c.service.ListMovies(listID, userID)
+	if svcErr != nil {
+		switch svcErr {
+		case services.ErrListNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "List not found",
+				"code":      "NOT_FOUND",
+				"details":   []string{"The specified list does not exist"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrForbiddenMembership:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Access denied",
+				"code":      "FORBIDDEN",
+				"details":   []string{"You are not a member of this list"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		default:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"error":     "Failed to fetch list movies",
+				"code":      "INTERNAL_ERROR",
+				"details":   []string{svcErr.Error()},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+	}
+
+	resp := make([]gin.H, 0, len(items))
+	for _, lm := range items {
+		movie := lm.Movie
+		posterURL := (*string)(nil)
+		if movie.PosterPath != nil && *movie.PosterPath != "" {
+			u := "https://image.tmdb.org/t/p/w500" + *movie.PosterPath
+			posterURL = &u
+		}
+		m := gin.H{
+			"id":             movie.ID,
+			"title":          movie.Title,
+			"original_title": movie.OriginalTitle,
+			"original_lang":  movie.OriginalLang,
+			"overview":       movie.Overview,
+			"release_date":   movie.ReleaseDate,
+			"poster_url":     posterURL,
+			"media_type":     movie.MediaType,
+			"seasons_count":  movie.SeasonsCount,
+			"episodes_count": movie.EpisodesCount,
+			"series_status":  movie.SeriesStatus,
+		}
+		if len(movie.Genres) > 0 {
+			genres := make([]gin.H, 0, len(movie.Genres))
+			for _, g := range movie.Genres {
+				genres = append(genres, gin.H{"id": g.ID, "name": g.Name})
+			}
+			m["genres"] = genres
+		}
+
+		item := gin.H{
+			"id":         lm.ID,
+			"list_id":    lm.ListID,
+			"movie_id":   lm.MovieID,
+			"status":     lm.Status,
+			"added_by":   lm.AddedBy,
+			"added_at":   lm.AddedAt,
+			"watched_at": lm.WatchedAt,
+			"updated_at": lm.UpdatedAt,
+			"rating":     lm.Rating,
+			"notes":      lm.Notes,
+			"movie":      m,
+		}
+		resp = append(resp, item)
+	}
+
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"movies": resp,
+		"count":  len(resp),
 	})
 }

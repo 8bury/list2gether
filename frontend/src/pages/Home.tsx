@@ -16,6 +16,7 @@ export default function HomePage() {
   const [inviteCode, setInviteCode] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<UserListDTO | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -79,7 +80,20 @@ export default function HomePage() {
     <div className="min-h-screen bg-black text-white">
       <Header />
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <h2 className="text-2xl font-semibold mb-4">Suas listas</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-semibold">Suas listas</h2>
+          <button
+            className="auth-button"
+            onClick={() => {
+              setError(null)
+              setCreateName('')
+              setCreateDescription('')
+              setShowCreateModal(true)
+            }}
+          >
+            Nova lista
+          </button>
+        </div>
         {loading && <div className="text-neutral-300">Carregando…</div>}
         {error && <div className="auth-error max-w-lg">{error}</div>}
         {!loading && !error && lists.length === 0 && (
@@ -180,7 +194,7 @@ export default function HomePage() {
                   <button onClick={() => handleCopy(list)} className="bg-white text-black rounded-lg px-3 py-2 border border-white text-sm">
                     {copiedId === list.id ? 'Copiado!' : 'Copiar código'}
                   </button>
-                  <button onClick={() => {}} className="border border-neutral-600 rounded-lg px-3 py-2 text-sm">
+                  <button onClick={() => navigate(`/list/${list.id}`)} className="border border-neutral-600 rounded-lg px-3 py-2 text-sm">
                     Entrar na lista
                   </button>
                   {list.your_role === 'owner' && (
@@ -196,6 +210,59 @@ export default function HomePage() {
             </li>
           ))}
         </ul>
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+              <h3 className="text-lg font-semibold mb-2">Criar nova lista</h3>
+              <div className="grid gap-3 mb-4">
+                <input
+                  className="auth-input"
+                  placeholder="Nome da lista"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                />
+                <input
+                  className="auth-input"
+                  placeholder="Descrição (opcional)"
+                  value={createDescription}
+                  onChange={(e) => setCreateDescription(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="border border-neutral-600 rounded-lg px-3 py-2 text-sm"
+                  onClick={() => setShowCreateModal(false)}
+                  disabled={creating}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="auth-button"
+                  disabled={creating || createName.trim().length === 0}
+                  onClick={async () => {
+                    if (!createName.trim()) return
+                    setCreating(true)
+                    try {
+                      await createList({ name: createName.trim(), description: createDescription.trim() || undefined })
+                      setCreateName('')
+                      setCreateDescription('')
+                      setShowCreateModal(false)
+                      const res = await getUserLists()
+                      setLists(res.lists)
+                    } catch (err) {
+                      const message = (err as any)?.payload?.error || (err as Error).message
+                      setError(message)
+                    } finally {
+                      setCreating(false)
+                    }
+                  }}
+                >
+                  {creating ? 'Criando…' : 'Criar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {confirmDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
             <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5">
