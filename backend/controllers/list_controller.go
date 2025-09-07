@@ -31,6 +31,8 @@ func NewListController(router *gin.Engine, service services.ListService, authMid
 	group.POST("/join", c.authMiddleware.Handler(), c.join)
 	group.DELETE("/:id", c.authMiddleware.Handler(), c.delete)
 	group.POST("/:id/movies", c.authMiddleware.Handler(), c.addMovie)
+	group.DELETE("/:id/movies/:movieId", c.authMiddleware.Handler(), c.removeMovie)
+	group.PATCH("/:id/movies/:movieId", c.authMiddleware.Handler(), c.updateMovie)
 	return c
 }
 
@@ -46,6 +48,12 @@ type joinListRequest struct {
 type addMovieRequest struct {
 	ID        string `json:"id"`
 	MediaType string `json:"media_type"`
+}
+
+type updateMovieRequest struct {
+	Status *string `json:"status"`
+	Rating *int    `json:"rating"`
+	Notes  *string `json:"notes"`
 }
 
 func (c *ListController) list(ctx *gin.Context) {
@@ -441,5 +449,217 @@ func (c *ListController) addMovie(ctx *gin.Context) {
 		"success": true,
 		"message": msg,
 		"data":    payload,
+	})
+}
+
+func (c *ListController) removeMovie(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	movieIdParam := ctx.Param("movieId")
+	movieID, err := strconv.ParseInt(movieIdParam, 10, 64)
+	if err != nil || movieID <= 0 {
+		respondValidationError(ctx, []string{"Invalid movie id"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	movie, err := c.service.RemoveMovieFromList(listID, userID, movieID)
+	if err != nil {
+		switch err {
+		case services.ErrListNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"success":   false,
+				"error":     "Lista não encontrada",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrForbiddenMembership:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"success":   false,
+				"error":     "Você não tem permissão para remover filmes desta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrMovieNotInList:
+			ctx.Header("Cache-Control", "no-store")
+			errorMsg := "Filme não encontrado nesta lista"
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"success":   false,
+				"error":     errorMsg,
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrCannotRemoveOthersMovie:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"success":   false,
+				"error":     "Você só pode remover filmes que você mesmo adicionou",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		default:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"success":   false,
+				"error":     "Failed to remove movie",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+	}
+
+	message := "Filme removido da lista com sucesso"
+	if movie.MediaType == "tv" {
+		message = "Série removida da lista com sucesso"
+	}
+
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": message,
+		"data": gin.H{
+			"list_id":    listID,
+			"movie_id":   movieID,
+			"removed_at": time.Now().UTC().Format(time.RFC3339),
+		},
+	})
+}
+
+func (c *ListController) updateMovie(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	movieIdParam := ctx.Param("movieId")
+	movieID, err := strconv.ParseInt(movieIdParam, 10, 64)
+	if err != nil || movieID <= 0 {
+		respondValidationError(ctx, []string{"Invalid movie id"})
+		return
+	}
+
+	var req updateMovieRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		respondValidationError(ctx, []string{"Invalid request body"})
+		return
+	}
+
+	// Validate that at least one field is provided
+	if req.Status == nil && req.Rating == nil && req.Notes == nil {
+		respondValidationError(ctx, []string{"Pelo menos um campo deve ser fornecido: status, rating ou notes"})
+		return
+	}
+
+	// Validate status if provided
+	var status *models.MovieStatus
+	if req.Status != nil {
+		if *req.Status == "" {
+			respondValidationError(ctx, []string{"Status não pode ser vazio"})
+			return
+		}
+		statusValue := models.MovieStatus(*req.Status)
+		if statusValue != models.StatusNotWatched && statusValue != models.StatusWatching &&
+			statusValue != models.StatusWatched && statusValue != models.StatusDropped {
+			respondValidationError(ctx, []string{"Status deve ser: not_watched, watching, watched ou dropped"})
+			return
+		}
+		status = &statusValue
+	}
+
+	// Validate rating if provided
+	if req.Rating != nil {
+		if *req.Rating < 1 || *req.Rating > 10 {
+			respondValidationError(ctx, []string{"Rating deve estar entre 1 e 10"})
+			return
+		}
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	updatedListMovie, movie, oldStatus, oldRating, oldNotes, err := c.service.UpdateMovie(listID, userID, movieID, status, req.Rating, req.Notes)
+	if err != nil {
+		switch err {
+		case services.ErrListNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"success":   false,
+				"error":     "Lista não encontrada",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrForbiddenMembership:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"success":   false,
+				"error":     "Você não tem permissão para modificar filmes desta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrMovieNotInList:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"success":   false,
+				"error":     "Filme não encontrado nesta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		default:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"success":   false,
+				"error":     "Failed to update movie status",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+	}
+
+	message := "Filme atualizado com sucesso"
+	if movie.MediaType == "tv" {
+		message = "Série atualizada com sucesso"
+	}
+
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": message,
+		"data": gin.H{
+			"list_id":    listID,
+			"movie_id":   movieID,
+			"title":      movie.Title,
+			"media_type": movie.MediaType,
+			"old_status": oldStatus,
+			"new_status": updatedListMovie.Status,
+			"old_rating": oldRating,
+			"new_rating": updatedListMovie.Rating,
+			"old_notes":  oldNotes,
+			"new_notes":  updatedListMovie.Notes,
+			"watched_at": updatedListMovie.WatchedAt,
+			"updated_at": updatedListMovie.UpdatedAt.Format(time.RFC3339),
+		},
 	})
 }

@@ -23,6 +23,8 @@ type ListService interface {
 	DeleteList(listID int64, userID int64) error
 	ListUserLists(userID int64, role *models.ListMemberRole, limit int, offset int) ([]models.ListMember, map[int64]int64, map[int64]int64, int64, error)
 	AddMediaToList(ctx context.Context, listID int64, userID int64, mediaID int64, mediaType string) (*models.ListMovie, *models.Movie, error)
+	RemoveMovieFromList(listID int64, userID int64, movieID int64) (*models.Movie, error)
+	UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, *models.Movie, *models.MovieStatus, *int, *string, error)
 }
 
 type listService struct {
@@ -183,11 +185,13 @@ func (s *listService) ListUserLists(userID int64, role *models.ListMemberRole, l
 }
 
 var (
-	ErrInvalidMediaType       = errors.New("invalid media_type")
-	ErrForbiddenMembership    = errors.New("forbidden")
-	ErrListMovieAlreadyExists = errors.New("list_movie_already_exists")
-	ErrListNotFound           = errors.New("list_not_found")
-	ErrMediaNotFound          = errors.New("media_not_found")
+	ErrInvalidMediaType        = errors.New("invalid media_type")
+	ErrForbiddenMembership     = errors.New("forbidden")
+	ErrListMovieAlreadyExists  = errors.New("list_movie_already_exists")
+	ErrListNotFound            = errors.New("list_not_found")
+	ErrMediaNotFound           = errors.New("media_not_found")
+	ErrMovieNotInList          = errors.New("movie_not_in_list")
+	ErrCannotRemoveOthersMovie = errors.New("cannot_remove_others_movie")
 )
 
 type tmdbMovieResponse struct {
@@ -404,4 +408,97 @@ func randomAlphaNum(n int) string {
 		}
 	}
 	return string(b)
+}
+
+func (s *listService) RemoveMovieFromList(listID int64, userID int64, movieID int64) (*models.Movie, error) {
+	_, err := s.lists.FindByID(listID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrListNotFound
+		}
+		return nil, err
+	}
+
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrForbiddenMembership
+		}
+		return nil, err
+	}
+
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return nil, ErrForbiddenMembership
+	}
+
+	listMovie, err := s.lists.FindListMovieByListAndMovie(listID, movieID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrMovieNotInList
+		}
+		return nil, err
+	}
+
+	if membership.Role == models.RoleParticipant {
+		if listMovie.AddedBy == nil || *listMovie.AddedBy != userID {
+			return nil, ErrCannotRemoveOthersMovie
+		}
+	}
+
+	movie, err := s.movies.FindByID(movieID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.lists.RemoveMovieFromList(listID, movieID); err != nil {
+		return nil, err
+	}
+
+	return movie, nil
+}
+
+func (s *listService) UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, *models.Movie, *models.MovieStatus, *int, *string, error) {
+	_, err := s.lists.FindByID(listID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, nil, nil, nil, ErrListNotFound
+		}
+		return nil, nil, nil, nil, nil, err
+	}
+
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, nil, nil, nil, ErrForbiddenMembership
+		}
+		return nil, nil, nil, nil, nil, err
+	}
+
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return nil, nil, nil, nil, nil, ErrForbiddenMembership
+	}
+
+	existingListMovie, err := s.lists.FindListMovieByListAndMovie(listID, movieID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, nil, nil, nil, ErrMovieNotInList
+		}
+		return nil, nil, nil, nil, nil, err
+	}
+
+	oldStatus := &existingListMovie.Status
+	oldRating := existingListMovie.Rating
+	oldNotes := existingListMovie.Notes
+
+	updatedListMovie, err := s.lists.UpdateMovie(listID, movieID, status, rating, notes)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	movie, err := s.movies.FindByID(movieID)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	return updatedListMovie, movie, oldStatus, oldRating, oldNotes, nil
 }

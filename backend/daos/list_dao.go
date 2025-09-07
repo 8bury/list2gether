@@ -1,6 +1,8 @@
 package daos
 
 import (
+	"time"
+
 	"github.com/8bury/list2gether/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -22,6 +24,9 @@ type MovieListDAO interface {
 	CountMoviesBatch(listIDs []int64) (map[int64]int64, error)
 	ListMovieExists(listID, movieID int64) (bool, error)
 	AddMovieToList(listID, movieID int64, addedBy *int64) (*models.ListMovie, error)
+	FindListMovieByListAndMovie(listID, movieID int64) (*models.ListMovie, error)
+	RemoveMovieFromList(listID, movieID int64) error
+	UpdateMovie(listID, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, error)
 }
 
 type movieListDAO struct {
@@ -228,4 +233,55 @@ func (d *movieListDAO) AddMovieToList(listID, movieID int64, addedBy *int64) (*m
 		return nil, err
 	}
 	return rec, nil
+}
+
+func (d *movieListDAO) FindListMovieByListAndMovie(listID, movieID int64) (*models.ListMovie, error) {
+	var listMovie models.ListMovie
+	if err := d.db.Where("list_id = ? AND movie_id = ?", listID, movieID).First(&listMovie).Error; err != nil {
+		return nil, err
+	}
+	return &listMovie, nil
+}
+
+func (d *movieListDAO) RemoveMovieFromList(listID, movieID int64) error {
+	return d.db.Where("list_id = ? AND movie_id = ?", listID, movieID).Delete(&models.ListMovie{}).Error
+}
+
+func (d *movieListDAO) UpdateMovie(listID, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, error) {
+	var listMovie models.ListMovie
+
+	updates := map[string]interface{}{}
+
+	// Update status if provided
+	if status != nil {
+		updates["status"] = *status
+		if *status == models.StatusWatched {
+			now := time.Now()
+			updates["watched_at"] = &now
+		} else {
+			updates["watched_at"] = nil
+		}
+	}
+
+	// Update rating if provided
+	if rating != nil {
+		updates["rating"] = *rating
+	}
+
+	// Update notes if provided
+	if notes != nil {
+		updates["notes"] = *notes
+	}
+
+	if err := d.db.Model(&listMovie).
+		Where("list_id = ? AND movie_id = ?", listID, movieID).
+		Updates(updates).Error; err != nil {
+		return nil, err
+	}
+
+	if err := d.db.Where("list_id = ? AND movie_id = ?", listID, movieID).First(&listMovie).Error; err != nil {
+		return nil, err
+	}
+
+	return &listMovie, nil
 }

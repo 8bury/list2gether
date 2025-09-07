@@ -8,6 +8,7 @@ import (
 
 type MovieDAO interface {
 	FindByIDAndType(id int64, mediaType string) (*models.Movie, error)
+	FindByID(id int64) (*models.Movie, error)
 	CreateMovieWithGenres(movie *models.Movie, genres []models.Genre) error
 }
 
@@ -22,6 +23,14 @@ func NewMovieDAO(db *gorm.DB) MovieDAO {
 func (d *movieDAO) FindByIDAndType(id int64, mediaType string) (*models.Movie, error) {
 	var m models.Movie
 	if err := d.db.Where("id = ? AND media_type = ?", id, mediaType).First(&m).Error; err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+func (d *movieDAO) FindByID(id int64) (*models.Movie, error) {
+	var m models.Movie
+	if err := d.db.Where("id = ?", id).First(&m).Error; err != nil {
 		return nil, err
 	}
 	return &m, nil
