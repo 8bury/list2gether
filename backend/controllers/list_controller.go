@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/8bury/list2gether/middleware"
+	"github.com/8bury/list2gether/models"
 	"github.com/8bury/list2gether/services"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -25,6 +27,7 @@ func NewListController(router *gin.Engine, service services.ListService, authMid
 	c := &ListController{service: service, authMiddleware: authMiddleware}
 	group := router.Group("/api/lists")
 	group.POST("", c.authMiddleware.Handler(), c.create)
+	group.GET("", c.authMiddleware.Handler(), c.list)
 	group.POST("/join", c.authMiddleware.Handler(), c.join)
 	group.DELETE("/:id", c.authMiddleware.Handler(), c.delete)
 	return c
@@ -37,6 +40,88 @@ type createListRequest struct {
 
 type joinListRequest struct {
 	InviteCode string `json:"invite_code"`
+}
+
+func (c *ListController) list(ctx *gin.Context) {
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	var roleFilter *models.ListMemberRole
+	roleParam := ctx.Query("role")
+	if roleParam != "" {
+		rp := strings.ToLower(strings.TrimSpace(roleParam))
+		if rp != string(models.RoleOwner) && rp != string(models.RoleParticipant) {
+			respondValidationError(ctx, []string{"role must be 'owner' or 'participant'"})
+			return
+		}
+		r := models.ListMemberRole(rp)
+		roleFilter = &r
+	}
+
+	limit := 50
+	offset := 0
+	if v := ctx.Query("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			if n < 1 {
+				n = 1
+			}
+			if n > 100 {
+				n = 100
+			}
+			limit = n
+		}
+	}
+	if v := ctx.Query("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	memberships, memberCounts, movieCounts, total, err := c.service.ListUserLists(userID, roleFilter, limit, offset)
+	if err != nil {
+		ctx.Header("Cache-Control", "no-store")
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error":     "Failed to fetch lists",
+			"code":      "INTERNAL_ERROR",
+			"details":   []string{err.Error()},
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	lists := make([]gin.H, 0, len(memberships))
+	for _, m := range memberships {
+		l := m.List
+		lists = append(lists, gin.H{
+			"id":           l.ID,
+			"name":         l.Name,
+			"description":  l.Description,
+			"invite_code":  l.InviteCode,
+			"your_role":    m.Role,
+			"created_at":   l.CreatedAt,
+			"updated_at":   l.UpdatedAt,
+			"member_count": memberCounts[l.ID],
+			"movie_count":  movieCounts[l.ID],
+		})
+	}
+
+	hasMore := offset+len(lists) < int(total)
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"lists": lists,
+		"pagination": gin.H{
+			"total":    total,
+			"limit":    limit,
+			"offset":   offset,
+			"has_more": hasMore,
+		},
+	})
 }
 
 func (c *ListController) create(ctx *gin.Context) {

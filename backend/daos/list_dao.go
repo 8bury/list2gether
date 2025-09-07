@@ -16,6 +16,10 @@ type MovieListDAO interface {
 	CountMembers(listID int64) (int64, error)
 	FindByID(id int64) (*models.MovieList, error)
 	DeleteListCascadeIfOwner(listID, userID int64) error
+	FindUserMemberships(userID int64, role *models.ListMemberRole, limit int, offset int) ([]models.ListMember, error)
+	CountUserMemberships(userID int64, role *models.ListMemberRole) (int64, error)
+	CountMembersBatch(listIDs []int64) (map[int64]int64, error)
+	CountMoviesBatch(listIDs []int64) (map[int64]int64, error)
 }
 
 type movieListDAO struct {
@@ -124,4 +128,84 @@ func (d *movieListDAO) DeleteListCascadeIfOwner(listID, userID int64) error {
 		}
 		return nil
 	})
+}
+
+func (d *movieListDAO) FindUserMemberships(userID int64, role *models.ListMemberRole, limit int, offset int) ([]models.ListMember, error) {
+	var memberships []models.ListMember
+	q := d.db.Model(&models.ListMember{}).
+		Joins("JOIN movie_lists ON movie_lists.id = list_members.list_id").
+		Where("list_members.user_id = ?", userID).
+		Order("movie_lists.created_at DESC").
+		Preload("List")
+	if role != nil {
+		q = q.Where("list_members.role = ?", string(*role))
+	}
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	if offset > 0 {
+		q = q.Offset(offset)
+	}
+	if err := q.Find(&memberships).Error; err != nil {
+		return nil, err
+	}
+	return memberships, nil
+}
+
+func (d *movieListDAO) CountUserMemberships(userID int64, role *models.ListMemberRole) (int64, error) {
+	var total int64
+	q := d.db.Model(&models.ListMember{}).Where("user_id = ?", userID)
+	if role != nil {
+		q = q.Where("role = ?", string(*role))
+	}
+	if err := q.Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func (d *movieListDAO) CountMembersBatch(listIDs []int64) (map[int64]int64, error) {
+	result := make(map[int64]int64)
+	if len(listIDs) == 0 {
+		return result, nil
+	}
+	type row struct {
+		ListID int64
+		Cnt    int64
+	}
+	var rows []row
+	if err := d.db.Model(&models.ListMember{}).
+		Select("list_id AS list_id, COUNT(*) AS cnt").
+		Where("list_id IN ?", listIDs).
+		Group("list_id").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		result[r.ListID] = r.Cnt
+	}
+	return result, nil
+}
+
+func (d *movieListDAO) CountMoviesBatch(listIDs []int64) (map[int64]int64, error) {
+	result := make(map[int64]int64)
+	if len(listIDs) == 0 {
+		return result, nil
+	}
+	type row struct {
+		ListID int64
+		Cnt    int64
+	}
+	var rows []row
+	if err := d.db.Model(&models.ListMovie{}).
+		Select("list_id AS list_id, COUNT(*) AS cnt").
+		Where("list_id IN ?", listIDs).
+		Group("list_id").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		result[r.ListID] = r.Cnt
+	}
+	return result, nil
 }

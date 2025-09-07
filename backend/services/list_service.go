@@ -16,6 +16,7 @@ type ListService interface {
 	CreateList(name string, description *string, createdBy int64) (*models.MovieList, error)
 	JoinListByInviteCode(inviteCode string, userID int64) (*models.MovieList, models.ListMemberRole, bool, int64, error)
 	DeleteList(listID int64, userID int64) error
+	ListUserLists(userID int64, role *models.ListMemberRole, limit int, offset int) ([]models.ListMember, map[int64]int64, map[int64]int64, int64, error)
 }
 
 type listService struct {
@@ -142,6 +143,34 @@ func (s *listService) DeleteList(listID int64, userID int64) error {
 		return err
 	}
 	return nil
+}
+
+func (s *listService) ListUserLists(userID int64, role *models.ListMemberRole, limit int, offset int) ([]models.ListMember, map[int64]int64, map[int64]int64, int64, error) {
+	memberships, err := s.lists.FindUserMemberships(userID, role, limit, offset)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+
+	listIDs := make([]int64, 0, len(memberships))
+	for _, m := range memberships {
+		listIDs = append(listIDs, m.ListID)
+	}
+
+	memberCounts, err := s.lists.CountMembersBatch(listIDs)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	movieCounts, err := s.lists.CountMoviesBatch(listIDs)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+
+	total, err := s.lists.CountUserMemberships(userID, role)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+
+	return memberships, memberCounts, movieCounts, total, nil
 }
 
 func (s *listService) generateUniqueInviteCode() (string, error) {
