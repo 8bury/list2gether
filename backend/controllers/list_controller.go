@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"errors"
+	"log"
+	"sync"
 
 	"github.com/8bury/list2gether/middleware"
 	"github.com/8bury/list2gether/services"
@@ -24,6 +26,7 @@ func NewListController(router *gin.Engine, service services.ListService, authMid
 	group := router.Group("/api/lists")
 	group.POST("", c.authMiddleware.Handler(), c.create)
 	group.POST("/join", c.authMiddleware.Handler(), c.join)
+	group.DELETE("/:id", c.authMiddleware.Handler(), c.delete)
 	return c
 }
 
@@ -150,4 +153,94 @@ func (c *ListController) join(ctx *gin.Context) {
 		"list":      payloadList,
 		"your_role": role,
 	})
+}
+
+var deleteLimiter = struct {
+	mu   sync.Mutex
+	data map[int64][]time.Time
+}{data: make(map[int64][]time.Time)}
+
+func allowDelete(userID int64) bool {
+	window := time.Minute
+	limit := 3
+	deleteLimiter.mu.Lock()
+	defer deleteLimiter.mu.Unlock()
+	now := time.Now()
+	arr := deleteLimiter.data[userID]
+	filtered := make([]time.Time, 0, len(arr))
+	for _, t := range arr {
+		if now.Sub(t) <= window {
+			filtered = append(filtered, t)
+		}
+	}
+	if len(filtered) >= limit {
+		deleteLimiter.data[userID] = filtered
+		return false
+	}
+	filtered = append(filtered, now)
+	deleteLimiter.data[userID] = filtered
+	return true
+}
+
+func (c *ListController) delete(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	if !allowDelete(userID) {
+		ctx.Header("Cache-Control", "no-store")
+		ctx.JSON(http.StatusTooManyRequests, gin.H{
+			"error":     "Rate limited",
+			"code":      "RATE_LIMITED",
+			"details":   []string{"Too many delete attempts"},
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	log.Printf("delete_list attempt user_id=%d list_id=%d", userID, listID)
+	if err := c.service.DeleteList(listID, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "List not found",
+				"code":      "NOT_FOUND",
+				"details":   []string{"The specified list does not exist"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+		if errors.Is(err, services.ErrAccessDenied) {
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Access denied",
+				"code":      "FORBIDDEN",
+				"details":   []string{"Only the list owner can delete this list"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+		ctx.Header("Cache-Control", "no-store")
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error":     "Failed to delete list",
+			"code":      "INTERNAL_ERROR",
+			"details":   []string{err.Error()},
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+	log.Printf("delete_list success user_id=%d list_id=%d", userID, listID)
+	ctx.Status(http.StatusNoContent)
 }

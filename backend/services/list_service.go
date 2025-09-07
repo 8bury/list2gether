@@ -15,6 +15,7 @@ import (
 type ListService interface {
 	CreateList(name string, description *string, createdBy int64) (*models.MovieList, error)
 	JoinListByInviteCode(inviteCode string, userID int64) (*models.MovieList, models.ListMemberRole, bool, int64, error)
+	DeleteList(listID int64, userID int64) error
 }
 
 type listService struct {
@@ -69,6 +70,7 @@ func (s *listService) CreateList(name string, description *string, createdBy int
 }
 
 var ErrInvalidInviteCodeFormat = errors.New("invite code must be 10 alphanumeric characters")
+var ErrAccessDenied = errors.New("access denied: only the list owner can delete this list")
 
 func (s *listService) JoinListByInviteCode(inviteCode string, userID int64) (*models.MovieList, models.ListMemberRole, bool, int64, error) {
 	code := strings.ToUpper(strings.TrimSpace(inviteCode))
@@ -119,6 +121,27 @@ func (s *listService) JoinListByInviteCode(inviteCode string, userID int64) (*mo
 	}
 
 	return list, role, alreadyMember, count, nil
+}
+
+func (s *listService) DeleteList(listID int64, userID int64) error {
+	_, err := s.lists.FindByID(listID)
+	if err != nil {
+		return err
+	}
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		return err
+	}
+	if membership.Role != models.RoleOwner {
+		return ErrAccessDenied
+	}
+	if err := s.lists.DeleteListCascadeIfOwner(listID, userID); err != nil {
+		if errors.Is(err, gorm.ErrInvalidData) {
+			return ErrAccessDenied
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *listService) generateUniqueInviteCode() (string, error) {

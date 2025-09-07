@@ -14,6 +14,8 @@ type MovieListDAO interface {
 	FindMembership(listID, userID int64) (*models.ListMember, error)
 	AddParticipantIfNotExists(listID, userID int64) (bool, error)
 	CountMembers(listID int64) (int64, error)
+	FindByID(id int64) (*models.MovieList, error)
+	DeleteListCascadeIfOwner(listID, userID int64) error
 }
 
 type movieListDAO struct {
@@ -91,4 +93,35 @@ func (d *movieListDAO) CountMembers(listID int64) (int64, error) {
 		return 0, err
 	}
 	return count, nil
+}
+
+func (d *movieListDAO) FindByID(id int64) (*models.MovieList, error) {
+	var list models.MovieList
+	if err := d.db.First(&list, id).Error; err != nil {
+		return nil, err
+	}
+	return &list, nil
+}
+
+func (d *movieListDAO) DeleteListCascadeIfOwner(listID, userID int64) error {
+	return d.db.Transaction(func(tx *gorm.DB) error {
+		var membership models.ListMember
+		if err := tx.Where("list_id = ? AND user_id = ?", listID, userID).First(&membership).Error; err != nil {
+			return err
+		}
+		if membership.Role != models.RoleOwner {
+			return gorm.ErrInvalidData
+		}
+
+		if err := tx.Where("list_id = ?", listID).Delete(&models.ListMovie{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("list_id = ?", listID).Delete(&models.ListMember{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("id = ?", listID).Delete(&models.MovieList{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
