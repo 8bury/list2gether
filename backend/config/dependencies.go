@@ -1,11 +1,20 @@
 package config
 
 import (
+	"github.com/8bury/list2gether/controllers"
+	"github.com/8bury/list2gether/daos"
+	"github.com/8bury/list2gether/middleware"
+	"github.com/8bury/list2gether/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-var ()
+var (
+	userDAO         daos.UserDAO
+	refreshTokenDAO daos.RefreshTokenDAO
+	authService     services.AuthService
+	authMiddleware  *middleware.AuthMiddleware
+)
 
 func InitializeDependencies(router *gin.Engine) {
 	db := connectDatabase()
@@ -15,15 +24,15 @@ func InitializeDependencies(router *gin.Engine) {
 }
 
 func initializeDaos(db *gorm.DB) {
-	//ImdbDAO = daos.NewImdbDAO(db)
-	//MovieDAO = daos.NewMovieDAO(db)
+	userDAO = daos.NewUserDAO(db)
+	refreshTokenDAO = daos.NewRefreshTokenDAO(db)
 }
 
 func initializeServices() {
-	//ImdbService = services.NewImdbService(ImdbDAO)
-	//MovieService = services.NewMovieService(MovieDAO, ImdbService)
+	authService = services.NewAuthService(userDAO, refreshTokenDAO)
+	authMiddleware = middleware.NewAuthMiddleware(authService.JWTSecret())
 }
 
 func initializeControllers(router *gin.Engine) {
-	//MovieController = controllers.NewMovieController(router, MovieService)
+	controllers.NewAuthController(router, authService, authMiddleware)
 }
