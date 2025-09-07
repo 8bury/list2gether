@@ -30,6 +30,7 @@ func NewListController(router *gin.Engine, service services.ListService, authMid
 	group.GET("", c.authMiddleware.Handler(), c.list)
 	group.POST("/join", c.authMiddleware.Handler(), c.join)
 	group.DELETE("/:id", c.authMiddleware.Handler(), c.delete)
+	group.POST("/:id/movies", c.authMiddleware.Handler(), c.addMovie)
 	return c
 }
 
@@ -40,6 +41,11 @@ type createListRequest struct {
 
 type joinListRequest struct {
 	InviteCode string `json:"invite_code"`
+}
+
+type addMovieRequest struct {
+	ID        string `json:"id"`
+	MediaType string `json:"media_type"`
 }
 
 func (c *ListController) list(ctx *gin.Context) {
@@ -328,4 +334,112 @@ func (c *ListController) delete(ctx *gin.Context) {
 	}
 	log.Printf("delete_list success user_id=%d list_id=%d", userID, listID)
 	ctx.Status(http.StatusNoContent)
+}
+
+func (c *ListController) addMovie(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+	var req addMovieRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		respondValidationError(ctx, []string{"Invalid request body"})
+		return
+	}
+	req.MediaType = strings.ToLower(strings.TrimSpace(req.MediaType))
+	if req.ID == "" || (req.MediaType != "movie" && req.MediaType != "tv") {
+		respondValidationError(ctx, []string{"ID and media_type are required; media_type must be 'movie' or 'tv'"})
+		return
+	}
+	mediaID, err := strconv.ParseInt(strings.TrimSpace(req.ID), 10, 64)
+	if err != nil || mediaID <= 0 {
+		respondValidationError(ctx, []string{"Invalid TMDB id"})
+		return
+	}
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+	lm, movie, svcErr := c.service.AddMediaToList(ctx, listID, userID, mediaID, req.MediaType)
+	if svcErr != nil {
+		switch svcErr {
+		case services.ErrInvalidMediaType:
+			respondValidationError(ctx, []string{"media_type must be 'movie' or 'tv'"})
+			return
+		case services.ErrListNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "List not found", "code": "NOT_FOUND", "details": []string{"The specified list does not exist"}, "timestamp": time.Now().UTC().Format(time.RFC3339)})
+			return
+		case services.ErrListMovieAlreadyExists:
+			ctx.Header("Cache-Control", "no-store")
+			msg := "Este título já está presente nesta lista"
+			if req.MediaType == "movie" {
+				msg = "Este filme já está presente nesta lista"
+			} else if req.MediaType == "tv" {
+				msg = "Esta série já está presente nesta lista"
+			}
+			ctx.JSON(http.StatusConflict, gin.H{"error": msg, "code": "CONFLICT", "details": []string{}, "timestamp": time.Now().UTC().Format(time.RFC3339)})
+			return
+		case services.ErrMediaNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			msg := "Mídia não encontrada na base do TMDB"
+			if req.MediaType == "movie" {
+				msg = "Filme não encontrado na base do TMDB"
+			} else if req.MediaType == "tv" {
+				msg = "Série não encontrada na base do TMDB"
+			}
+			ctx.JSON(http.StatusNotFound, gin.H{"error": msg, "code": "NOT_FOUND", "details": []string{}, "timestamp": time.Now().UTC().Format(time.RFC3339)})
+			return
+		default:
+			if svcErr == services.ErrTMDBUnavailable {
+				ctx.Header("Cache-Control", "no-store")
+				ctx.JSON(http.StatusBadGateway, gin.H{"error": "Erro na consulta externa", "code": "BAD_GATEWAY", "details": []string{svcErr.Error()}, "timestamp": time.Now().UTC().Format(time.RFC3339)})
+				return
+			}
+			if errors.Is(svcErr, gorm.ErrRecordNotFound) {
+				ctx.Header("Cache-Control", "no-store")
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "List not found", "code": "NOT_FOUND", "details": []string{"The specified list does not exist"}, "timestamp": time.Now().UTC().Format(time.RFC3339)})
+				return
+			}
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add media", "code": "INTERNAL_ERROR", "details": []string{svcErr.Error()}, "timestamp": time.Now().UTC().Format(time.RFC3339)})
+			return
+		}
+	}
+	posterURL := (*string)(nil)
+	if movie.PosterPath != nil && *movie.PosterPath != "" {
+		u := "https://image.tmdb.org/t/p/w500" + *movie.PosterPath
+		posterURL = &u
+	}
+	addedBy := gin.H{"id": userID}
+	ctx.Header("Cache-Control", "no-store")
+	payload := gin.H{
+		"id":             movie.ID,
+		"title":          movie.Title,
+		"original_title": movie.OriginalTitle,
+		"media_type":     movie.MediaType,
+		"poster_url":     posterURL,
+		"release_date":   movie.ReleaseDate,
+		"status":         lm.Status,
+		"added_at":       lm.AddedAt,
+		"added_by":       addedBy,
+	}
+	msg := "Filme adicionado à lista com sucesso"
+	if movie.MediaType == "tv" {
+		payload["seasons_count"] = movie.SeasonsCount
+		payload["episodes_count"] = movie.EpisodesCount
+		payload["series_status"] = movie.SeriesStatus
+		msg = "Série adicionada à lista com sucesso"
+	}
+	ctx.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": msg,
+		"data":    payload,
+	})
 }

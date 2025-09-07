@@ -20,6 +20,8 @@ type MovieListDAO interface {
 	CountUserMemberships(userID int64, role *models.ListMemberRole) (int64, error)
 	CountMembersBatch(listIDs []int64) (map[int64]int64, error)
 	CountMoviesBatch(listIDs []int64) (map[int64]int64, error)
+	ListMovieExists(listID, movieID int64) (bool, error)
+	AddMovieToList(listID, movieID int64, addedBy *int64) (*models.ListMovie, error)
 }
 
 type movieListDAO struct {
@@ -208,4 +210,22 @@ func (d *movieListDAO) CountMoviesBatch(listIDs []int64) (map[int64]int64, error
 		result[r.ListID] = r.Cnt
 	}
 	return result, nil
+}
+
+func (d *movieListDAO) ListMovieExists(listID, movieID int64) (bool, error) {
+	var count int64
+	if err := d.db.Model(&models.ListMovie{}).
+		Where("list_id = ? AND movie_id = ?", listID, movieID).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (d *movieListDAO) AddMovieToList(listID, movieID int64, addedBy *int64) (*models.ListMovie, error) {
+	rec := &models.ListMovie{ListID: listID, MovieID: movieID, AddedBy: addedBy}
+	if err := d.db.Create(rec).Error; err != nil {
+		return nil, err
+	}
+	return rec, nil
 }

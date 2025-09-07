@@ -1,10 +1,15 @@
 package services
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/8bury/list2gether/daos"
 	"github.com/8bury/list2gether/models"
@@ -17,14 +22,18 @@ type ListService interface {
 	JoinListByInviteCode(inviteCode string, userID int64) (*models.MovieList, models.ListMemberRole, bool, int64, error)
 	DeleteList(listID int64, userID int64) error
 	ListUserLists(userID int64, role *models.ListMemberRole, limit int, offset int) ([]models.ListMember, map[int64]int64, map[int64]int64, int64, error)
+	AddMediaToList(ctx context.Context, listID int64, userID int64, mediaID int64, mediaType string) (*models.ListMovie, *models.Movie, error)
 }
 
 type listService struct {
-	lists daos.MovieListDAO
+	lists      daos.MovieListDAO
+	movies     daos.MovieDAO
+	httpClient *http.Client
+	tmdbToken  string
 }
 
-func NewListService(lists daos.MovieListDAO) ListService {
-	return &listService{lists: lists}
+func NewListService(lists daos.MovieListDAO, movies daos.MovieDAO, tmdbToken string) ListService {
+	return &listService{lists: lists, movies: movies, httpClient: &http.Client{Timeout: 5 * time.Second}, tmdbToken: tmdbToken}
 }
 
 func (s *listService) CreateList(name string, description *string, createdBy int64) (*models.MovieList, error) {
@@ -171,6 +180,194 @@ func (s *listService) ListUserLists(userID int64, role *models.ListMemberRole, l
 	}
 
 	return memberships, memberCounts, movieCounts, total, nil
+}
+
+var (
+	ErrInvalidMediaType       = errors.New("invalid media_type")
+	ErrForbiddenMembership    = errors.New("forbidden")
+	ErrListMovieAlreadyExists = errors.New("list_movie_already_exists")
+	ErrListNotFound           = errors.New("list_not_found")
+	ErrMediaNotFound          = errors.New("media_not_found")
+)
+
+type tmdbMovieResponse struct {
+	ID               int64    `json:"id"`
+	Title            string   `json:"title"`
+	OriginalTitle    string   `json:"original_title"`
+	OriginalLanguage string   `json:"original_language"`
+	Overview         string   `json:"overview"`
+	ReleaseDate      string   `json:"release_date"`
+	PosterPath       *string  `json:"poster_path"`
+	Popularity       *float64 `json:"popularity"`
+	Genres           []struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+	} `json:"genres"`
+}
+
+type tmdbTVResponse struct {
+	ID               int64    `json:"id"`
+	Name             string   `json:"name"`
+	OriginalName     string   `json:"original_name"`
+	OriginalLanguage string   `json:"original_language"`
+	Overview         string   `json:"overview"`
+	FirstAirDate     string   `json:"first_air_date"`
+	PosterPath       *string  `json:"poster_path"`
+	Popularity       *float64 `json:"popularity"`
+	NumberOfSeasons  *int     `json:"number_of_seasons"`
+	NumberOfEpisodes *int     `json:"number_of_episodes"`
+	Status           *string  `json:"status"`
+	Genres           []struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+	} `json:"genres"`
+}
+
+func (s *listService) AddMediaToList(ctx context.Context, listID int64, userID int64, mediaID int64, mediaType string) (*models.ListMovie, *models.Movie, error) {
+	if mediaType != "movie" && mediaType != "tv" {
+		return nil, nil, ErrInvalidMediaType
+	}
+	if _, err := s.lists.FindByID(listID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, ErrListNotFound
+		}
+		return nil, nil, err
+	}
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return nil, nil, ErrForbiddenMembership
+	}
+
+	existingMovie, err := s.movies.FindByIDAndType(mediaID, mediaType)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil, err
+	}
+
+	var movie *models.Movie
+	if existingMovie != nil {
+		movie = existingMovie
+	} else {
+		var fetchErr error
+		movie, fetchErr = s.fetchAndStoreFromTMDB(ctx, mediaID, mediaType)
+		if fetchErr != nil {
+			if errors.Is(fetchErr, gorm.ErrRecordNotFound) {
+				return nil, nil, ErrMediaNotFound
+			}
+			return nil, nil, fetchErr
+		}
+	}
+
+	exists, err := s.lists.ListMovieExists(listID, movie.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if exists {
+		return nil, movie, ErrListMovieAlreadyExists
+	}
+	lm, err := s.lists.AddMovieToList(listID, movie.ID, &userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return lm, movie, nil
+}
+
+func (s *listService) fetchAndStoreFromTMDB(ctx context.Context, id int64, mediaType string) (*models.Movie, error) {
+	var url string
+	if mediaType == "movie" {
+		url = fmt.Sprintf("https://api.themoviedb.org/3/movie/%d?language=pt-BR", id)
+	} else {
+		url = fmt.Sprintf("https://api.themoviedb.org/3/tv/%d?language=pt-BR", id)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if s.tmdbToken != "" {
+		req.Header.Set("Authorization", "Bearer "+s.tmdbToken)
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, gorm.ErrRecordNotFound
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden || resp.StatusCode >= 500 {
+		return nil, ErrTMDBUnavailable
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, ErrTMDBUnavailable
+	}
+
+	if mediaType == "movie" {
+		var m tmdbMovieResponse
+		if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
+			return nil, err
+		}
+		var release *time.Time
+		if m.ReleaseDate != "" {
+			if t, err := time.Parse("2006-01-02", m.ReleaseDate); err == nil {
+				release = &t
+			}
+		}
+		movie := &models.Movie{
+			ID:            m.ID,
+			Title:         m.Title,
+			MediaType:     "movie",
+			OriginalTitle: func() *string { v := m.OriginalTitle; return &v }(),
+			OriginalLang:  func() *string { v := m.OriginalLanguage; return &v }(),
+			Overview:      func() *string { v := m.Overview; return &v }(),
+			ReleaseDate:   release,
+			PosterPath:    m.PosterPath,
+			Popularity:    m.Popularity,
+		}
+		genres := make([]models.Genre, 0, len(m.Genres))
+		for _, g := range m.Genres {
+			genres = append(genres, models.Genre{ID: g.ID, Name: g.Name})
+		}
+		if err := s.movies.CreateMovieWithGenres(movie, genres); err != nil {
+			return nil, err
+		}
+		return movie, nil
+	}
+
+	var tv tmdbTVResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tv); err != nil {
+		return nil, err
+	}
+	var release *time.Time
+	if tv.FirstAirDate != "" {
+		if t, err := time.Parse("2006-01-02", tv.FirstAirDate); err == nil {
+			release = &t
+		}
+	}
+	movie := &models.Movie{
+		ID:            tv.ID,
+		Title:         tv.Name,
+		MediaType:     "tv",
+		OriginalTitle: func() *string { v := tv.OriginalName; return &v }(),
+		OriginalLang:  func() *string { v := tv.OriginalLanguage; return &v }(),
+		Overview:      func() *string { v := tv.Overview; return &v }(),
+		ReleaseDate:   release,
+		PosterPath:    tv.PosterPath,
+		Popularity:    tv.Popularity,
+		SeasonsCount:  tv.NumberOfSeasons,
+		EpisodesCount: tv.NumberOfEpisodes,
+		SeriesStatus:  tv.Status,
+	}
+	genres := make([]models.Genre, 0, len(tv.Genres))
+	for _, g := range tv.Genres {
+		genres = append(genres, models.Genre{ID: g.ID, Name: g.Name})
+	}
+	if err := s.movies.CreateMovieWithGenres(movie, genres); err != nil {
+		return nil, err
+	}
+	return movie, nil
 }
 
 func (s *listService) generateUniqueInviteCode() (string, error) {

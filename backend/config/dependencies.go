@@ -15,6 +15,7 @@ var (
 	userDAO         daos.UserDAO
 	refreshTokenDAO daos.RefreshTokenDAO
 	movieListDAO    daos.MovieListDAO
+	movieDAO        daos.MovieDAO
 	authService     services.AuthService
 	listService     services.ListService
 	searchService   services.SearchService
@@ -32,11 +33,12 @@ func initializeDaos(db *gorm.DB) {
 	userDAO = daos.NewUserDAO(db)
 	refreshTokenDAO = daos.NewRefreshTokenDAO(db)
 	movieListDAO = daos.NewMovieListDAO(db)
+	movieDAO = daos.NewMovieDAO(db)
 }
 
 func initializeServices() {
 	authService = services.NewAuthService(userDAO, refreshTokenDAO)
-	listService = services.NewListService(movieListDAO)
+	listService = services.NewListService(movieListDAO, movieDAO, os.Getenv("TMDB_API_TOKEN"))
 	searchService = services.NewSearchService(os.Getenv("TMDB_API_TOKEN"))
 	authMiddleware = middleware.NewAuthMiddleware(authService.JWTSecret())
 }

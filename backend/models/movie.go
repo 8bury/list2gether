@@ -14,6 +14,11 @@ type Movie struct {
 	PosterPath    *string    `gorm:"type:text;column:poster_path" json:"poster_path"`
 	Popularity    *float64   `gorm:"type:numeric;column:popularity" json:"popularity"`
 
+	MediaType     string  `gorm:"type:enum('movie','tv');not null;default:'movie';column:media_type" json:"media_type"`
+	SeasonsCount  *int    `gorm:"column:seasons_count" json:"seasons_count"`
+	EpisodesCount *int    `gorm:"column:episodes_count" json:"episodes_count"`
+	SeriesStatus  *string `gorm:"column:status" json:"series_status"`
+
 	Genres []Genre `gorm:"many2many:movie_genres;" json:"genres"`
 
 	ListMovies []ListMovie `gorm:"foreignKey:MovieID" json:"list_movies,omitempty"`
