@@ -11,9 +11,10 @@ import (
 )
 
 func connectDatabase() *gorm.DB {
-	err := godotenv.Load(".env")
-	if err != nil {
-		fmt.Println("Error loading .env file:", err)
+	if _, statErr := os.Stat(".env"); statErr == nil {
+		if loadErr := godotenv.Load(".env"); loadErr != nil {
+			fmt.Println("Warning: could not load .env file:", loadErr)
+		}
 	}
 	dsn := os.Getenv("DB_DSN")
 
