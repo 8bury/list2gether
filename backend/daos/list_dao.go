@@ -3,12 +3,17 @@ package daos
 import (
 	"github.com/8bury/list2gether/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type MovieListDAO interface {
 	InviteCodeExists(code string) (bool, error)
 	CreateWithOwner(list *models.MovieList, ownerUserID int64) error
 	FindByIDWithCreator(id int64) (*models.MovieList, error)
+	FindByInviteCodeWithCreator(code string) (*models.MovieList, error)
+	FindMembership(listID, userID int64) (*models.ListMember, error)
+	AddParticipantIfNotExists(listID, userID int64) (bool, error)
+	CountMembers(listID int64) (int64, error)
 }
 
 type movieListDAO struct {
@@ -50,4 +55,40 @@ func (d *movieListDAO) FindByIDWithCreator(id int64) (*models.MovieList, error) 
 		return nil, err
 	}
 	return &list, nil
+}
+
+func (d *movieListDAO) FindByInviteCodeWithCreator(code string) (*models.MovieList, error) {
+	var list models.MovieList
+	if err := d.db.Preload("Creator").Where("invite_code = ?", code).First(&list).Error; err != nil {
+		return nil, err
+	}
+	return &list, nil
+}
+
+func (d *movieListDAO) FindMembership(listID, userID int64) (*models.ListMember, error) {
+	var m models.ListMember
+	if err := d.db.Where("list_id = ? AND user_id = ?", listID, userID).First(&m).Error; err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+func (d *movieListDAO) AddParticipantIfNotExists(listID, userID int64) (bool, error) {
+	m := &models.ListMember{ListID: listID, UserID: userID, Role: models.RoleParticipant}
+	tx := d.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "list_id"}, {Name: "user_id"}},
+		DoNothing: true,
+	}).Create(m)
+	if tx.Error != nil {
+		return false, tx.Error
+	}
+	return tx.RowsAffected > 0, nil
+}
+
+func (d *movieListDAO) CountMembers(listID int64) (int64, error) {
+	var count int64
+	if err := d.db.Model(&models.ListMember{}).Where("list_id = ?", listID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
 }

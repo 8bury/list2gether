@@ -9,10 +9,12 @@ import (
 	"github.com/8bury/list2gether/daos"
 	"github.com/8bury/list2gether/models"
 	"github.com/go-sql-driver/mysql"
+	"gorm.io/gorm"
 )
 
 type ListService interface {
 	CreateList(name string, description *string, createdBy int64) (*models.MovieList, error)
+	JoinListByInviteCode(inviteCode string, userID int64) (*models.MovieList, models.ListMemberRole, bool, int64, error)
 }
 
 type listService struct {
@@ -26,12 +28,12 @@ func NewListService(lists daos.MovieListDAO) ListService {
 func (s *listService) CreateList(name string, description *string, createdBy int64) (*models.MovieList, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || len(name) > 255 {
-		return nil, errors.New("Name must be between 1 and 255 characters")
+		return nil, errors.New("name must be between 1 and 255 characters")
 	}
 	if description != nil {
 		d := strings.TrimSpace(*description)
 		if len(d) > 1000 {
-			return nil, errors.New("Description must be at most 1000 characters")
+			return nil, errors.New("description must be at most 1000 characters")
 		}
 		description = &d
 	}
@@ -63,7 +65,60 @@ func (s *listService) CreateList(name string, description *string, createdBy int
 		}
 		return out, nil
 	}
-	return nil, errors.New("Failed to generate unique invite code")
+	return nil, errors.New("failed to generate unique invite code")
+}
+
+var ErrInvalidInviteCodeFormat = errors.New("invite code must be 10 alphanumeric characters")
+
+func (s *listService) JoinListByInviteCode(inviteCode string, userID int64) (*models.MovieList, models.ListMemberRole, bool, int64, error) {
+	code := strings.ToUpper(strings.TrimSpace(inviteCode))
+	if len(code) != 10 {
+		return nil, "", false, 0, ErrInvalidInviteCodeFormat
+	}
+	for i := 0; i < len(code); i++ {
+		c := code[i]
+		if !((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+			return nil, "", false, 0, ErrInvalidInviteCodeFormat
+		}
+	}
+
+	list, err := s.lists.FindByInviteCodeWithCreator(code)
+	if err != nil {
+		return nil, "", false, 0, err
+	}
+
+	membership, err := s.lists.FindMembership(list.ID, userID)
+	alreadyMember := false
+	role := models.RoleParticipant
+	if err == nil {
+		alreadyMember = true
+		role = membership.Role
+	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+		inserted, addErr := s.lists.AddParticipantIfNotExists(list.ID, userID)
+		if addErr != nil {
+			return nil, "", false, 0, addErr
+		}
+		if inserted {
+			alreadyMember = false
+			role = models.RoleParticipant
+		} else {
+			m2, err2 := s.lists.FindMembership(list.ID, userID)
+			if err2 != nil {
+				return nil, "", false, 0, err2
+			}
+			alreadyMember = true
+			role = m2.Role
+		}
+	} else {
+		return nil, "", false, 0, err
+	}
+
+	count, err := s.lists.CountMembers(list.ID)
+	if err != nil {
+		return nil, "", false, 0, err
+	}
+
+	return list, role, alreadyMember, count, nil
 }
 
 func (s *listService) generateUniqueInviteCode() (string, error) {
@@ -77,7 +132,7 @@ func (s *listService) generateUniqueInviteCode() (string, error) {
 			return code, nil
 		}
 	}
-	return "", errors.New("Failed to generate unique invite code")
+	return "", errors.New("failed to generate unique invite code")
 }
 
 func randomAlphaNum(n int) string {
