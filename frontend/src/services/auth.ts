@@ -40,4 +40,13 @@ export async function register(body: RegisterBodyDTO): Promise<RegisterResponseD
   })
 }
 
+export async function logout(refreshToken: string): Promise<{ message?: string }> {
+  const accessToken = localStorage.getItem('access_token')
+  return requestJson<{ message?: string }>('/auth/logout', {
+    method: 'POST',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    body: { refresh_token: refreshToken },
+  })
+}
+
 

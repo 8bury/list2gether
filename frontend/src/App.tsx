@@ -1,6 +1,7 @@
 import { Routes, Route, Link } from 'react-router-dom'
 import LoginPage from './pages/Login'
 import RegistroPage from './pages/Registro'
+import HomePage from './pages/Home'
 import './App.css'
 
 function Home() {
@@ -22,6 +23,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/home" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registro" element={<RegistroPage />} />
     </Routes>
