@@ -82,4 +82,12 @@ export async function joinList(inviteCode: string): Promise<JoinListResponseDTO>
   })
 }
 
+export async function deleteList(listId: number): Promise<void> {
+  const token = localStorage.getItem('access_token')
+  await requestJson<void>(`/api/lists/${listId}` , {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
 

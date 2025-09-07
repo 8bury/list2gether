@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
-import { getUserLists, createList, joinList, type UserListDTO } from '../services/lists'
+import { getUserLists, createList, joinList, deleteList, type UserListDTO } from '../services/lists'
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -14,6 +14,8 @@ export default function HomePage() {
   const [createDescription, setCreateDescription] = useState('')
   const [joining, setJoining] = useState(false)
   const [inviteCode, setInviteCode] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<UserListDTO | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -49,6 +51,27 @@ export default function HomePage() {
       window.setTimeout(() => setCopiedId(null), 1500)
     } catch {
       // ignore
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return
+    setDeleting(true)
+    try {
+      await deleteList(confirmDelete.id)
+      setLists((prev) => prev.filter((l) => l.id !== confirmDelete.id))
+      setConfirmDelete(null)
+    } catch (err) {
+      const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao excluir lista'
+      setError(message)
+      if ((err as any)?.status === 401) {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user')
+        navigate('/login')
+      }
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -160,11 +183,46 @@ export default function HomePage() {
                   <button onClick={() => {}} className="border border-neutral-600 rounded-lg px-3 py-2 text-sm">
                     Entrar na lista
                   </button>
+                  {list.your_role === 'owner' && (
+                    <button
+                      onClick={() => setConfirmDelete(list)}
+                      className="bg-red-600 text-white rounded-lg px-3 py-2 text-sm border border-red-500"
+                    >
+                      Excluir lista
+                    </button>
+                  )}
                 </div>
               </div>
             </li>
           ))}
         </ul>
+        {confirmDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+              <h3 className="text-lg font-semibold mb-2">Excluir lista?</h3>
+              <p className="text-neutral-300 mb-4">
+                Tem certeza de que deseja excluir a lista
+                {' '}<span className="font-medium">"{confirmDelete.name}"</span>? Esta ação é irreversível.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="border border-neutral-600 rounded-lg px-3 py-2 text-sm"
+                  onClick={() => setConfirmDelete(null)}
+                  disabled={deleting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="bg-red-600 text-white rounded-lg px-3 py-2 text-sm border border-red-500"
+                  onClick={handleConfirmDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Excluindo…' : 'Excluir'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
