@@ -139,3 +139,17 @@ export async function getListMovies(listId: number): Promise<ListMovieItemDTO[]>
   return []
 }
 
+export interface AddListMovieBodyDTO {
+  id: string
+  media_type: 'movie' | 'tv'
+}
+
+export async function addListMovie(listId: number, body: AddListMovieBodyDTO): Promise<void> {
+  const token = localStorage.getItem('access_token')
+  await requestJson(`/api/lists/${listId}/movies`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body,
+  })
+}
+
