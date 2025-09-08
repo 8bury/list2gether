@@ -45,6 +45,10 @@ func initializeServices() {
 }
 
 func initializeControllers(router *gin.Engine) {
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	controllers.NewAuthController(router, authService, authMiddleware)
 	controllers.NewListController(router, listService, authMiddleware)
 	controllers.NewSearchController(router, searchService, authMiddleware)
