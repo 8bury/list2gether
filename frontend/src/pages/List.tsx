@@ -45,6 +45,7 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
   const hasHalf = rating % 2 === 1
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
 
   const handleClickRating = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return
@@ -59,7 +60,7 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
   }
 
   return (
-    <div className="border border-neutral-800 rounded-xl overflow-hidden bg-neutral-900/40 flex">
+    <div className="group border border-neutral-800 hover:border-neutral-700 rounded-xl overflow-hidden bg-neutral-900/40 hover:bg-neutral-900/60 transition-colors flex shadow-sm hover:shadow-md hover:shadow-black/30">
       {posterUrl ? (
         <img src={posterUrl} alt={title} className="w-28 sm:w-32 object-cover aspect-[2/3]" />
       ) : (
@@ -102,6 +103,17 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
                 Nota: {item.rating}
               </span>
             )}
+            <button
+              className="ml-auto text-xs px-2 py-0.5 rounded-full border border-neutral-700 hover:border-neutral-500 text-neutral-300 hover:text-white inline-flex items-center gap-1"
+              onClick={() => setDetailsOpen((v) => !v)}
+              aria-expanded={detailsOpen}
+              title={detailsOpen ? 'Ocultar detalhes' : 'Mostrar detalhes'}
+            >
+              {detailsOpen ? 'Ocultar detalhes' : 'Detalhes'}
+              <svg viewBox="0 0 20 20" className={`w-3 h-3 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} aria-hidden>
+                <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
+              </svg>
+            </button>
           </div>
           <div className="mt-2 flex items-center gap-3">
             <div className="select-none" ref={containerRef} onClick={handleClickRating} title="Avaliar">
@@ -119,11 +131,6 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
                 ))}
               </div>
             </div>
-            <button className="ml-1 inline-flex items-center justify-center w-8 h-8 rounded-md border border-neutral-700 hover:border-neutral-500 text-neutral-300 hover:text-white" onClick={() => onOpenNotes(item)} title="Anotações">
-              <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden>
-                <path d="M6 4a2 2 0 00-2 2v12a2 2 0 002 2h7.5a2 2 0 001.414-.586l3.5-3.5A2 2 0 0019 14.5V6a2 2 0 00-2-2H6zm8 14.5V16a1 1 0 011-1h2.5L14 18.5zM7 8h10M7 11h10M7 14h6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
             <button
               className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-rose-700 hover:border-rose-500 text-rose-300 hover:text-rose-200"
               onClick={() => onDelete(item.movie_id)}
@@ -139,39 +146,51 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
           </div>
           {original && <div className="text-xs text-neutral-400">Original: {original}</div>}
         </div>
-        <div className="text-sm text-neutral-200 whitespace-pre-line">
-          {media.overview || 'Sem descrição.'}
-        </div>
         <div className="text-xs text-neutral-400 flex flex-wrap gap-x-3 gap-y-1">
           {media.release_date && <span>Lançamento: {new Date(media.release_date).toLocaleDateString()}</span>}
-          {media.original_lang && <span>Idioma: {media.original_lang}</span>}
-          {media.popularity != null && <span>Popularidade: {Math.round(media.popularity)}</span>}
-          {media.media_type === 'tv' && media.seasons_count != null && (
-            <span>Temporadas: {media.seasons_count}</span>
-          )}
-          {media.media_type === 'tv' && media.episodes_count != null && (
-            <span>Episódios: {media.episodes_count}</span>
-          )}
-          {media.media_type === 'tv' && media.series_status && (
-            <span>Status da série: {media.series_status}</span>
-          )}
-          {item.added_at && <span>Adicionado: {new Date(item.added_at).toLocaleString()}</span>}
-          {item.watched_at && <span>Assistido: {new Date(item.watched_at).toLocaleString()}</span>}
-          {item.updated_at && <span>Atualizado: {new Date(item.updated_at).toLocaleString()}</span>}
         </div>
-        {media.genres && media.genres.length > 0 && (
-          <div className="text-xs text-neutral-300 flex flex-wrap gap-2">
-            {media.genres.map((g) => (
-              <span key={g.id} className="px-2 py-0.5 rounded-full border border-neutral-700">{g.name}</span>
-            ))}
+        <div className={`${detailsOpen ? 'block' : 'hidden'} border-t border-neutral-800 pt-3 mt-1`}> 
+          <div className="text-sm text-neutral-200 whitespace-pre-line">
+            {media.overview || 'Sem descrição.'}
           </div>
-        )}
-        {item.notes && (
-          <div className="text-sm text-neutral-200">
-            <span className="text-neutral-400">Notas: </span>
-            {item.notes}
+          <div className="mt-2 text-xs text-neutral-400 flex flex-wrap gap-x-3 gap-y-1">
+            {media.original_lang && <span>Idioma: {media.original_lang}</span>}
+            {media.popularity != null && <span>Popularidade: {Math.round(media.popularity)}</span>}
+            {media.media_type === 'tv' && media.seasons_count != null && (
+              <span>Temporadas: {media.seasons_count}</span>
+            )}
+            {media.media_type === 'tv' && media.episodes_count != null && (
+              <span>Episódios: {media.episodes_count}</span>
+            )}
+            {media.media_type === 'tv' && media.series_status && (
+              <span>Status da série: {media.series_status}</span>
+            )}
+            {item.added_at && <span>Adicionado: {new Date(item.added_at).toLocaleString()}</span>}
+            {item.watched_at && <span>Assistido: {new Date(item.watched_at).toLocaleString()}</span>}
+            {item.updated_at && <span>Atualizado: {new Date(item.updated_at).toLocaleString()}</span>}
           </div>
-        )}
+          {media.genres && media.genres.length > 0 && (
+            <div className="mt-2 text-xs text-neutral-300 flex flex-wrap gap-2">
+              {media.genres.map((g) => (
+                <span key={g.id} className="px-2 py-0.5 rounded-full border border-neutral-700">{g.name}</span>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <button className="inline-flex items-center gap-1 rounded-md border border-neutral-700 hover:border-neutral-500 text-neutral-300 hover:text-white px-2 py-1 text-xs" onClick={() => onOpenNotes(item)} title="Anotações">
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" aria-hidden>
+                <path d="M6 4a2 2 0 00-2 2v12a2 2 0 002 2h7.5a2 2 0 001.414-.586l3.5-3.5A2 2 0 0019 14.5V6a2 2 0 00-2-2H6zm8 14.5V16a1 1 0 011-1h2.5L14 18.5zM7 8h10M7 11h10M7 14h6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Anotações</span>
+            </button>
+          </div>
+          {item.notes && (
+            <div className="mt-2 text-sm text-neutral-200">
+              <span className="text-neutral-400">Notas: </span>
+              {item.notes}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
