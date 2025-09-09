@@ -26,6 +26,48 @@ function StarIcon(props: { className?: string }) {
   )
 }
 
+function SkeletonCard() {
+  return (
+    <div className="group border border-neutral-800 rounded-xl overflow-hidden bg-neutral-900/40 transition-colors flex shadow-sm animate-pulse">
+      <div className="w-28 sm:w-32 bg-neutral-800 aspect-[2/3]"></div>
+      <div className="p-3 sm:p-4 flex-1 grid gap-2">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="h-5 bg-neutral-800 rounded w-48"></div>
+            <div className="h-5 bg-neutral-800 rounded w-12"></div>
+            <div className="h-5 bg-neutral-800 rounded w-20"></div>
+            <div className="ml-auto h-5 bg-neutral-800 rounded w-16"></div>
+          </div>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="flex gap-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="w-5 h-5 bg-neutral-800 rounded"></div>
+              ))}
+            </div>
+            <div className="w-8 h-8 bg-neutral-800 rounded-md"></div>
+          </div>
+          <div className="mt-2 h-4 bg-neutral-800 rounded w-32"></div>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <div className="h-3 bg-neutral-800 rounded w-24"></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SkeletonHeader() {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <div className="h-8 bg-neutral-800 rounded w-48 animate-pulse"></div>
+      <div className="flex items-center gap-2">
+        <div className="h-9 bg-neutral-800 rounded w-32 animate-pulse"></div>
+        <div className="h-9 bg-neutral-800 rounded w-16 animate-pulse"></div>
+      </div>
+    </div>
+  )
+}
+
 function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete, updatingRating, updatingStatus, deleting }: {
   item: ListMovieItemDTO
   onChangeRating: (movieId: number, rating: number) => void
@@ -427,35 +469,47 @@ export default function ListPage() {
     <div className="min-h-screen bg-black text-white">
       <Header />
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-semibold">{listName || `Lista #${parsedId}`}</h2>
-          <div className="flex items-center gap-2">
-            <button className="border border-sky-600 text-sky-300 rounded-lg px-3 py-2 text-sm" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
-            <button className="border border-neutral-600 rounded-lg px-3 py-2 text-sm" onClick={() => navigate('/home')}>Voltar</button>
-          </div>
-        </div>
-        {loading && <div className="text-neutral-300">Carregando…</div>}
-        {error && <div className="auth-error max-w-lg">{error}</div>}
-        {!loading && !error && (
-          <div className="grid gap-3 sm:gap-4">
-            {items.length === 0 ? (
-              <div className="text-neutral-300">Nenhum título nesta lista ainda.</div>
-            ) : (
-              items.map((item) => (
-                <MovieCard
-                  key={item.id}
-                  item={item}
-                  onChangeRating={handleChangeRating}
-                  onChangeStatus={handleChangeStatus}
-                  onOpenNotes={openNotes}
-                  onDelete={handleDelete}
-                  updatingRating={updatingRatingId === item.movie_id}
-                  updatingStatus={updatingStatusId === item.movie_id}
-                  deleting={deletingId === item.movie_id}
-                />
-              ))
+        {loading ? (
+          <>
+            <SkeletonHeader />
+            <div className="grid gap-3 sm:gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-semibold">{listName || `Lista #${parsedId}`}</h2>
+              <div className="flex items-center gap-2">
+                <button className="border border-sky-600 text-sky-300 rounded-lg px-3 py-2 text-sm" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
+                <button className="border border-neutral-600 rounded-lg px-3 py-2 text-sm" onClick={() => navigate('/home')}>Voltar</button>
+              </div>
+            </div>
+            {error && <div className="auth-error max-w-lg">{error}</div>}
+            {!error && (
+              <div className="grid gap-3 sm:gap-4">
+                {items.length === 0 ? (
+                  <div className="text-neutral-300">Nenhum título nesta lista ainda.</div>
+                ) : (
+                  items.map((item) => (
+                    <MovieCard
+                      key={item.id}
+                      item={item}
+                      onChangeRating={handleChangeRating}
+                      onChangeStatus={handleChangeStatus}
+                      onOpenNotes={openNotes}
+                      onDelete={handleDelete}
+                      updatingRating={updatingRatingId === item.movie_id}
+                      updatingStatus={updatingStatusId === item.movie_id}
+                      deleting={deletingId === item.movie_id}
+                    />
+                  ))
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
       </main>
       {notesItem && (
