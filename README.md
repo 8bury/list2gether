@@ -1,63 +1,49 @@
 # 📽️ list2gether
 
-A collaborative movie list web app for couples (or friends) to track and organize what they want to watch together — with movie info automatically fetched from IMDb.
+A collaborative movie list web app for couples and friends to track movies they want to watch together.
 
-## 🧠 Project Idea
+## Features
 
-**list2gether** allows two people to share a movie watchlist using a unique code. Users can add movie titles, and the app fetches details like poster, IMDb rating, and year automatically. They can mark movies as *Not Watched*, *Watching*, or *Watched*.
+- User registration and authentication
+- Create and share movie lists with invite codes
+- Search movies and TV shows (TMDB API)
+- Track watching status and add personal ratings/notes
+- Role-based permissions (owner/participant)
 
-This project is currently a personal project under development in my spare time.
+## Tech Stack
 
----
+- **Frontend**: React + TypeScript, Tailwind CSS
+- **Backend**: Go + Gin framework
+- **Database**: MySQL + GORM
+- **Authentication**: JWT tokens
+- **External API**: TMDB
 
-## ✨ Features (MVP)
+## Setup
 
-- Add movies by title (auto-filled with IMDb info)
-- View shared list with posters, title, and status
-- Mark movies as Watched / Not Watched / Watching
-- Access list using a unique code (no login required)
-- Responsive layout for mobile and desktop
+### Prerequisites
+- Go 1.24+
+- Node.js 18+
+- MySQL
+- TMDB API key
 
----
+### Backend
+```bash
+cd backend
+go mod tidy
+# Create .env with DB_DSN, TMDB_API_TOKEN, JWT_SECRET
+go run main.go
+```
 
-## 🔧 Tech Stack
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-| Layer       | Technology         |
-|-------------|--------------------|
-| Frontend    | React, Tailwind CSS |
-| Backend     | Golang (Gin) |
-| Database    | MySQL              |
-| External API| [OMDb API](http://www.omdbapi.com/) for IMDb info |
+## API Endpoints
 
----
-
-## 📁 Project Structure
-
-list2gether/
-├── backend/        # Golang backend (API, DB)
-├── frontend/       # React frontend
-├── .env            # Environment variables (local setup)
-├── README.md       # This file
-
----
-
-## 📌 To-Do (MVP Checklist)
-
-* [ ] Backend API: create/read/update/delete movies
-* [ ] Fetch and cache OMDb info
-* [ ] Generate/join shared list via code
-* [ ] Frontend interface with list view and status toggles
-* [ ] Basic mobile responsiveness
-* [ ] Project logo and favicon
-
----
-
-## 🧠 Future Ideas
-
-* Notes/comments for each movie
-* Multiple lists per user
-* Authentication
-* Search and filter by rating/status
-* Movie trailers
-
----
+**Auth**: `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`  
+**Lists**: `/api/lists` (GET/POST), `/api/lists/join`, `/api/lists/:id` (DELETE)  
+**Movies**: `/api/lists/:id/movies` (GET/POST), `/api/lists/:id/movies/:movieId` (PATCH/DELETE)  
+**Search**: `/api/search/media`
