@@ -196,3 +196,20 @@ export async function deleteListMovie(listId: number, movieId: number): Promise<
   })
 }
 
+export interface SearchListMoviesResponseDTO {
+  movies: ListMovieItemDTO[]
+  count: number
+  pagination: { total: number; limit: number; offset: number; has_more: boolean }
+}
+
+export async function searchListMovies(listId: number, query: string, params?: { limit?: number; offset?: number }): Promise<SearchListMoviesResponseDTO> {
+  const token = localStorage.getItem('access_token')
+  const searchParams = new URLSearchParams({ q: query })
+  if (params?.limit) searchParams.set('limit', String(params.limit))
+  if (params?.offset) searchParams.set('offset', String(params.offset))
+  return requestJson<SearchListMoviesResponseDTO>(`/api/lists/${listId}/movies/search?${searchParams.toString()}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+

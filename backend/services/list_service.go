@@ -26,6 +26,7 @@ type ListService interface {
 	RemoveMovieFromList(listID int64, userID int64, movieID int64) (*models.Movie, error)
 	UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, *models.Movie, *models.MovieStatus, *int, *string, error)
 	ListMovies(listID int64, userID int64) ([]models.ListMovie, error)
+	SearchListMovies(listID int64, userID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
 }
 
 type listService struct {
@@ -528,4 +529,41 @@ func (s *listService) ListMovies(listID int64, userID int64) ([]models.ListMovie
 		return nil, err
 	}
 	return items, nil
+}
+
+func (s *listService) SearchListMovies(listID int64, userID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error) {
+	if _, err := s.lists.FindByID(listID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, 0, ErrListNotFound
+		}
+		return nil, 0, err
+	}
+
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, 0, ErrForbiddenMembership
+		}
+		return nil, 0, err
+	}
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return nil, 0, ErrForbiddenMembership
+	}
+
+	// Sanitize pagination params
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	items, total, findErr := s.lists.SearchListMoviesWithMovie(listID, query, limit, offset)
+	if findErr != nil {
+		return nil, 0, findErr
+	}
+	return items, total, nil
 }
