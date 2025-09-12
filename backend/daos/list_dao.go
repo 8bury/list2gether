@@ -6,6 +6,7 @@ import (
 	"github.com/8bury/list2gether/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"strings"
 )
 
 type MovieListDAO interface {
@@ -28,6 +29,7 @@ type MovieListDAO interface {
 	RemoveMovieFromList(listID, movieID int64) error
 	UpdateMovie(listID, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, error)
 	FindListMoviesWithMovie(listID int64) ([]models.ListMovie, error)
+	SearchListMoviesWithMovie(listID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
 }
 
 type movieListDAO struct {
@@ -298,4 +300,37 @@ func (d *movieListDAO) FindListMoviesWithMovie(listID int64) ([]models.ListMovie
 		return nil, err
 	}
 	return listMovies, nil
+}
+
+func (d *movieListDAO) SearchListMoviesWithMovie(listID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error) {
+	q := strings.TrimSpace(query)
+	like := "%" + q + "%"
+
+	var total int64
+	countQ := d.db.Model(&models.ListMovie{}).
+		Joins("JOIN movies ON movies.id = list_movies.movie_id").
+		Where("list_movies.list_id = ?", listID).
+		Where("movies.title LIKE ? OR movies.original_title LIKE ?", like, like)
+	if err := countQ.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var listMovies []models.ListMovie
+	fetchQ := d.db.
+		Preload("Movie").
+		Preload("Movie.Genres").
+		Joins("JOIN movies ON movies.id = list_movies.movie_id").
+		Where("list_movies.list_id = ?", listID).
+		Where("movies.title LIKE ? OR movies.original_title LIKE ?", like, like).
+		Order("list_movies.added_at DESC")
+	if limit > 0 {
+		fetchQ = fetchQ.Limit(limit)
+	}
+	if offset > 0 {
+		fetchQ = fetchQ.Offset(offset)
+	}
+	if err := fetchQ.Find(&listMovies).Error; err != nil {
+		return nil, 0, err
+	}
+	return listMovies, total, nil
 }
