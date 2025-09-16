@@ -3,7 +3,7 @@ name: Deploy backend in EC2
 on:
   push:
     branches: [main]
-    #paths: ['backend/**']
+    # paths: ['backend/**']
 
 jobs:
   deploy:
@@ -16,7 +16,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v3
       with:
-        go-version: '1.24.1'  
+        go-version: '1.24.1'
     
     - name: Build application
       run: |
@@ -44,16 +44,13 @@ jobs:
           # Para o serviço atual
           sudo systemctl stop list2gether || echo "Service not running"
           
-          # Backup da versão anterior (opcional)
+          # Backup da versão anterior
           if [ -f /home/ec2-user/list2gether ]; then
-            mv /home/ec2-user/list2gether /home/ec2-user/list2gether_backup
+            cp /home/ec2-user/list2gether /home/ec2-user/list2gether_backup
           fi
           
-          # Move o novo executável
-          if [ -f /home/ec2-user/list2gether ]; then
-            rm /home/ec2-user/list2gether
-          fi
-          mv /home/ec2-user/list2gether /home/ec2-user/list2gether
+          # Substitui o executável
+          mv /home/ec2-user/list2gether /home/ec2-user/list2gether 2>/dev/null || echo "New file ready"
           
           # Reinicia o serviço
           sudo systemctl start list2gether
@@ -63,6 +60,8 @@ jobs:
           sleep 5
           if sudo systemctl is-active --quiet list2gether; then
             echo "✅ Service started successfully"
+            # Remove backup se tudo deu certo
+            rm -f /home/ec2-user/list2gether_backup
           else
             echo "❌ Service failed to start"
             # Rollback em caso de falha
