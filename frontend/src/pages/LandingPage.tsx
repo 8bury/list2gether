@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom'
-import { useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { logout as logoutApi } from '../services/auth'
 import mainBanner from '@assets/mainbanner.png'
 import coupleWatching from '@assets/couple_watching_movie.png'
 import movieScene from '@assets/movie_scene.png'
@@ -8,6 +9,14 @@ import interests from '@assets/interests.png'
 import connect from '@assets/connect.png'
 
 export default function LandingPage() {
+  const navigate = useNavigate()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const isLoggedIn = useMemo(() => {
+    const access = localStorage.getItem('access_token')
+    const refresh = localStorage.getItem('refresh_token')
+    return Boolean(access && refresh)
+  }, [])
+
   useEffect(() => {
     const elements = document.querySelectorAll('[data-animate]')
     const observer = new IntersectionObserver(
@@ -41,16 +50,50 @@ export default function LandingPage() {
 
         <header className="absolute top-0 left-0 right-0 z-20 p-4 sm:p-6 bg-black/30 border-b border-white/10">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="text-lg sm:text-xl font-semibold tracking-tight">List2gether</div>
+            <div className="text-lg sm:text-xl font-semibold tracking-tight">list2gether</div>
             <nav className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm" aria-label="Primary">
-              <Link to="/login" className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white/10 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">Login</Link>
-              <Link to="/registro" className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white text-black rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">Create Account</Link>
+              {isLoggedIn ? (
+                <>
+                  <Link to="/home" className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white/10 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">Listas</Link>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (isLoggingOut) return
+                      setIsLoggingOut(true)
+                      try {
+                        const refreshToken = localStorage.getItem('refresh_token')
+                        const accessToken = localStorage.getItem('access_token')
+                        if (refreshToken && accessToken) {
+                          await logoutApi(refreshToken)
+                        }
+                      } catch (_) {
+                      } finally {
+                        localStorage.removeItem('access_token')
+                        localStorage.removeItem('refresh_token')
+                        localStorage.removeItem('user')
+                        setIsLoggingOut(false)
+                        navigate('/login')
+                      }
+                    }}
+                    disabled={isLoggingOut}
+                    aria-busy={isLoggingOut}
+                    className="inline-flex items-center bg-white text-black font-semibold rounded px-3 py-2 sm:px-4 sm:py-2 border border-white hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isLoggingOut ? 'Saindo…' : 'Sair'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white/10 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">Login</Link>
+                  <Link to="/registro" className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white text-black rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">Create Account</Link>
+                </>
+              )}
             </nav>
           </div>
         </header>
         
         <div className="relative z-10 text-center max-w-4xl mx-auto px-6">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.1] pb-1 mb-4 sm:mb-6 bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]">List2gether</h1>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.1] pb-1 mb-4 sm:mb-6 bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]">list2gether</h1>
           <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-6 sm:mb-8">The social network for movie‑loving couples and friends</p>
           <Link 
             to="/registro" 
@@ -186,7 +229,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
-              <h3 className="text-base md:text-lg font-semibold mb-4">List2gether</h3>
+              <h3 className="text-base md:text-lg font-semibold mb-4">list2gether</h3>
             </div>
             <div>
               <h4 className="font-semibold mb-4">About</h4>
@@ -214,7 +257,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-white/10 pt-6 mt-2 text-xs text-gray-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <span>© {new Date().getFullYear()} List2gether. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} list2gether. All rights reserved.</span>
             <span>TMDB data used under license. This product is not endorsed by TMDB.</span>
           </div>
         </div>

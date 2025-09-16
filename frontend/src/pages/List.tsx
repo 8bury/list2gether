@@ -587,11 +587,23 @@ export default function ListPage() {
         ) : (
           <>
             <div className="mb-4 grid gap-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex-1 min-w-0 truncate bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{listName || `Lista #${parsedId}`}</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/home')}
+                    className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/40"
+                    aria-label="Voltar para suas listas"
+                    title="Voltar"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden>
+                      <path d="M19 11H8.41l4.3-4.29-1.42-1.42L4.59 12l6.7 6.71 1.42-1.42L8.41 13H19v-2z" />
+                    </svg>
+                  </button>
+                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex-1 min-w-0 truncate bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{listName || `Lista #${parsedId}`}</h2>
+                </div>
                 <div className="flex gap-2 w-full sm:w-auto">
                   <button className="flex-1 sm:flex-none inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
-                  <button className="flex-1 sm:flex-none px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10" onClick={() => navigate('/home')}>Voltar</button>
                 </div>
               </div>
               <div className="hidden sm:grid sm:grid-cols-12 sm:items-start sm:gap-3">
