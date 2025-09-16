@@ -3,8 +3,7 @@ name: Deploy backend in EC2
 on:
   push:
     branches: [main]
-    # paths: ['backend/**']  # Descomente quando quiser filtrar apenas mudanças no backend
-
+    paths: ['backend/**']
 jobs:
   deploy:
     runs-on: ubuntu-latest
