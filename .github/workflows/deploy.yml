@@ -42,7 +42,7 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           # Para o serviço atual
-          sudo systemctl stop apilist2gether || echo "Service not running"
+          sudo systemctl stop list2gether || echo "Service not running"
           
           # Backup da versão anterior (opcional)
           if [ -f /home/ec2-user/list2gether ]; then
@@ -56,12 +56,12 @@ jobs:
           mv /home/ec2-user/list2gether /home/ec2-user/list2gether
           
           # Reinicia o serviço
-          sudo systemctl start apilist2gether
-          sudo systemctl enable apilist2gether
+          sudo systemctl start list2gether
+          sudo systemctl enable list2gether
           
           # Verifica se o serviço está rodando
           sleep 5
-          if sudo systemctl is-active --quiet apilist2gether; then
+          if sudo systemctl is-active --quiet list2gether; then
             echo "✅ Service started successfully"
           else
             echo "❌ Service failed to start"
@@ -69,7 +69,7 @@ jobs:
             if [ -f /home/ec2-user/list2gether_backup ]; then
               echo "Performing rollback..."
               mv /home/ec2-user/list2gether_backup /home/ec2-user/list2gether
-              sudo systemctl start apilist2gether
+              sudo systemctl start list2gether
             fi
             exit 1
           fi
