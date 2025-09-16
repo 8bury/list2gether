@@ -265,6 +265,7 @@ export default function ListPage() {
   const [notesDraft, setNotesDraft] = useState('')
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [listName, setListName] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<MovieStatus | 'all'>('all')
 
   // State for in-list search
   const [listSearchQuery, setListSearchQuery] = useState('')
@@ -289,7 +290,7 @@ export default function ListPage() {
       setLoading(true)
       setError(null)
       try {
-        const res = await getListMovies(parsedId)
+        const res = await getListMovies(parsedId, { status: statusFilter })
         setItems(res)
       } catch (err) {
         const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao carregar itens da lista'
@@ -304,7 +305,7 @@ export default function ListPage() {
         setLoading(false)
       }
     })()
-  }, [navigate, parsedId])
+  }, [navigate, parsedId, statusFilter])
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -413,7 +414,7 @@ export default function ListPage() {
     if (!parsedId || Number.isNaN(parsedId)) return
     try {
       await addListMovie(parsedId, { id: String(sel.id), media_type: sel.media_type })
-      const res = await getListMovies(parsedId)
+      const res = await getListMovies(parsedId, { status: statusFilter })
       setItems(res)
       setIsAddOpen(false)
       setSearchQuery('')
@@ -437,6 +438,8 @@ export default function ListPage() {
     try {
       setItems((prev) => prev.map((it) => it.movie_id === movieId ? { ...it, rating: value } : it))
       await updateListMovie(parsedId, movieId, { rating: value })
+      const res = await getListMovies(parsedId, { status: statusFilter })
+      setItems(res)
     } catch (err) {
       setItems(old)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao salvar nota'
@@ -459,6 +462,8 @@ export default function ListPage() {
     try {
       setItems((prev) => prev.map((it) => it.movie_id === movieId ? { ...it, status } : it))
       await updateListMovie(parsedId, movieId, { status })
+      const res = await getListMovies(parsedId, { status: statusFilter })
+      setItems(res)
     } catch (err) {
       setItems(old)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao salvar status'
@@ -484,7 +489,8 @@ export default function ListPage() {
     if (!parsedId || Number.isNaN(parsedId) || !notesItem) return
     try {
       await updateListMovie(parsedId, notesItem.movie_id, { notes: notesDraft })
-      setItems((prev) => prev.map((it) => it.movie_id === notesItem.movie_id ? { ...it, notes: notesDraft } : it))
+      const res = await getListMovies(parsedId, { status: statusFilter })
+      setItems(res)
       setNotesEditing(false)
     } catch (err) {
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao salvar anotações'
@@ -505,6 +511,8 @@ export default function ListPage() {
     try {
       setItems((prev) => prev.filter((it) => it.movie_id !== movieId))
       await deleteListMovie(parsedId, movieId)
+      const res = await getListMovies(parsedId, { status: statusFilter })
+      setItems(res)
     } catch (err) {
       setItems(old)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao remover'
@@ -548,6 +556,14 @@ export default function ListPage() {
                 />
               </div>
               <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-1 mr-2" role="group" aria-label="Filtro de status">
+                  {([['all','Todos'],['not_watched','Não Assistido'],['watching','Assistindo'],['watched','Assistido'],['dropped','Abandonado']] as [MovieStatus|'all', string][]) .map(([val,label]) => (
+                    <button key={val}
+                      className={`px-3 py-2 rounded-lg border text-xs ${statusFilter===val? 'bg-white text-black border-white' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
+                      onClick={() => setStatusFilter(val)}
+                    >{label}</button>
+                  ))}
+                </div>
                 <button className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
                 <button className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10" onClick={() => navigate('/home')}>Voltar</button>
               </div>
@@ -559,6 +575,14 @@ export default function ListPage() {
                 placeholder="Buscar nesta lista"
                 className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
               />
+              <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Filtro de status">
+                {([['all','Todos'],['not_watched','Não Assistido'],['watching','Assistindo'],['watched','Assistido'],['dropped','Abandonado']] as [MovieStatus|'all', string][]) .map(([val,label]) => (
+                  <button key={val}
+                    className={`px-3 py-1.5 rounded-lg border text-xs ${statusFilter===val? 'bg-white text-black border-white' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
+                    onClick={() => setStatusFilter(val)}
+                  >{label}</button>
+                ))}
+              </div>
             </div>
             {error && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{error}</div>}
             {listSearchError && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{listSearchError}</div>}

@@ -683,7 +683,18 @@ func (c *ListController) listMovies(ctx *gin.Context) {
 		return
 	}
 
-	items, svcErr := c.service.ListMovies(listID, userID)
+	// Optional status filter
+	var statusFilter *models.MovieStatus
+	if v := strings.TrimSpace(ctx.Query("status")); v != "" {
+		status := models.MovieStatus(v)
+		if status != models.StatusNotWatched && status != models.StatusWatching && status != models.StatusWatched && status != models.StatusDropped {
+			respondValidationError(ctx, []string{"status must be one of: not_watched, watching, watched, dropped"})
+			return
+		}
+		statusFilter = &status
+	}
+
+	items, svcErr := c.service.ListMovies(listID, userID, statusFilter)
 	if svcErr != nil {
 		switch svcErr {
 		case services.ErrListNotFound:

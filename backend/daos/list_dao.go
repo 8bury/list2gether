@@ -3,10 +3,11 @@ package daos
 import (
 	"time"
 
+	"strings"
+
 	"github.com/8bury/list2gether/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strings"
 )
 
 type MovieListDAO interface {
@@ -28,7 +29,7 @@ type MovieListDAO interface {
 	FindListMovieByListAndMovie(listID, movieID int64) (*models.ListMovie, error)
 	RemoveMovieFromList(listID, movieID int64) error
 	UpdateMovie(listID, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, error)
-	FindListMoviesWithMovie(listID int64) ([]models.ListMovie, error)
+	FindListMoviesWithMovie(listID int64, status *models.MovieStatus) ([]models.ListMovie, error)
 	SearchListMoviesWithMovie(listID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
 }
 
@@ -289,14 +290,16 @@ func (d *movieListDAO) UpdateMovie(listID, movieID int64, status *models.MovieSt
 	return &listMovie, nil
 }
 
-func (d *movieListDAO) FindListMoviesWithMovie(listID int64) ([]models.ListMovie, error) {
+func (d *movieListDAO) FindListMoviesWithMovie(listID int64, status *models.MovieStatus) ([]models.ListMovie, error) {
 	var listMovies []models.ListMovie
-	if err := d.db.
+	q := d.db.
 		Preload("Movie").
 		Preload("Movie.Genres").
-		Where("list_id = ?", listID).
-		Order("added_at DESC").
-		Find(&listMovies).Error; err != nil {
+		Where("list_id = ?", listID)
+	if status != nil {
+		q = q.Where("status = ?", string(*status))
+	}
+	if err := q.Order("added_at DESC").Find(&listMovies).Error; err != nil {
 		return nil, err
 	}
 	return listMovies, nil

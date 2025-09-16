@@ -25,7 +25,7 @@ type ListService interface {
 	AddMediaToList(ctx context.Context, listID int64, userID int64, mediaID int64, mediaType string) (*models.ListMovie, *models.Movie, error)
 	RemoveMovieFromList(listID int64, userID int64, movieID int64) (*models.Movie, error)
 	UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, *models.Movie, *models.MovieStatus, *int, *string, error)
-	ListMovies(listID int64, userID int64) ([]models.ListMovie, error)
+	ListMovies(listID int64, userID int64, status *models.MovieStatus) ([]models.ListMovie, error)
 	SearchListMovies(listID int64, userID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
 }
 
@@ -505,7 +505,7 @@ func (s *listService) UpdateMovie(listID int64, userID int64, movieID int64, sta
 	return updatedListMovie, movie, oldStatus, oldRating, oldNotes, nil
 }
 
-func (s *listService) ListMovies(listID int64, userID int64) ([]models.ListMovie, error) {
+func (s *listService) ListMovies(listID int64, userID int64, status *models.MovieStatus) ([]models.ListMovie, error) {
 	if _, err := s.lists.FindByID(listID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrListNotFound
@@ -524,7 +524,7 @@ func (s *listService) ListMovies(listID int64, userID int64) ([]models.ListMovie
 		return nil, ErrForbiddenMembership
 	}
 
-	items, err := s.lists.FindListMoviesWithMovie(listID)
+	items, err := s.lists.FindListMoviesWithMovie(listID, status)
 	if err != nil {
 		return nil, err
 	}

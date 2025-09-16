@@ -129,9 +129,12 @@ export interface ListMovieItemDTO {
   movie: MovieDTO
 }
 
-export async function getListMovies(listId: number): Promise<ListMovieItemDTO[]> {
+export async function getListMovies(listId: number, params?: { status?: MovieStatus | 'all' }): Promise<ListMovieItemDTO[]> {
   const token = localStorage.getItem('access_token')
-  const res = await requestJson<{ movies: ListMovieItemDTO[]; count: number }>(`/api/lists/${listId}/movies`, {
+  const searchParams = new URLSearchParams()
+  if (params?.status && params.status !== 'all') searchParams.set('status', params.status)
+  const query = searchParams.toString()
+  const res = await requestJson<{ movies: ListMovieItemDTO[]; count: number }>(`/api/lists/${listId}/movies${query ? `?${query}` : ''}`, {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   })
