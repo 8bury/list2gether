@@ -12,10 +12,10 @@ const statusLabels: Record<MovieStatus, string> = {
 }
 
 const statusClasses: Record<MovieStatus, string> = {
-  not_watched: 'bg-slate-900 border-slate-700 text-slate-200',
-  watching: 'bg-sky-900/30 border-sky-700 text-sky-300',
-  watched: 'bg-emerald-900/30 border-emerald-700 text-emerald-300',
-  dropped: 'bg-rose-900/30 border-rose-700 text-rose-300',
+  not_watched: 'bg-white/10 border-white/10 text-white',
+  watching: 'bg-white/10 border-white/10 text-sky-300',
+  watched: 'bg-white/10 border-white/10 text-emerald-300',
+  dropped: 'bg-white/10 border-white/10 text-rose-300',
 }
 
 function StarIcon(props: { className?: string }) {
@@ -28,28 +28,30 @@ function StarIcon(props: { className?: string }) {
 
 function SkeletonCard() {
   return (
-    <div className="group border border-neutral-800 rounded-xl overflow-hidden bg-neutral-900/40 transition-colors flex shadow-sm animate-pulse">
-      <div className="w-28 sm:w-32 bg-neutral-800 aspect-[2/3]"></div>
-      <div className="p-3 sm:p-4 flex-1 grid gap-2">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="h-5 bg-neutral-800 rounded w-48"></div>
-            <div className="h-5 bg-neutral-800 rounded w-12"></div>
-            <div className="h-5 bg-neutral-800 rounded w-20"></div>
-            <div className="ml-auto h-5 bg-neutral-800 rounded w-16"></div>
-          </div>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="flex gap-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="w-5 h-5 bg-neutral-800 rounded"></div>
-              ))}
+    <div className="group rounded-xl bg-white/5 border border-white/10 overflow-hidden transition-all shadow-lg shadow-white/10">
+      <div className="flex animate-pulse">
+        <div className="w-28 sm:w-32 bg-white/5 aspect-[2/3]"></div>
+        <div className="p-3 sm:p-4 flex-1 grid gap-2">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="h-5 bg-white/10 rounded w-48"></div>
+              <div className="h-5 bg-white/10 rounded w-12"></div>
+              <div className="h-5 bg-white/10 rounded w-20"></div>
+              <div className="ml-auto h-5 bg-white/10 rounded w-16"></div>
             </div>
-            <div className="w-8 h-8 bg-neutral-800 rounded-md"></div>
+            <div className="mt-2 flex items-center gap-3">
+              <div className="flex gap-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="w-5 h-5 bg-white/10 rounded"></div>
+                ))}
+              </div>
+              <div className="w-8 h-8 bg-white/10 rounded-md"></div>
+            </div>
+            <div className="mt-2 h-4 bg-white/10 rounded w-32"></div>
           </div>
-          <div className="mt-2 h-4 bg-neutral-800 rounded w-32"></div>
-        </div>
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          <div className="h-3 bg-neutral-800 rounded w-24"></div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            <div className="h-3 bg-white/10 rounded w-24"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -59,10 +61,10 @@ function SkeletonCard() {
 function SkeletonHeader() {
   return (
     <div className="flex items-center justify-between mb-4">
-      <div className="h-8 bg-neutral-800 rounded w-48 animate-pulse"></div>
+      <div className="h-8 bg-white/10 rounded w-48 animate-pulse"></div>
       <div className="flex items-center gap-2">
-        <div className="h-9 bg-neutral-800 rounded w-32 animate-pulse"></div>
-        <div className="h-9 bg-neutral-800 rounded w-16 animate-pulse"></div>
+        <div className="h-9 bg-white/10 rounded w-32 animate-pulse"></div>
+        <div className="h-9 bg-white/10 rounded w-16 animate-pulse"></div>
       </div>
     </div>
   )
@@ -102,136 +104,140 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
   }
 
   return (
-    <div className="group border border-neutral-800 hover:border-neutral-700 rounded-xl overflow-hidden bg-neutral-900/40 hover:bg-neutral-900/60 transition-colors flex shadow-sm hover:shadow-md hover:shadow-black/30">
-      {posterUrl ? (
-        <img src={posterUrl} alt={title} className="w-28 sm:w-32 object-cover aspect-[2/3]" />
-      ) : (
-        <div className="w-28 sm:w-32 bg-neutral-800 grid place-items-center text-neutral-400 text-xs">Sem poster</div>
-      )}
-      <div className="p-3 sm:p-4 flex-1 grid gap-2">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base sm:text-lg font-semibold">{title}</h3>
-            <span className="text-xs px-2 py-0.5 rounded-full border border-neutral-700 text-neutral-300">
-              {media.media_type === 'movie' ? 'Filme' : 'Série'}
-            </span>
-            <div className="relative">
+    <div data-animate className="group rounded-xl bg-white/5 border border-white/10 overflow-hidden hover:border-white/20 hover:bg-white/10 transition-all shadow-lg shadow-white/10 hover:-translate-y-0.5">
+      <div className="flex">
+        {posterUrl ? (
+          <img src={posterUrl} alt={title} className="w-28 sm:w-32 object-cover aspect-[2/3]" />
+        ) : (
+          <div className="w-28 sm:w-32 bg-white/5 grid place-items-center text-neutral-400 text-xs">Sem poster</div>
+        )}
+        <div className="p-3 sm:p-4 flex-1 grid gap-2">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base sm:text-lg font-semibold tracking-tight">{title}</h3>
+              <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-gray-300">
+                {media.media_type === 'movie' ? 'Filme' : 'Série'}
+              </span>
+              <div className="relative">
+                <button
+                  className={`text-xs px-2 py-0.5 rounded-full border ${statusClasses[item.status]} flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-white/40`}
+                  onClick={() => setStatusOpen((v) => !v)}
+                  disabled={!!updatingStatus}
+                  aria-haspopup="listbox"
+                  aria-expanded={statusOpen}
+                >
+                  {statusLabels[item.status]}
+                  <svg className="w-3 h-3" viewBox="0 0 20 20" aria-hidden>
+                    <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
+                  </svg>
+                </button>
+                {statusOpen && (
+                  <div className="absolute z-10 mt-1 min-w-[12rem] bg-neutral-950 border border-white/10 rounded-lg shadow-lg shadow-white/10">
+                    {(['not_watched','watching','watched','dropped'] as MovieStatus[]).map((s) => (
+                      <button
+                        key={s}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-white/5 flex items-center gap-2 ${s === item.status ? 'bg-white/5' : ''}`}
+                        onClick={() => { setStatusOpen(false); if (s !== item.status) onChangeStatus(item.movie_id, s) }}
+                      >
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${statusClasses[s]}`}>{statusLabels[s]}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {item.rating != null && (
+                <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-yellow-300">
+                  Nota: {item.rating}
+                </span>
+              )}
               <button
-                className={`text-xs px-2 py-0.5 rounded-full border ${statusClasses[item.status]} flex items-center gap-1`}
-                onClick={() => setStatusOpen((v) => !v)}
-                disabled={!!updatingStatus}
+                className="ml-auto text-xs px-2 py-0.5 rounded-full border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 inline-flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-white/40"
+                onClick={() => setDetailsOpen((v) => !v)}
+                aria-expanded={detailsOpen}
+                title={detailsOpen ? 'Ocultar detalhes' : 'Mostrar detalhes'}
               >
-                {statusLabels[item.status]}
-                <svg className="w-3 h-3" viewBox="0 0 20 20" aria-hidden>
+                {detailsOpen ? 'Ocultar detalhes' : 'Detalhes'}
+                <svg viewBox="0 0 20 20" className={`w-3 h-3 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} aria-hidden>
                   <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
                 </svg>
               </button>
-              {statusOpen && (
-                <div className="absolute z-10 mt-1 min-w-[12rem] bg-neutral-950 border border-neutral-800 rounded-lg shadow-lg">
-                  {(['not_watched','watching','watched','dropped'] as MovieStatus[]).map((s) => (
-                    <button
-                      key={s}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-neutral-900 flex items-center gap-2 ${s === item.status ? 'bg-neutral-900' : ''}`}
-                      onClick={() => { setStatusOpen(false); if (s !== item.status) onChangeStatus(item.movie_id, s) }}
-                    >
-                      <span className={`text-xs px-2 py-0.5 rounded-full border ${statusClasses[s]}`}>{statusLabels[s]}</span>
-                    </button>
+            </div>
+            <div className="mt-2 flex items-center gap-3">
+              <div className="select-none" ref={containerRef} onClick={handleClickRating} title="Avaliar">
+                <div className="flex gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="relative w-5 h-5">
+                      <StarIcon className="w-5 h-5 text-neutral-700" />
+                      {i < fullCount && <StarIcon className="w-5 h-5 text-sky-400 absolute inset-0" />}
+                      {i === fullCount && hasHalf && (
+                        <div className="absolute inset-0 overflow-hidden" style={{ width: '50%' }}>
+                          <StarIcon className="w-5 h-5 text-sky-400" />
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
-              )}
+              </div>
+              <button
+                className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-white/10 hover:border-white/20 text-rose-300 hover:text-rose-200 focus:outline-none focus:ring-2 focus:ring-white/40"
+                onClick={() => onDelete(item.movie_id)}
+                title="Remover"
+                disabled={!!deleting}
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden>
+                  <path d="M9 3a1 1 0 00-1 1v1H5.5a1 1 0 100 2H6v11a2 2 0 002 2h8a2 2 0 002-2V7h.5a1 1 0 100-2H16V4a1 1 0 00-1-1H9zm2 2h4v1h-4V5zm-1 4a1 1 0 112 0v8a1 1 0 11-2 0V9zm5 0a1 1 0 112 0v8a1 1 0 11-2 0V9z" fill="currentColor" />
+                </svg>
+              </button>
+              {updatingRating && <span className="text-xs text-neutral-400">Salvando…</span>}
+              {deleting && <span className="text-xs text-neutral-400">Removendo…</span>}
             </div>
-            {item.rating != null && (
-              <span className="text-xs px-2 py-0.5 rounded-full border border-yellow-600 text-yellow-300">
-                Nota: {item.rating}
-              </span>
-            )}
-            <button
-              className="ml-auto text-xs px-2 py-0.5 rounded-full border border-neutral-700 hover:border-neutral-500 text-neutral-300 hover:text-white inline-flex items-center gap-1"
-              onClick={() => setDetailsOpen((v) => !v)}
-              aria-expanded={detailsOpen}
-              title={detailsOpen ? 'Ocultar detalhes' : 'Mostrar detalhes'}
-            >
-              {detailsOpen ? 'Ocultar detalhes' : 'Detalhes'}
-              <svg viewBox="0 0 20 20" className={`w-3 h-3 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} aria-hidden>
-                <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
-              </svg>
-            </button>
+            {original && <div className="text-xs text-neutral-400">Original: {original}</div>}
           </div>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="select-none" ref={containerRef} onClick={handleClickRating} title="Avaliar">
-              <div className="flex gap-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="relative w-5 h-5">
-                    <StarIcon className="w-5 h-5 text-neutral-700" />
-                    {i < fullCount && <StarIcon className="w-5 h-5 text-sky-400 absolute inset-0" />}
-                    {i === fullCount && hasHalf && (
-                      <div className="absolute inset-0 overflow-hidden" style={{ width: '50%' }}>
-                        <StarIcon className="w-5 h-5 text-sky-400" />
-                      </div>
-                    )}
-                  </div>
+          <div className="text-xs text-neutral-400 flex flex-wrap gap-x-3 gap-y-1">
+            {media.release_date && <span>Lançamento: {new Date(media.release_date).toLocaleDateString()}</span>}
+          </div>
+          <div className={`${detailsOpen ? 'block' : 'hidden'} border-t border-white/10 pt-3 mt-1`}>
+            <div className="text-sm text-neutral-200 whitespace-pre-line">
+              {media.overview || 'Sem descrição.'}
+            </div>
+            <div className="mt-2 text-xs text-neutral-400 flex flex-wrap gap-x-3 gap-y-1">
+              {media.original_lang && <span>Idioma: {media.original_lang}</span>}
+              {media.popularity != null && <span>Popularidade: {Math.round(media.popularity)}</span>}
+              {media.media_type === 'tv' && media.seasons_count != null && (
+                <span>Temporadas: {media.seasons_count}</span>
+              )}
+              {media.media_type === 'tv' && media.episodes_count != null && (
+                <span>Episódios: {media.episodes_count}</span>
+              )}
+              {media.media_type === 'tv' && media.series_status && (
+                <span>Status da série: {media.series_status}</span>
+              )}
+              {item.added_at && <span>Adicionado: {new Date(item.added_at).toLocaleString()}</span>}
+              {item.watched_at && <span>Assistido: {new Date(item.watched_at).toLocaleString()}</span>}
+              {item.updated_at && <span>Atualizado: {new Date(item.updated_at).toLocaleString()}</span>}
+            </div>
+            {media.genres && media.genres.length > 0 && (
+              <div className="mt-2 text-xs text-neutral-300 flex flex-wrap gap-2">
+                {media.genres.map((g) => (
+                  <span key={g.id} className="px-2 py-0.5 rounded-full border border-white/10">{g.name}</span>
                 ))}
               </div>
-            </div>
-            <button
-              className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-rose-700 hover:border-rose-500 text-rose-300 hover:text-rose-200"
-              onClick={() => onDelete(item.movie_id)}
-              title="Remover"
-              disabled={!!deleting}
-            >
-              <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden>
-                <path d="M9 3a1 1 0 00-1 1v1H5.5a1 1 0 100 2H6v11a2 2 0 002 2h8a2 2 0 002-2V7h.5a1 1 0 100-2H16V4a1 1 0 00-1-1H9zm2 2h4v1h-4V5zm-1 4a1 1 0 112 0v8a1 1 0 11-2 0V9zm5 0a1 1 0 112 0v8a1 1 0 11-2 0V9z" fill="currentColor" />
-              </svg>
-            </button>
-            {updatingRating && <span className="text-xs text-neutral-400">Salvando…</span>}
-            {deleting && <span className="text-xs text-neutral-400">Removendo…</span>}
-          </div>
-          {original && <div className="text-xs text-neutral-400">Original: {original}</div>}
-        </div>
-        <div className="text-xs text-neutral-400 flex flex-wrap gap-x-3 gap-y-1">
-          {media.release_date && <span>Lançamento: {new Date(media.release_date).toLocaleDateString()}</span>}
-        </div>
-        <div className={`${detailsOpen ? 'block' : 'hidden'} border-t border-neutral-800 pt-3 mt-1`}> 
-          <div className="text-sm text-neutral-200 whitespace-pre-line">
-            {media.overview || 'Sem descrição.'}
-          </div>
-          <div className="mt-2 text-xs text-neutral-400 flex flex-wrap gap-x-3 gap-y-1">
-            {media.original_lang && <span>Idioma: {media.original_lang}</span>}
-            {media.popularity != null && <span>Popularidade: {Math.round(media.popularity)}</span>}
-            {media.media_type === 'tv' && media.seasons_count != null && (
-              <span>Temporadas: {media.seasons_count}</span>
             )}
-            {media.media_type === 'tv' && media.episodes_count != null && (
-              <span>Episódios: {media.episodes_count}</span>
-            )}
-            {media.media_type === 'tv' && media.series_status && (
-              <span>Status da série: {media.series_status}</span>
-            )}
-            {item.added_at && <span>Adicionado: {new Date(item.added_at).toLocaleString()}</span>}
-            {item.watched_at && <span>Assistido: {new Date(item.watched_at).toLocaleString()}</span>}
-            {item.updated_at && <span>Atualizado: {new Date(item.updated_at).toLocaleString()}</span>}
-          </div>
-          {media.genres && media.genres.length > 0 && (
-            <div className="mt-2 text-xs text-neutral-300 flex flex-wrap gap-2">
-              {media.genres.map((g) => (
-                <span key={g.id} className="px-2 py-0.5 rounded-full border border-neutral-700">{g.name}</span>
-              ))}
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button className="inline-flex items-center gap-1 rounded-md border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => onOpenNotes(item)} title="Anotações">
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" aria-hidden>
+                  <path d="M6 4a2 2 0 00-2 2v12a2 2 0 002 2h7.5a2 2 0 001.414-.586l3.5-3.5A2 2 0 0019 14.5V6a2 2 0 00-2-2H6zm8 14.5V16a1 1 0 011-1h2.5L14 18.5zM7 8h10M7 11h10M7 14h6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span>Anotações</span>
+              </button>
             </div>
-          )}
-          <div className="mt-3 flex items-center justify-end gap-2">
-            <button className="inline-flex items-center gap-1 rounded-md border border-neutral-700 hover:border-neutral-500 text-neutral-300 hover:text-white px-2 py-1 text-xs" onClick={() => onOpenNotes(item)} title="Anotações">
-              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" aria-hidden>
-                <path d="M6 4a2 2 0 00-2 2v12a2 2 0 002 2h7.5a2 2 0 001.414-.586l3.5-3.5A2 2 0 0019 14.5V6a2 2 0 00-2-2H6zm8 14.5V16a1 1 0 011-1h2.5L14 18.5zM7 8h10M7 11h10M7 14h6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Anotações</span>
-            </button>
+            {item.notes && (
+              <div className="mt-2 text-sm text-neutral-200">
+                <span className="text-neutral-400">Notas: </span>
+                {item.notes}
+              </div>
+            )}
           </div>
-          {item.notes && (
-            <div className="mt-2 text-sm text-neutral-200">
-              <span className="text-neutral-400">Notas: </span>
-              {item.notes}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -519,7 +525,7 @@ export default function ListPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {loading ? (
           <>
             <SkeletonHeader />
@@ -532,18 +538,18 @@ export default function ListPage() {
         ) : (
           <>
             <div className="flex items-center justify-between mb-4 gap-3">
-              <h2 className="text-2xl font-semibold flex-1 min-w-0 truncate">{listName || `Lista #${parsedId}`}</h2>
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex-1 min-w-0 truncate bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{listName || `Lista #${parsedId}`}</h2>
               <div className="hidden sm:block flex-1 max-w-md">
                 <input
                   value={listSearchQuery}
                   onChange={(e) => setListSearchQuery(e.target.value)}
                   placeholder="Buscar nesta lista"
-                  className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:border-sky-600"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                 />
               </div>
               <div className="flex items-center gap-2">
-                <button className="border border-sky-600 text-sky-300 rounded-lg px-3 py-2 text-sm" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
-                <button className="border border-neutral-600 rounded-lg px-3 py-2 text-sm" onClick={() => navigate('/home')}>Voltar</button>
+                <button className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
+                <button className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10" onClick={() => navigate('/home')}>Voltar</button>
               </div>
             </div>
             <div className="sm:hidden mb-3">
@@ -551,16 +557,21 @@ export default function ListPage() {
                 value={listSearchQuery}
                 onChange={(e) => setListSearchQuery(e.target.value)}
                 placeholder="Buscar nesta lista"
-                className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:border-sky-600"
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
               />
             </div>
-            {error && <div className="auth-error max-w-lg">{error}</div>}
-            {listSearchError && <div className="auth-error max-w-lg">{listSearchError}</div>}
+            {error && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{error}</div>}
+            {listSearchError && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{listSearchError}</div>}
             {listSearchLoading && <div className="text-neutral-300 mb-2">Pesquisando…</div>}
             {!error && (
               <div className="grid gap-3 sm:gap-4">
                 {effectiveItems.length === 0 ? (
-                  <div className="text-neutral-300">Nenhum título {listSearchQuery.trim().length >= 2 ? 'encontrado para a busca.' : 'nesta lista ainda.'}</div>
+                  <div className="rounded-xl bg-white/5 border border-white/10 p-6 text-center grid place-items-center">
+                    <div className="text-gray-300">Nenhum título {listSearchQuery.trim().length >= 2 ? 'encontrado para a busca.' : 'nesta lista ainda.'}</div>
+                    <div className="mt-4">
+                      <button className="inline-block px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => setIsAddOpen(true)}>Adicionar primeiro título</button>
+                    </div>
+                  </div>
                 ) : (
                   effectiveItems.map((item) => (
                     <MovieCard
@@ -583,10 +594,10 @@ export default function ListPage() {
       </main>
       {notesItem && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm grid place-items-center p-4 z-50">
-          <div className="w-full max-w-xl h-[420px] bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
+          <div className="w-full max-w-xl h-[420px] bg-neutral-950 border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-lg shadow-white/10">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Anotações</h3>
-              <button className="text-neutral-300 hover:text-white" onClick={() => { setNotesItem(null); setNotesEditing(false) }}>Fechar</button>
+              <button className="text-neutral-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 rounded px-2 py-1" onClick={() => { setNotesItem(null); setNotesEditing(false) }}>Fechar</button>
             </div>
             <div className="p-4 grid gap-3 flex-1 overflow-y-auto">
               {!notesEditing ? (
@@ -598,17 +609,17 @@ export default function ListPage() {
                       value={''}
                       readOnly
                       rows={6}
-                      className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400"
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-neutral-400"
                       placeholder="Sem anotações"
                     />
                   )}
                   <div className="flex justify-end">
                     <button
-                      className="inline-flex items-center gap-1 rounded-md border border-neutral-700 hover:border-neutral-500 text-neutral-300 hover:text-white px-2 py-1 text-xs"
+                      className="inline-flex items-center gap-1 rounded-md border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-white/40"
                       onClick={() => setNotesEditing(true)}
                       title="Editar anotações"
                     >
-                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" aria-hidden>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden>
                         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.25H5v-.92l8.06-8.06.92.92L5.92 19.5zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor" />
                       </svg>
                       <span>Editar</span>
@@ -621,11 +632,11 @@ export default function ListPage() {
                     value={notesDraft}
                     onChange={(e) => setNotesDraft(e.target.value)}
                     rows={6}
-                    className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:border-sky-600"
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                   />
                   <div className="flex items-center justify-end gap-2">
-                    <button className="border border-neutral-600 rounded-lg px-3 py-2 text-sm" onClick={() => { setNotesEditing(false); setNotesDraft(notesItem.notes || '') }}>Cancelar</button>
-                    <button className="border border-sky-600 text-sky-300 rounded-lg px-3 py-2 text-sm" onClick={saveNotes}>Salvar</button>
+                    <button className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10" onClick={() => { setNotesEditing(false); setNotesDraft(notesItem.notes || '') }}>Cancelar</button>
+                    <button className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={saveNotes}>Salvar</button>
                   </div>
                 </>
               )}
@@ -635,31 +646,31 @@ export default function ListPage() {
       )}
       {isAddOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm grid place-items-center p-4 z-50">
-          <div className="w-full max-w-xl bg-neutral-950 border border-neutral-800 rounded-2xl overflow-hidden">
-            <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
+          <div className="w-full max-w-xl bg-neutral-950 border border-white/10 rounded-2xl overflow-hidden shadow-lg shadow-white/10">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Adicionar título</h3>
-              <button className="text-neutral-300 hover:text-white" onClick={() => { setIsAddOpen(false); setSearchQuery(''); setSearchResults([]); setSearchError(null) }}>Fechar</button>
+              <button className="text-neutral-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 rounded px-2 py-1" onClick={() => { setIsAddOpen(false); setSearchQuery(''); setSearchResults([]); setSearchError(null) }}>Fechar</button>
             </div>
             <div className="p-4 grid gap-3">
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Busque por um filme ou série"
-                className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:border-sky-600"
+                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
               />
-              {searchError && <div className="auth-error">{searchError}</div>}
+              {searchError && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300">{searchError}</div>}
               {searchLoading && <div className="text-neutral-300">Pesquisando…</div>}
               {!searchLoading && searchQuery.trim().length >= 2 && searchResults.length === 0 && !searchError && (
                 <div className="text-neutral-400">Nenhum resultado.</div>
               )}
               <div className="grid gap-2">
                 {searchResults.map((r) => (
-                  <button key={`${r.media_type}-${r.id}`} className="flex items-center gap-3 p-2 rounded-lg border border-neutral-800 hover:border-sky-700 hover:bg-neutral-900 text-left"
+                  <button key={`${r.media_type}-${r.id}`} className="flex items-center gap-3 p-2 rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5 text-left"
                     onClick={() => handleAddSelect(r)}>
                     {r.poster_url ? (
                       <img src={r.poster_url} alt={r.name} className="w-12 h-16 object-cover rounded" />
                     ) : (
-                      <div className="w-12 h-16 bg-neutral-800 rounded grid place-items-center text-[10px] text-neutral-400">Sem poster</div>
+                      <div className="w-12 h-16 bg-white/5 rounded grid place-items-center text-[10px] text-neutral-400">Sem poster</div>
                     )}
                     <div className="flex-1">
                       <div className="font-medium">{r.name}</div>
@@ -667,7 +678,7 @@ export default function ListPage() {
                         <div className="text-xs text-neutral-400">{r.original_name}</div>
                       )}
                     </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full border border-neutral-700 text-neutral-300">
+                    <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-neutral-300">
                       {r.media_type === 'movie' ? 'Filme' : 'Série'}
                     </span>
                   </button>

@@ -80,12 +80,12 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-semibold">Suas listas</h2>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <div className="flex items-center justify-between mb-5 gap-3">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">Suas listas</h2>
           <div className="flex items-center gap-2">
             <button
-              className="border border-neutral-600 rounded-lg px-3 py-2 text-sm"
+              className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
               onClick={() => {
                 setError(null)
                 setInviteCode('')
@@ -95,7 +95,7 @@ export default function HomePage() {
               Entrar por código
             </button>
             <button
-              className="auth-button"
+              className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
               onClick={() => {
                 setError(null)
                 setCreateName('')
@@ -108,26 +108,26 @@ export default function HomePage() {
           </div>
         </div>
         {loading && <div className="text-neutral-300">Carregando…</div>}
-        {error && <div className="auth-error max-w-lg">{error}</div>}
+        {error && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{error}</div>}
         {!loading && !error && lists.length === 0 && (
           <div className="grid gap-4 max-w-2xl">
-            <div className="border border-neutral-800 rounded-xl p-5 bg-neutral-900/40">
-              <h3 className="text-lg font-medium mb-2">Crie sua primeira lista</h3>
+            <div className="rounded-xl bg-white/5 border border-white/10 p-5">
+              <h3 className="text-lg font-semibold mb-2">Crie sua primeira lista</h3>
               <div className="grid gap-3">
                 <input
-                  className="auth-input"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                   placeholder="Nome da lista"
                   value={createName}
                   onChange={(e) => setCreateName(e.target.value)}
                 />
                 <input
-                  className="auth-input"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                   placeholder="Descrição (opcional)"
                   value={createDescription}
                   onChange={(e) => setCreateDescription(e.target.value)}
                 />
                 <button
-                  className="auth-button w-fit"
+                  className="inline-block px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 w-fit"
                   disabled={creating || createName.trim().length === 0}
                   onClick={async () => {
                     if (!createName.trim()) return
@@ -150,17 +150,17 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
-            <div className="border border-neutral-800 rounded-xl p-5 bg-neutral-900/40">
-              <h3 className="text-lg font-medium mb-2">Ou entre com um código</h3>
+            <div className="rounded-xl bg-white/5 border border-white/10 p-5">
+              <h3 className="text-lg font-semibold mb-2">Ou entre com um código</h3>
               <div className="grid gap-3">
                 <input
-                  className="auth-input"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                   placeholder="Código de convite (10 caracteres)"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                 />
                 <button
-                  className="auth-button w-fit"
+                  className="px-6 py-3 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10 w-fit"
                   disabled={joining || inviteCode.trim().length === 0}
                   onClick={async () => {
                     if (!inviteCode.trim()) return
@@ -185,36 +185,78 @@ export default function HomePage() {
         )}
         <ul className="space-y-3">
           {lists.map((list) => (
-            <li key={list.id} className="border border-neutral-800 rounded-xl p-4 bg-neutral-900/40">
+            <li
+              key={list.id}
+              className="group rounded-xl border border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10 transition-all p-4 sm:p-5 shadow-lg shadow-white/10 hover:-translate-y-0.5"
+            >
               <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-medium">{list.name}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full border border-neutral-700 text-neutral-300">{list.your_role}</span>
+                    <span className="text-lg font-semibold tracking-tight">{list.name}</span>
+                    {list.your_role === 'owner' ? (
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10 border border-white/10 text-amber-300" title="Proprietário" aria-label="Proprietário">
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true">
+                          <path d="M12 4l2.1 3.9 4.4.6-3.2 3.1.8 4.4L12 14.9 7.9 16l.8-4.4L5.5 8.5l4.4-.6L12 4z"/>
+                        </svg>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10 border border-white/10 text-blue-300" title="Participante" aria-label="Participante">
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true">
+                          <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 7a7 7 0 0 1 14 0H5z"/>
+                        </svg>
+                      </span>
+                    )}
                   </div>
-                  {list.description && <p className="text-neutral-300">{list.description}</p>}
-                  <div className="text-xs text-neutral-400 flex flex-wrap gap-3">
-                    <span>ID: {list.id}</span>
-                    <span>Convite: {list.invite_code}</span>
-                    <span>Membros: {list.member_count}</span>
-                    <span>Títulos: {list.movie_count}</span>
-                    <span>Criada: {new Date(list.created_at).toLocaleString()}</span>
-                    <span>Atualizada: {new Date(list.updated_at).toLocaleString()}</span>
+                  {list.description && (
+                    <p className="text-sm text-neutral-300 line-clamp-2">{list.description}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-200">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/10 px-2 py-1">
+                      Filmes: {list.movie_count}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/10 px-2 py-1">
+                      Participantes: {list.member_count}
+                    </span>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
-                  <button onClick={() => handleCopy(list)} className="bg-white text-black rounded-lg px-3 py-2 border border-white text-sm">
-                    {copiedId === list.id ? 'Copiado!' : 'Copiar código'}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleCopy(list)}
+                    className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/40"
+                    aria-label={copiedId === list.id ? 'Código copiado' : 'Copiar código de convite'}
+                    title={copiedId === list.id ? 'Código copiado' : 'Copiar código'}
+                  >
+                    {copiedId === list.id ? (
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 text-emerald-300" fill="currentColor" aria-hidden="true">
+                        <path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19 20.3 7.7l-1.4-1.4z"/>
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden="true">
+                        <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12z"/>
+                        <path d="M20 5H8a2 2 0 0 0-2 2v14h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h12z"/>
+                      </svg>
+                    )}
                   </button>
-                  <button onClick={() => navigate(`/list/${list.id}`)} className="border border-neutral-600 rounded-lg px-3 py-2 text-sm">
-                    Entrar na lista
+                  <button
+                    onClick={() => navigate(`/list/${list.id}`)}
+                    className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/40"
+                    aria-label="Abrir lista"
+                    title="Abrir lista"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden="true">
+                      <path d="M5 12h10.59l-4.3 4.29 1.42 1.42L20.41 12l-7.7-5.71-1.42 1.42L15.59 11H5z"/>
+                    </svg>
                   </button>
                   {list.your_role === 'owner' && (
                     <button
                       onClick={() => setConfirmDelete(list)}
-                      className="bg-red-600 text-white rounded-lg px-3 py-2 text-sm border border-red-500"
+                      className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 transition focus:outline-none focus:ring-2 focus:ring-white/40"
+                      aria-label="Excluir lista"
+                      title="Excluir lista"
                     >
-                      Excluir lista
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden="true">
+                        <path d="M6 7h12l-1 14H7L6 7zm10-3h-4l-1-1H9L8 4H4v2h16V4z"/>
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -223,18 +265,18 @@ export default function HomePage() {
           ))}
         </ul>
         {showCreateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-            <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-lg shadow-white/10">
               <h3 className="text-lg font-semibold mb-2">Criar nova lista</h3>
               <div className="grid gap-3 mb-4">
                 <input
-                  className="auth-input"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                   placeholder="Nome da lista"
                   value={createName}
                   onChange={(e) => setCreateName(e.target.value)}
                 />
                 <input
-                  className="auth-input"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                   placeholder="Descrição (opcional)"
                   value={createDescription}
                   onChange={(e) => setCreateDescription(e.target.value)}
@@ -242,14 +284,14 @@ export default function HomePage() {
               </div>
               <div className="flex justify-end gap-2">
                 <button
-                  className="border border-neutral-600 rounded-lg px-3 py-2 text-sm"
+                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
                   onClick={() => setShowCreateModal(false)}
                   disabled={creating}
                 >
                   Cancelar
                 </button>
                 <button
-                  className="auth-button"
+                  className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
                   disabled={creating || createName.trim().length === 0}
                   onClick={async () => {
                     if (!createName.trim()) return
@@ -276,12 +318,12 @@ export default function HomePage() {
           </div>
         )}
         {showJoinModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-            <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-lg shadow-white/10">
               <h3 className="text-lg font-semibold mb-2">Entrar em lista</h3>
               <div className="grid gap-3 mb-4">
                 <input
-                  className="auth-input"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                   placeholder="Código de convite (10 caracteres)"
                   value={inviteCode}
                   maxLength={10}
@@ -290,14 +332,14 @@ export default function HomePage() {
               </div>
               <div className="flex justify-end gap-2">
                 <button
-                  className="border border-neutral-600 rounded-lg px-3 py-2 text-sm"
+                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
                   onClick={() => setShowJoinModal(false)}
                   disabled={joining}
                 >
                   Cancelar
                 </button>
                 <button
-                  className="auth-button"
+                  className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
                   disabled={joining || inviteCode.trim().length === 0}
                   onClick={async () => {
                     if (!inviteCode.trim()) return
@@ -323,23 +365,22 @@ export default function HomePage() {
           </div>
         )}
         {confirmDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-            <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-lg shadow-white/10">
               <h3 className="text-lg font-semibold mb-2">Excluir lista?</h3>
               <p className="text-neutral-300 mb-4">
-                Tem certeza de que deseja excluir a lista
-                {' '}<span className="font-medium">"{confirmDelete.name}"</span>? Esta ação é irreversível.
+                Tem certeza de que deseja excluir a lista{' '}<span className="font-medium">"{confirmDelete.name}"</span>? Esta ação é irreversível.
               </p>
               <div className="flex justify-end gap-2">
                 <button
-                  className="border border-neutral-600 rounded-lg px-3 py-2 text-sm"
+                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
                   onClick={() => setConfirmDelete(null)}
                   disabled={deleting}
                 >
                   Cancelar
                 </button>
                 <button
-                  className="bg-red-600 text-white rounded-lg px-3 py-2 text-sm border border-red-500"
+                  className="px-5 py-2.5 rounded-lg bg-rose-600 text-white hover:bg-rose-500 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-rose-500"
                   onClick={handleConfirmDelete}
                   disabled={deleting}
                 >
