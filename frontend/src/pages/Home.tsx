@@ -16,8 +16,8 @@ export default function HomePage() {
   const [inviteCode, setInviteCode] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<UserListDTO | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [showCreateInline, setShowCreateInline] = useState(false)
+  const [showJoinInline, setShowJoinInline] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -89,7 +89,7 @@ export default function HomePage() {
               onClick={() => {
                 setError(null)
                 setInviteCode('')
-                setShowJoinModal(true)
+                setShowJoinInline((v) => !v)
               }}
             >
               Entrar por código
@@ -100,13 +100,119 @@ export default function HomePage() {
                 setError(null)
                 setCreateName('')
                 setCreateDescription('')
-                setShowCreateModal(true)
+                setShowCreateInline((v) => !v)
               }}
             >
               Nova lista
             </button>
           </div>
         </div>
+
+        {showJoinInline && (
+          <div className="mb-5 rounded-xl bg-white/5 border border-white/10 p-5">
+            <h3 className="text-lg font-semibold mb-2">Entrar em lista por código</h3>
+            <div className="grid gap-3 sm:flex sm:items-end sm:gap-3">
+              <div className="flex-1 min-w-[240px]">
+                <label className="block text-sm text-neutral-300 mb-1">Código de convite</label>
+                <input
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
+                  placeholder="10 caracteres"
+                  value={inviteCode}
+                  maxLength={10}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
+                  onClick={() => setShowJoinInline(false)}
+                  disabled={joining}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
+                  disabled={joining || inviteCode.trim().length === 0}
+                  onClick={async () => {
+                    if (!inviteCode.trim()) return
+                    setJoining(true)
+                    try {
+                      const res = await joinList(inviteCode.trim())
+                      setInviteCode('')
+                      setShowJoinInline(false)
+                      navigate(`/list/${res.list.id}`)
+                    } catch (err) {
+                      const message = (err as any)?.payload?.error || (err as Error).message
+                      setError(message)
+                    } finally {
+                      setJoining(false)
+                    }
+                  }}
+                >
+                  {joining ? 'Entrando…' : 'Entrar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showCreateInline && (
+          <div className="mb-5 rounded-xl bg-white/5 border border-white/10 p-5">
+            <h3 className="text-lg font-semibold mb-2">Criar nova lista</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm text-neutral-300 mb-1">Nome</label>
+                <input
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
+                  placeholder="Nome da lista"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-neutral-300 mb-1">Descrição (opcional)</label>
+                <input
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
+                  placeholder="Descrição"
+                  value={createDescription}
+                  onChange={(e) => setCreateDescription(e.target.value)}
+                />
+              </div>
+              <div className="sm:col-span-2 flex justify-end gap-2">
+                <button
+                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
+                  onClick={() => setShowCreateInline(false)}
+                  disabled={creating}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
+                  disabled={creating || createName.trim().length === 0}
+                  onClick={async () => {
+                    if (!createName.trim()) return
+                    setCreating(true)
+                    try {
+                      await createList({ name: createName.trim(), description: createDescription.trim() || undefined })
+                      setCreateName('')
+                      setCreateDescription('')
+                      setShowCreateInline(false)
+                      const res = await getUserLists()
+                      setLists(res.lists)
+                    } catch (err) {
+                      const message = (err as any)?.payload?.error || (err as Error).message
+                      setError(message)
+                    } finally {
+                      setCreating(false)
+                    }
+                  }}
+                >
+                  {creating ? 'Criando…' : 'Criar lista'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {loading && <div className="text-neutral-300">Carregando…</div>}
         {error && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{error}</div>}
         {!loading && !error && lists.length === 0 && (
@@ -264,106 +370,6 @@ export default function HomePage() {
             </li>
           ))}
         </ul>
-        {showCreateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-lg shadow-white/10">
-              <h3 className="text-lg font-semibold mb-2">Criar nova lista</h3>
-              <div className="grid gap-3 mb-4">
-                <input
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder="Nome da lista"
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                />
-                <input
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder="Descrição (opcional)"
-                  value={createDescription}
-                  onChange={(e) => setCreateDescription(e.target.value)}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
-                  onClick={() => setShowCreateModal(false)}
-                  disabled={creating}
-                >
-                  Cancelar
-                </button>
-                <button
-                  className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
-                  disabled={creating || createName.trim().length === 0}
-                  onClick={async () => {
-                    if (!createName.trim()) return
-                    setCreating(true)
-                    try {
-                      await createList({ name: createName.trim(), description: createDescription.trim() || undefined })
-                      setCreateName('')
-                      setCreateDescription('')
-                      setShowCreateModal(false)
-                      const res = await getUserLists()
-                      setLists(res.lists)
-                    } catch (err) {
-                      const message = (err as any)?.payload?.error || (err as Error).message
-                      setError(message)
-                    } finally {
-                      setCreating(false)
-                    }
-                  }}
-                >
-                  {creating ? 'Criando…' : 'Criar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {showJoinModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-lg shadow-white/10">
-              <h3 className="text-lg font-semibold mb-2">Entrar em lista</h3>
-              <div className="grid gap-3 mb-4">
-                <input
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder="Código de convite (10 caracteres)"
-                  value={inviteCode}
-                  maxLength={10}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
-                  onClick={() => setShowJoinModal(false)}
-                  disabled={joining}
-                >
-                  Cancelar
-                </button>
-                <button
-                  className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
-                  disabled={joining || inviteCode.trim().length === 0}
-                  onClick={async () => {
-                    if (!inviteCode.trim()) return
-                    setJoining(true)
-                    setError(null)
-                    try {
-                      const res = await joinList(inviteCode.trim())
-                      setInviteCode('')
-                      setShowJoinModal(false)
-                      navigate(`/list/${res.list.id}`)
-                    } catch (err) {
-                      const message = (err as any)?.payload?.error || (err as Error).message
-                      setError(message)
-                    } finally {
-                      setJoining(false)
-                    }
-                  }}
-                >
-                  {joining ? 'Entrando…' : 'Entrar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {confirmDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
             <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-lg shadow-white/10">
