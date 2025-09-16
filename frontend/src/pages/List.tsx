@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Header from '../components/Header'
-import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, type ListMovieItemDTO, type MovieStatus, searchListMovies } from '../services/lists'
+import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, type ListMovieItemDTO, type MovieStatus } from '../services/lists'
 import { searchMedia, type SearchResultDTO } from '../services/search'
 
 const statusLabels: Record<MovieStatus, string> = {
@@ -258,6 +258,11 @@ export default function ListPage() {
   const [searchError, setSearchError] = useState<string | null>(null)
   const debounceRef = useRef<number | null>(null)
   const lastQueryRef = useRef<string>('')
+  const abortRef = useRef<AbortController | null>(null)
+  const [activeResultIndex, setActiveResultIndex] = useState<number>(0)
+  const addInputRef = useRef<HTMLInputElement | null>(null)
+  const resultsContainerRef = useRef<HTMLDivElement | null>(null)
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [updatingRatingId, setUpdatingRatingId] = useState<number | null>(null)
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
   const [notesItem, setNotesItem] = useState<ListMovieItemDTO | null>(null)
@@ -269,11 +274,28 @@ export default function ListPage() {
 
   // State for in-list search
   const [listSearchQuery, setListSearchQuery] = useState('')
-  const [listSearchResults, setListSearchResults] = useState<ListMovieItemDTO[]>([])
-  const [listSearchLoading, setListSearchLoading] = useState(false)
-  const [listSearchError, setListSearchError] = useState<string | null>(null)
-  const listDebounceRef = useRef<number | null>(null)
-  const lastListQueryRef = useRef<string>('')
+
+  // Persistir filtros e busca por lista
+  useEffect(() => {
+    const keyPrefix = `list:${parsedId || 'unknown'}`
+    try {
+      const savedStatus = localStorage.getItem(`${keyPrefix}:statusFilter`)
+      const savedQuery = localStorage.getItem(`${keyPrefix}:listSearchQuery`)
+      if (savedStatus === 'all' || savedStatus === 'not_watched' || savedStatus === 'watching' || savedStatus === 'watched' || savedStatus === 'dropped') {
+        setStatusFilter(savedStatus as MovieStatus | 'all')
+      }
+      if (savedQuery) setListSearchQuery(savedQuery)
+    } catch {}
+  }, [parsedId])
+
+  useEffect(() => {
+    const keyPrefix = `list:${parsedId || 'unknown'}`
+    try {
+      localStorage.setItem(`${keyPrefix}:statusFilter`, String(statusFilter))
+      localStorage.setItem(`${keyPrefix}:listSearchQuery`, listSearchQuery)
+    } catch {}
+  }, [parsedId, statusFilter, listSearchQuery])
+  
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -290,7 +312,7 @@ export default function ListPage() {
       setLoading(true)
       setError(null)
       try {
-        const res = await getListMovies(parsedId, { status: statusFilter })
+        const res = await getListMovies(parsedId)
         setItems(res)
       } catch (err) {
         const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao carregar itens da lista'
@@ -305,7 +327,7 @@ export default function ListPage() {
         setLoading(false)
       }
     })()
-  }, [navigate, parsedId, statusFilter])
+  }, [navigate, parsedId])
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -330,70 +352,72 @@ export default function ListPage() {
     })()
   }, [navigate, parsedId])
 
-  // Debounced in-list search (100ms)
-  useEffect(() => {
-    if (!parsedId || Number.isNaN(parsedId)) return
-    if (listDebounceRef.current) {
-      clearTimeout(listDebounceRef.current)
-      listDebounceRef.current = null
+  // Client-side filter and search
+  const filteredItems = useMemo(() => {
+    let base = items
+    if (statusFilter !== 'all') {
+      base = base.filter((it) => it.status === statusFilter)
     }
-    const q = listSearchQuery.trim()
-    if (q.length < 2) {
-      setListSearchResults([])
-      setListSearchError(null)
-      setListSearchLoading(false)
-      return
+    const q = listSearchQuery.trim().toLowerCase()
+    if (q.length >= 2) {
+      base = base.filter((it) => {
+        const m = it.movie
+        const title = (m.title || '').toLowerCase()
+        const original = (m.original_title || '').toLowerCase()
+        const notes = (it.notes || '').toLowerCase()
+        return title.includes(q) || original.includes(q) || notes.includes(q)
+      })
     }
-    setListSearchLoading(true)
-    setListSearchError(null)
-    lastListQueryRef.current = q
-    listDebounceRef.current = window.setTimeout(async () => {
-      try {
-        const res = await searchListMovies(parsedId, q)
-        if (lastListQueryRef.current === q) {
-          setListSearchResults(res.movies || [])
-        }
-      } catch (err) {
-        const message = (err as any)?.payload?.error || (err as Error).message || 'Falha na pesquisa da lista'
-        setListSearchError(message)
-        if ((err as any)?.status === 401) {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          localStorage.removeItem('user')
-          navigate('/login')
-        }
-      } finally {
-        if (lastListQueryRef.current === q) {
-          setListSearchLoading(false)
-        }
-      }
-    }, 100)
-  }, [listSearchQuery, parsedId, navigate])
+    return base
+  }, [items, statusFilter, listSearchQuery])
 
-  // Debounced add-modal search (now 100ms)
+  const statusCounts = useMemo(() => {
+    const counts: Record<MovieStatus | 'all', number> = {
+      all: items.length,
+      not_watched: 0,
+      watching: 0,
+      watched: 0,
+      dropped: 0,
+    }
+    for (const it of items) {
+      counts[it.status]++
+    }
+    return counts
+  }, [items])
+
+  // Debounced add-modal search com cancelamento
   useEffect(() => {
     if (!isAddOpen) return
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
       debounceRef.current = null
     }
+    if (abortRef.current) {
+      try { abortRef.current.abort() } catch {}
+      abortRef.current = null
+    }
     const q = searchQuery.trim()
     if (q.length < 2) {
       setSearchResults([])
       setSearchError(null)
       setSearchLoading(false)
+      setActiveResultIndex(0)
       return
     }
     setSearchLoading(true)
     setSearchError(null)
     lastQueryRef.current = q
     debounceRef.current = window.setTimeout(async () => {
+      const controller = new AbortController()
+      abortRef.current = controller
       try {
-        const res = await searchMedia(q)
+        const res = await searchMedia(q, controller.signal)
         if (lastQueryRef.current === q) {
           setSearchResults(res.results || [])
+          setActiveResultIndex(0)
         }
       } catch (err) {
+        if ((err as any)?.name === 'AbortError') return
         const message = (err as any)?.payload?.error || (err as Error).message || 'Falha na pesquisa'
         setSearchError(message)
         if ((err as any)?.status === 401) {
@@ -407,14 +431,29 @@ export default function ListPage() {
           setSearchLoading(false)
         }
       }
-    }, 50)
+    }, 250)
   }, [searchQuery, isAddOpen, navigate])
+
+  // Foco automático no input quando abrir modal
+  useEffect(() => {
+    if (isAddOpen) {
+      setTimeout(() => addInputRef.current?.focus(), 0)
+    }
+  }, [isAddOpen])
+
+  // Manter item ativo visível ao navegar por teclado
+  useEffect(() => {
+    const el = itemRefs.current[activeResultIndex]
+    if (el && resultsContainerRef.current) {
+      el.scrollIntoView({ block: 'nearest' })
+    }
+  }, [activeResultIndex, searchResults])
 
   const handleAddSelect = async (sel: SearchResultDTO) => {
     if (!parsedId || Number.isNaN(parsedId)) return
     try {
       await addListMovie(parsedId, { id: String(sel.id), media_type: sel.media_type })
-      const res = await getListMovies(parsedId, { status: statusFilter })
+      const res = await getListMovies(parsedId)
       setItems(res)
       setIsAddOpen(false)
       setSearchQuery('')
@@ -438,7 +477,7 @@ export default function ListPage() {
     try {
       setItems((prev) => prev.map((it) => it.movie_id === movieId ? { ...it, rating: value } : it))
       await updateListMovie(parsedId, movieId, { rating: value })
-      const res = await getListMovies(parsedId, { status: statusFilter })
+      const res = await getListMovies(parsedId)
       setItems(res)
     } catch (err) {
       setItems(old)
@@ -462,7 +501,7 @@ export default function ListPage() {
     try {
       setItems((prev) => prev.map((it) => it.movie_id === movieId ? { ...it, status } : it))
       await updateListMovie(parsedId, movieId, { status })
-      const res = await getListMovies(parsedId, { status: statusFilter })
+      const res = await getListMovies(parsedId)
       setItems(res)
     } catch (err) {
       setItems(old)
@@ -489,7 +528,7 @@ export default function ListPage() {
     if (!parsedId || Number.isNaN(parsedId) || !notesItem) return
     try {
       await updateListMovie(parsedId, notesItem.movie_id, { notes: notesDraft })
-      const res = await getListMovies(parsedId, { status: statusFilter })
+      const res = await getListMovies(parsedId)
       setItems(res)
       setNotesEditing(false)
     } catch (err) {
@@ -511,7 +550,7 @@ export default function ListPage() {
     try {
       setItems((prev) => prev.filter((it) => it.movie_id !== movieId))
       await deleteListMovie(parsedId, movieId)
-      const res = await getListMovies(parsedId, { status: statusFilter })
+      const res = await getListMovies(parsedId)
       setItems(res)
     } catch (err) {
       setItems(old)
@@ -528,7 +567,9 @@ export default function ListPage() {
     }
   }
 
-  const effectiveItems = (listSearchQuery.trim().length >= 2) ? listSearchResults : items
+  const effectiveItems = filteredItems
+  const existingIds = useMemo(() => new Set(items.map((it) => it.movie_id)), [items])
+  const displayResults = searchResults
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -545,48 +586,105 @@ export default function ListPage() {
           </>
         ) : (
           <>
-            <div className="flex items-center justify-between mb-4 gap-3">
-              <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex-1 min-w-0 truncate bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{listName || `Lista #${parsedId}`}</h2>
-              <div className="hidden sm:block flex-1 max-w-md">
+            <div className="mb-4 grid gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex-1 min-w-0 truncate bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{listName || `Lista #${parsedId}`}</h2>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button className="flex-1 sm:flex-none inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
+                  <button className="flex-1 sm:flex-none px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10" onClick={() => navigate('/home')}>Voltar</button>
+                </div>
+              </div>
+              <div className="hidden sm:grid sm:grid-cols-12 sm:items-start sm:gap-3">
+                <div className="sm:col-span-7">
+                  <div className="relative">
+                    <input
+                      value={listSearchQuery}
+                      onChange={(e) => setListSearchQuery(e.target.value)}
+                      placeholder="Buscar nesta lista"
+                      className="w-full pl-3 pr-9 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
+                    />
+                    {listSearchQuery && (
+                      <button
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white"
+                        onClick={() => setListSearchQuery('')}
+                        aria-label="Limpar busca"
+                      >
+                        <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
+                          <path d="M6.28 6.22a.75.75 0 011.06 0L10 8.88l2.66-2.66a.75.75 0 111.06 1.06L11.06 9.94l2.66 2.66a.75.75 0 11-1.06 1.06L10 11l-2.66 2.66a.75.75 0 11-1.06-1.06L8.94 9.94 6.28 7.28a.75.75 0 010-1.06z" fill="currentColor" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="sm:col-span-5">
+                  <label className="sr-only" htmlFor="statusFilterSelect">Filtrar por status</label>
+                  <div className="relative">
+                    <select
+                      id="statusFilterSelect"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as MovieStatus | 'all')}
+                      className="w-full appearance-none pl-3 pr-9 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40 text-sm"
+                    >
+                      <option value="all">Todos ({statusCounts.all})</option>
+                      <option value="not_watched">Não Assistido ({statusCounts.not_watched})</option>
+                      <option value="watching">Assistindo ({statusCounts.watching})</option>
+                      <option value="watched">Assistido ({statusCounts.watched})</option>
+                      <option value="dropped">Abandonado ({statusCounts.dropped})</option>
+                    </select>
+                    <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-300">
+                      <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
+                        <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="sm:hidden mb-3">
+              <div className="relative">
                 <input
                   value={listSearchQuery}
                   onChange={(e) => setListSearchQuery(e.target.value)}
                   placeholder="Buscar nesta lista"
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
+                  className="w-full pl-3 pr-9 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                 />
+                {listSearchQuery && (
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white"
+                    onClick={() => setListSearchQuery('')}
+                    aria-label="Limpar busca"
+                  >
+                    <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
+                      <path d="M6.28 6.22a.75.75 0 011.06 0L10 8.88l2.66-2.66a.75.75 0 111.06 1.06L11.06 9.94l2.66 2.66a.75.75 0 11-1.06 1.06L10 11l-2.66 2.66a.75.75 0 11-1.06-1.06L8.94 9.94 6.28 7.28a.75.75 0 010-1.06z" fill="currentColor" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-1 mr-2" role="group" aria-label="Filtro de status">
-                  {([['all','Todos'],['not_watched','Não Assistido'],['watching','Assistindo'],['watched','Assistido'],['dropped','Abandonado']] as [MovieStatus|'all', string][]) .map(([val,label]) => (
-                    <button key={val}
-                      className={`px-3 py-2 rounded-lg border text-xs ${statusFilter===val? 'bg-white text-black border-white' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
-                      onClick={() => setStatusFilter(val)}
-                    >{label}</button>
-                  ))}
+              <div className="mt-2">
+                <label className="sr-only" htmlFor="statusFilterSelectMobile">Filtrar por status</label>
+                <div className="relative">
+                  <select
+                    id="statusFilterSelectMobile"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as MovieStatus | 'all')}
+                    className="w-full appearance-none pl-3 pr-9 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40 text-sm"
+                  >
+                    <option value="all">Todos ({statusCounts.all})</option>
+                    <option value="not_watched">Não Assistido ({statusCounts.not_watched})</option>
+                    <option value="watching">Assistindo ({statusCounts.watching})</option>
+                    <option value="watched">Assistido ({statusCounts.watched})</option>
+                    <option value="dropped">Abandonado ({statusCounts.dropped})</option>
+                  </select>
+                  <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-300">
+                    <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
+                      <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
+                    </svg>
+                  </div>
                 </div>
-                <button className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
-                <button className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10" onClick={() => navigate('/home')}>Voltar</button>
-              </div>
-            </div>
-            <div className="sm:hidden mb-3">
-              <input
-                value={listSearchQuery}
-                onChange={(e) => setListSearchQuery(e.target.value)}
-                placeholder="Buscar nesta lista"
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-              />
-              <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Filtro de status">
-                {([['all','Todos'],['not_watched','Não Assistido'],['watching','Assistindo'],['watched','Assistido'],['dropped','Abandonado']] as [MovieStatus|'all', string][]) .map(([val,label]) => (
-                  <button key={val}
-                    className={`px-3 py-1.5 rounded-lg border text-xs ${statusFilter===val? 'bg-white text-black border-white' : 'bg-white/10 text-white border-white/10 hover:bg-white/20'}`}
-                    onClick={() => setStatusFilter(val)}
-                  >{label}</button>
-                ))}
               </div>
             </div>
             {error && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{error}</div>}
-            {listSearchError && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{listSearchError}</div>}
-            {listSearchLoading && <div className="text-neutral-300 mb-2">Pesquisando…</div>}
+            
             {!error && (
               <div className="grid gap-3 sm:gap-4">
                 {effectiveItems.length === 0 ? (
@@ -669,44 +767,119 @@ export default function ListPage() {
         </div>
       )}
       {isAddOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm grid place-items-center p-4 z-50">
-          <div className="w-full max-w-xl bg-neutral-950 border border-white/10 rounded-2xl overflow-hidden shadow-lg shadow-white/10">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Adicionar título</h3>
-              <button className="text-neutral-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 rounded px-2 py-1" onClick={() => { setIsAddOpen(false); setSearchQuery(''); setSearchResults([]); setSearchError(null) }}>Fechar</button>
-            </div>
-            <div className="p-4 grid gap-3">
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Busque por um filme ou série"
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-              />
-              {searchError && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300">{searchError}</div>}
-              {searchLoading && <div className="text-neutral-300">Pesquisando…</div>}
-              {!searchLoading && searchQuery.trim().length >= 2 && searchResults.length === 0 && !searchError && (
-                <div className="text-neutral-400">Nenhum resultado.</div>
-              )}
-              <div className="grid gap-2">
-                {searchResults.map((r) => (
-                  <button key={`${r.media_type}-${r.id}`} className="flex items-center gap-3 p-2 rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5 text-left"
-                    onClick={() => handleAddSelect(r)}>
-                    {r.poster_url ? (
-                      <img src={r.poster_url} alt={r.name} className="w-12 h-16 object-cover rounded" />
-                    ) : (
-                      <div className="w-12 h-16 bg-white/5 rounded grid place-items-center text-[10px] text-neutral-400">Sem poster</div>
-                    )}
-                    <div className="flex-1">
-                      <div className="font-medium">{r.name}</div>
-                      {r.original_name && r.original_name !== r.name && (
-                        <div className="text-xs text-neutral-400">{r.original_name}</div>
+        <div className="fixed inset-0 z-50">
+          <button className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-label="Fechar" onClick={() => { setIsAddOpen(false); setSearchQuery(''); setSearchResults([]); setSearchError(null) }}></button>
+          <div className="relative z-10 h-full w-full p-4 grid place-items-center">
+            <div className="w-full max-w-xl max-h-[80vh] bg-neutral-950 border border-white/10 rounded-2xl overflow-hidden shadow-lg shadow-white/10">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Adicionar título</h3>
+                <button className="text-neutral-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 rounded px-2 py-1" onClick={() => { setIsAddOpen(false); setSearchQuery(''); setSearchResults([]); setSearchError(null) }}>Fechar</button>
+              </div>
+              <div className="p-4 grid gap-3">
+                <div className="grid grid-cols-1 gap-2 items-center">
+                  <div>
+                    <div className="relative">
+                      <input
+                        ref={addInputRef}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (!displayResults.length) return
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault()
+                            setActiveResultIndex((i) => Math.min(i + 1, displayResults.length - 1))
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault()
+                            setActiveResultIndex((i) => Math.max(i - 1, 0))
+                          } else if (e.key === 'Enter') {
+                            const sel = displayResults[activeResultIndex]
+                            if (sel && !existingIds.has(sel.id)) {
+                              handleAddSelect(sel)
+                            }
+                          } else if (e.key === 'Escape') {
+                            setIsAddOpen(false)
+                          }
+                        }}
+                        placeholder="Busque por um filme ou série"
+                        className="w-full pl-3 pr-9 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
+                        role="combobox"
+                        aria-expanded={displayResults.length > 0}
+                        aria-controls="add-results"
+                        aria-autocomplete="list"
+                      />
+                      {searchQuery && (
+                        <button
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white"
+                          onClick={() => setSearchQuery('')}
+                          aria-label="Limpar busca"
+                        >
+                          <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
+                            <path d="M6.28 6.22a.75.75 0 011.06 0L10 8.88l2.66-2.66a.75.75 0 111.06 1.06L11.06 9.94l2.66 2.66a.75.75 0 11-1.06 1.06L10 11l-2.66 2.66a.75.75 0 11-1.06-1.06L8.94 9.94 6.28 7.28a.75.75 0 010-1.06z" fill="currentColor" />
+                          </svg>
+                        </button>
+                      )}
+                      {searchLoading && (
+                        <div className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-gray-300" aria-hidden>
+                          <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                          </svg>
+                        </div>
                       )}
                     </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-neutral-300">
-                      {r.media_type === 'movie' ? 'Filme' : 'Série'}
-                    </span>
-                  </button>
-                ))}
+                  </div>
+                </div>
+
+                {!searchLoading && searchQuery.trim().length < 2 && !searchError && (
+                  <div className="text-sm text-neutral-400">Digite 2 ou mais caracteres para buscar.</div>
+                )}
+                {searchError && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300">{searchError}</div>}
+                {!searchLoading && searchQuery.trim().length >= 2 && displayResults.length === 0 && !searchError && (
+                  <div className="text-neutral-400">Nenhum resultado.</div>
+                )}
+                <div
+                  id="add-results"
+                  ref={resultsContainerRef}
+                  role="listbox"
+                  aria-label="Resultados de busca"
+                  className="grid gap-2 max-h-[46vh] overflow-y-auto pr-1"
+                >
+                  {displayResults.map((r, idx) => {
+                    const isAdded = existingIds.has(r.id)
+                    const isActive = idx === activeResultIndex
+                    return (
+                      <button
+                        ref={(el) => { itemRefs.current[idx] = el }}
+                        key={`${r.media_type}-${r.id}`}
+                        role="option"
+                        aria-selected={isActive}
+                        className={`flex items-center gap-3 p-2 rounded-lg border text-left ${isActive ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/20 hover:bg-white/5'} ${isAdded ? 'opacity-70' : ''}`}
+                        onClick={() => !isAdded && handleAddSelect(r)}
+                        disabled={isAdded}
+                      >
+                        {r.poster_url ? (
+                          <img src={r.poster_url} alt={r.name} className="w-12 h-16 object-cover rounded" />
+                        ) : (
+                          <div className="w-12 h-16 bg-white/5 rounded grid place-items-center text-[10px] text-neutral-400">Sem poster</div>
+                        )}
+                        <div className="flex-1">
+                          <div className="font-medium flex items-center gap-2">
+                            <span className={`${isAdded ? 'text-gray-400 line-through' : ''}`}>{r.name}</span>
+                            {isAdded && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/10 text-gray-300">Já na lista</span>
+                            )}
+                          </div>
+                          {r.original_name && r.original_name !== r.name && (
+                            <div className="text-xs text-neutral-400">{r.original_name}</div>
+                          )}
+                        </div>
+                        <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-neutral-300">
+                          {r.media_type === 'movie' ? 'Filme' : 'Série'}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>

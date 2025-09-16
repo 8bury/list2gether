@@ -14,12 +14,13 @@ export interface SearchResponseDTO {
   query: string
 }
 
-export async function searchMedia(query: string): Promise<SearchResponseDTO> {
+export async function searchMedia(query: string, signal?: AbortSignal): Promise<SearchResponseDTO> {
   const token = localStorage.getItem('access_token')
   const params = new URLSearchParams({ q: query })
   return requestJson<SearchResponseDTO>(`/api/search/media?${params.toString()}` , {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    signal,
   })
 }
 
