@@ -32,7 +32,7 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         source: "backend/list2gether"
-        target: "/home/ec2-user/"
+        target: "/home/ec2-user/list2gether"
     
     - name: Restart service on EC2
       uses: appleboy/ssh-action@v0.1.5
