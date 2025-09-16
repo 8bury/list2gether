@@ -3,7 +3,7 @@ name: Deploy backend in EC2
 on:
   push:
     branches: [main]
-    # paths: ['backend/**']
+    # paths: ['backend/**']  # Descomente quando quiser filtrar apenas mudanças no backend
 
 jobs:
   deploy:
@@ -32,7 +32,8 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         source: "backend/list2gether"
-        target: "/home/ec2-user/list2gether"
+        target: "/home/ec2-user/"
+        strip_components: 1
     
     - name: Restart service on EC2
       uses: appleboy/ssh-action@v0.1.5
