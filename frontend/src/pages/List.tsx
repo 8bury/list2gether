@@ -400,7 +400,7 @@ export default function ListPage() {
           setSearchLoading(false)
         }
       }
-    }, 100)
+    }, 50)
   }, [searchQuery, isAddOpen, navigate])
 
   const handleAddSelect = async (sel: SearchResultDTO) => {
