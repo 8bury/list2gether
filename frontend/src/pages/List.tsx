@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Header from '../components/Header'
-import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, type ListMovieItemDTO, type MovieStatus } from '../services/lists'
+import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, type ListMovieItemDTO, type MovieStatus, searchListMovies } from '../services/lists'
 import { searchMedia, type SearchResultDTO } from '../services/search'
 
 const statusLabels: Record<MovieStatus, string> = {
@@ -260,6 +260,14 @@ export default function ListPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [listName, setListName] = useState<string | null>(null)
 
+  // State for in-list search
+  const [listSearchQuery, setListSearchQuery] = useState('')
+  const [listSearchResults, setListSearchResults] = useState<ListMovieItemDTO[]>([])
+  const [listSearchLoading, setListSearchLoading] = useState(false)
+  const [listSearchError, setListSearchError] = useState<string | null>(null)
+  const listDebounceRef = useRef<number | null>(null)
+  const lastListQueryRef = useRef<string>('')
+
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (!token) {
@@ -315,6 +323,47 @@ export default function ListPage() {
     })()
   }, [navigate, parsedId])
 
+  // Debounced in-list search (100ms)
+  useEffect(() => {
+    if (!parsedId || Number.isNaN(parsedId)) return
+    if (listDebounceRef.current) {
+      clearTimeout(listDebounceRef.current)
+      listDebounceRef.current = null
+    }
+    const q = listSearchQuery.trim()
+    if (q.length < 2) {
+      setListSearchResults([])
+      setListSearchError(null)
+      setListSearchLoading(false)
+      return
+    }
+    setListSearchLoading(true)
+    setListSearchError(null)
+    lastListQueryRef.current = q
+    listDebounceRef.current = window.setTimeout(async () => {
+      try {
+        const res = await searchListMovies(parsedId, q)
+        if (lastListQueryRef.current === q) {
+          setListSearchResults(res.movies || [])
+        }
+      } catch (err) {
+        const message = (err as any)?.payload?.error || (err as Error).message || 'Falha na pesquisa da lista'
+        setListSearchError(message)
+        if ((err as any)?.status === 401) {
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          localStorage.removeItem('user')
+          navigate('/login')
+        }
+      } finally {
+        if (lastListQueryRef.current === q) {
+          setListSearchLoading(false)
+        }
+      }
+    }, 100)
+  }, [listSearchQuery, parsedId, navigate])
+
+  // Debounced add-modal search (now 100ms)
   useEffect(() => {
     if (!isAddOpen) return
     if (debounceRef.current) {
@@ -351,7 +400,7 @@ export default function ListPage() {
           setSearchLoading(false)
         }
       }
-    }, 300)
+    }, 100)
   }, [searchQuery, isAddOpen, navigate])
 
   const handleAddSelect = async (sel: SearchResultDTO) => {
@@ -465,6 +514,8 @@ export default function ListPage() {
     }
   }
 
+  const effectiveItems = (listSearchQuery.trim().length >= 2) ? listSearchResults : items
+
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
@@ -480,20 +531,38 @@ export default function ListPage() {
           </>
         ) : (
           <>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold">{listName || `Lista #${parsedId}`}</h2>
+            <div className="flex items-center justify-between mb-4 gap-3">
+              <h2 className="text-2xl font-semibold flex-1 min-w-0 truncate">{listName || `Lista #${parsedId}`}</h2>
+              <div className="hidden sm:block flex-1 max-w-md">
+                <input
+                  value={listSearchQuery}
+                  onChange={(e) => setListSearchQuery(e.target.value)}
+                  placeholder="Buscar nesta lista"
+                  className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:border-sky-600"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <button className="border border-sky-600 text-sky-300 rounded-lg px-3 py-2 text-sm" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
                 <button className="border border-neutral-600 rounded-lg px-3 py-2 text-sm" onClick={() => navigate('/home')}>Voltar</button>
               </div>
             </div>
+            <div className="sm:hidden mb-3">
+              <input
+                value={listSearchQuery}
+                onChange={(e) => setListSearchQuery(e.target.value)}
+                placeholder="Buscar nesta lista"
+                className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:border-sky-600"
+              />
+            </div>
             {error && <div className="auth-error max-w-lg">{error}</div>}
+            {listSearchError && <div className="auth-error max-w-lg">{listSearchError}</div>}
+            {listSearchLoading && <div className="text-neutral-300 mb-2">Pesquisando…</div>}
             {!error && (
               <div className="grid gap-3 sm:gap-4">
-                {items.length === 0 ? (
-                  <div className="text-neutral-300">Nenhum título nesta lista ainda.</div>
+                {effectiveItems.length === 0 ? (
+                  <div className="text-neutral-300">Nenhum título {listSearchQuery.trim().length >= 2 ? 'encontrado para a busca.' : 'nesta lista ainda.'}</div>
                 ) : (
-                  items.map((item) => (
+                  effectiveItems.map((item) => (
                     <MovieCard
                       key={item.id}
                       item={item}
