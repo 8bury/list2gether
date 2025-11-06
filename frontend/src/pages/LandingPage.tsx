@@ -84,8 +84,8 @@ export default function LandingPage() {
                 </>
               ) : (
                 <>
-                  <Link to="/login" className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white/10 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">Login</Link>
-                  <Link to="/registro" className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white text-black rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">Create Account</Link>
+                  <Link to="/login" className="no-underline min-w-[120px] text-center px-3 py-2 sm:px-4 sm:py-2 bg-white/10 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">Login</Link>
+                  <Link to="/registro" className="no-underline min-w-[120px] text-center px-3 py-2 sm:px-4 sm:py-2 bg-white text-black rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">Create Account</Link>
                 </>
               )}
             </nav>
@@ -227,33 +227,12 @@ export default function LandingPage() {
 
       <footer className="border-t border-white/10 py-10 sm:py-12 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
             <div>
-              <h3 className="text-base md:text-lg font-semibold mb-4">list2gether</h3>
+              <h3 className="text-base md:text-lg font-semibold">list2gether</h3>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">About</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
-                <li>Contact</li>
-                <li>Help</li>
-                <li>API</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Terms</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
-                <li>Made by fans in Brazil</li>
-                <li>Film data from TMDB</li>
-                <li>Mobile site</li>
-              </ul>
-            </div>
-            <div>
-              <div className="flex space-x-4">
-                <div className="w-6 h-6 bg-gray-600 rounded"></div>
-                <div className="w-6 h-6 bg-gray-600 rounded"></div>
-                <div className="w-6 h-6 bg-gray-600 rounded"></div>
-                <div className="w-6 h-6 bg-gray-600 rounded"></div>
-              </div>
+              <p className="text-gray-400 text-sm">Made by fans in Brazil</p>
             </div>
           </div>
           <div className="border-t border-white/10 pt-6 mt-2 text-xs text-gray-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
