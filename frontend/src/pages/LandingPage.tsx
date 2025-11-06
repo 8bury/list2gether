@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next'
 export default function LandingPage() {
   const navigate = useNavigate()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const isLoggedIn = useMemo(() => {
     const access = localStorage.getItem('access_token')
     const refresh = localStorage.getItem('refresh_token')
