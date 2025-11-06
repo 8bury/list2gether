@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import { getUserLists, createList, joinList, deleteList, type UserListDTO } from '../services/lists'
+import { useTranslation } from 'react-i18next'
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -18,6 +19,7 @@ export default function HomePage() {
   const [deleting, setDeleting] = useState(false)
   const [showCreateInline, setShowCreateInline] = useState(false)
   const [showJoinInline, setShowJoinInline] = useState(false)
+  const { t } = useTranslation()
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -82,7 +84,7 @@ export default function HomePage() {
       <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex items-center justify-between mb-5 gap-3">
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">Suas listas</h2>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{t('lists.title')}</h2>
           <div className="flex items-center gap-2">
             <button
               className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
@@ -92,7 +94,7 @@ export default function HomePage() {
                 setShowJoinInline((v) => !v)
               }}
             >
-              Entrar por código
+              {t('lists.joinByCode')}
             </button>
             <button
               className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
@@ -103,20 +105,20 @@ export default function HomePage() {
                 setShowCreateInline((v) => !v)
               }}
             >
-              Nova lista
+              {t('lists.new')}
             </button>
           </div>
         </div>
 
         {showJoinInline && (
           <div className="mb-5 rounded-xl bg-white/5 border border-white/10 p-5">
-            <h3 className="text-lg font-semibold mb-2">Entrar em lista por código</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('lists.joinTitle')}</h3>
             <div className="grid gap-3 sm:flex sm:items-end sm:gap-3">
               <div className="flex-1 min-w-[240px]">
-                <label className="block text-sm text-neutral-300 mb-1">Código de convite</label>
+                <label className="block text-sm text-neutral-300 mb-1">{t('lists.inviteCode.label')}</label>
                 <input
                   className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder="10 caracteres"
+                  placeholder={t('lists.inviteCode.placeholder')}
                   value={inviteCode}
                   maxLength={10}
                   onChange={(e) => setInviteCode(e.target.value)}
@@ -128,7 +130,7 @@ export default function HomePage() {
                   onClick={() => setShowJoinInline(false)}
                   disabled={joining}
                 >
-                  Cancelar
+                  {t('misc.cancel')}
                 </button>
                 <button
                   className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
@@ -149,7 +151,7 @@ export default function HomePage() {
                     }
                   }}
                 >
-                  {joining ? 'Entrando…' : 'Entrar'}
+                  {joining ? t('lists.joining') : t('lists.join')}
                 </button>
               </div>
             </div>
@@ -158,22 +160,22 @@ export default function HomePage() {
 
         {showCreateInline && (
           <div className="mb-5 rounded-xl bg-white/5 border border-white/10 p-5">
-            <h3 className="text-lg font-semibold mb-2">Criar nova lista</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('lists.createTitle')}</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">Nome</label>
+                <label className="block text-sm text-neutral-300 mb-1">{t('lists.name')}</label>
                 <input
                   className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder="Nome da lista"
+                  placeholder={t('lists.namePlaceholder')}
                   value={createName}
                   onChange={(e) => setCreateName(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-sm text-neutral-300 mb-1">Descrição (opcional)</label>
+                <label className="block text-sm text-neutral-300 mb-1">{t('lists.descriptionOptional')}</label>
                 <input
                   className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder="Descrição"
+                  placeholder={t('lists.description')}
                   value={createDescription}
                   onChange={(e) => setCreateDescription(e.target.value)}
                 />
@@ -184,7 +186,7 @@ export default function HomePage() {
                   onClick={() => setShowCreateInline(false)}
                   disabled={creating}
                 >
-                  Cancelar
+                  {t('misc.cancel')}
                 </button>
                 <button
                   className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
@@ -207,28 +209,28 @@ export default function HomePage() {
                     }
                   }}
                 >
-                  {creating ? 'Criando…' : 'Criar lista'}
+                  {creating ? t('lists.creating') : t('lists.create')}
                 </button>
               </div>
             </div>
           </div>
         )}
-        {loading && <div className="text-neutral-300">Carregando…</div>}
+        {loading && <div className="text-neutral-300">{t('misc.loading')}</div>}
         {error && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{error}</div>}
         {!loading && !error && lists.length === 0 && (
           <div className="grid gap-4 max-w-2xl">
             <div className="rounded-xl bg-white/5 border border-white/10 p-5">
-              <h3 className="text-lg font-semibold mb-2">Crie sua primeira lista</h3>
+              <h3 className="text-lg font-semibold mb-2">{t('lists.empty.createFirst')}</h3>
               <div className="grid gap-3">
                 <input
                   className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder="Nome da lista"
+                  placeholder={t('lists.namePlaceholder')}
                   value={createName}
                   onChange={(e) => setCreateName(e.target.value)}
                 />
                 <input
                   className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder="Descrição (opcional)"
+                  placeholder={t('lists.descriptionOptional')}
                   value={createDescription}
                   onChange={(e) => setCreateDescription(e.target.value)}
                 />
@@ -252,16 +254,16 @@ export default function HomePage() {
                     }
                   }}
                 >
-                  {creating ? 'Criando…' : 'Criar lista'}
+                  {creating ? t('lists.creating') : t('lists.create')}
                 </button>
               </div>
             </div>
             <div className="rounded-xl bg-white/5 border border-white/10 p-5">
-              <h3 className="text-lg font-semibold mb-2">Ou entre com um código</h3>
+              <h3 className="text-lg font-semibold mb-2">{t('lists.empty.orJoin')}</h3>
               <div className="grid gap-3">
                 <input
                   className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder="Código de convite (10 caracteres)"
+                  placeholder={t('lists.inviteCode.placeholderFull')}
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                 />
@@ -283,7 +285,7 @@ export default function HomePage() {
                     }
                   }}
                 >
-                  {joining ? 'Entrando…' : 'Entrar na lista'}
+                  {joining ? t('lists.joining') : t('lists.join')}
                 </button>
               </div>
             </div>
@@ -300,13 +302,13 @@ export default function HomePage() {
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-semibold tracking-tight">{list.name}</span>
                     {list.your_role === 'owner' ? (
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10 border border-white/10 text-amber-300" title="Proprietário" aria-label="Proprietário">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10 border border-white/10 text-amber-300" title="Owner" aria-label="Owner">
                         <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true">
                           <path d="M12 4l2.1 3.9 4.4.6-3.2 3.1.8 4.4L12 14.9 7.9 16l.8-4.4L5.5 8.5l4.4-.6L12 4z"/>
                         </svg>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10 border border-white/10 text-blue-300" title="Participante" aria-label="Participante">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10 border border-white/10 text-blue-300" title="Participant" aria-label="Participant">
                         <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true">
                           <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 7a7 7 0 0 1 14 0H5z"/>
                         </svg>
@@ -318,10 +320,10 @@ export default function HomePage() {
                   )}
                   <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-200">
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/10 px-2 py-1">
-                      Filmes: {list.movie_count}
+                      {t('lists.counts.movies')}: {list.movie_count}
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/10 px-2 py-1">
-                      Participantes: {list.member_count}
+                      {t('lists.counts.participants')}: {list.member_count}
                     </span>
                   </div>
                 </div>
@@ -329,8 +331,8 @@ export default function HomePage() {
                   <button
                     onClick={() => handleCopy(list)}
                     className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/40"
-                    aria-label={copiedId === list.id ? 'Código copiado' : 'Copiar código de convite'}
-                    title={copiedId === list.id ? 'Código copiado' : 'Copiar código'}
+                    aria-label={copiedId === list.id ? t('lists.codeCopied') : t('lists.copyCode')}
+                    title={copiedId === list.id ? t('lists.codeCopied') : t('lists.copyCode')}
                   >
                     {copiedId === list.id ? (
                       <svg viewBox="0 0 24 24" className="w-5 h-5 text-emerald-300" fill="currentColor" aria-hidden="true">
@@ -346,8 +348,8 @@ export default function HomePage() {
                   <button
                     onClick={() => navigate(`/list/${list.id}`)}
                     className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/40"
-                    aria-label="Abrir lista"
-                    title="Abrir lista"
+                    aria-label={t('lists.openList')}
+                    title={t('lists.openList')}
                   >
                     <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden="true">
                       <path d="M5 12h10.59l-4.3 4.29 1.42 1.42L20.41 12l-7.7-5.71-1.42 1.42L15.59 11H5z"/>
@@ -357,8 +359,8 @@ export default function HomePage() {
                     <button
                       onClick={() => setConfirmDelete(list)}
                       className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 transition focus:outline-none focus:ring-2 focus:ring-white/40"
-                      aria-label="Excluir lista"
-                      title="Excluir lista"
+                      aria-label={t('lists.deleteList')}
+                      title={t('lists.deleteList')}
                     >
                       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden="true">
                         <path d="M6 7h12l-1 14H7L6 7zm10-3h-4l-1-1H9L8 4H4v2h16V4z"/>
@@ -373,9 +375,9 @@ export default function HomePage() {
         {confirmDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
             <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-lg shadow-white/10">
-              <h3 className="text-lg font-semibold mb-2">Excluir lista?</h3>
+              <h3 className="text-lg font-semibold mb-2">{t('lists.confirmDeleteTitle')}</h3>
               <p className="text-neutral-300 mb-4">
-                Tem certeza de que deseja excluir a lista{' '}<span className="font-medium">"{confirmDelete.name}"</span>? Esta ação é irreversível.
+                {t('lists.confirmDeleteText', { name: confirmDelete.name })}
               </p>
               <div className="flex justify-end gap-2">
                 <button
@@ -383,14 +385,14 @@ export default function HomePage() {
                   onClick={() => setConfirmDelete(null)}
                   disabled={deleting}
                 >
-                  Cancelar
+                  {t('misc.cancel')}
                 </button>
                 <button
                   className="px-5 py-2.5 rounded-lg bg-rose-600 text-white hover:bg-rose-500 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-rose-500"
                   onClick={handleConfirmDelete}
                   disabled={deleting}
                 >
-                  {deleting ? 'Excluindo…' : 'Excluir'}
+                  {deleting ? t('misc.deleting') : t('misc.delete')}
                 </button>
               </div>
             </div>

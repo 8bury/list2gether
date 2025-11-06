@@ -1,0 +1,116 @@
+{
+  "brand": {
+    "name": "list2gether"
+  },
+  "nav": {
+    "home": "Home",
+    "lists": "Lists",
+    "login": "Login",
+    "register": "Create Account",
+    "logout": "Sign out",
+    "loggingOut": "Signing out…"
+  },
+  "landing": {
+    "tagline": "The social network for movie‑loving couples and friends",
+    "cta": "Get started — it’s free",
+    "explore": "Explore",
+    "s1": {
+      "title": "Share taste, discover stories, experience emotions.",
+      "quote": "\"This made me cry so hard\"",
+      "cta": "Try it free"
+    },
+    "s2": {
+      "title": "Find the right movies for you and your friends.",
+      "quote": "\"Definitely one of the best ever\"",
+      "cta": "Get started"
+    },
+    "s3": {
+      "title": "More than just watching, it's about talking and connecting.",
+      "card1": "Your list, your vibe",
+      "card2": "Stories that connect"
+    },
+    "what": {
+      "title": "What you can do"
+    },
+    "features": {
+      "createLists": {
+        "title": "Create shared or personal lists",
+        "desc": "Create lists with your partner, friends, or just for yourself."
+      },
+      "reviews": {
+        "title": "Write and share reviews",
+        "desc": "Review what you watched and discuss with your friends or the community."
+      },
+      "rate": {
+        "title": "Rate each film",
+        "desc": "Rate what you watch and see what best fits your shared taste."
+      },
+      "diary": {
+        "title": "Keep a watch diary",
+        "desc": "Track what you watched, what to skip, and what’s next."
+      }
+    },
+    "footer": {
+      "madeInBR": "Made by fans in Brazil",
+      "legal2": "TMDB data used under license. This product is not endorsed by TMDB."
+    }
+  },
+  "lists": {
+    "title": "Your lists",
+    "joinByCode": "Join with code",
+    "new": "New list",
+    "join": "Join",
+    "joining": "Joining…",
+    "create": "Create list",
+    "creating": "Creating…",
+    "joinTitle": "Join a list with a code",
+    "inviteCode": {
+      "label": "Invite code",
+      "placeholder": "10 characters",
+      "placeholderFull": "Invite code (10 characters)"
+    },
+    "createTitle": "Create new list",
+    "name": "Name",
+    "namePlaceholder": "List name",
+    "descriptionOptional": "Description (optional)",
+    "description": "Description",
+    "loading": "Loading…",
+    "empty": {
+      "createFirst": "Create your first list",
+      "orJoin": "Or join with a code"
+    },
+    "counts": {
+      "movies": "Movies",
+      "participants": "Participants"
+    },
+    "copyCode": "Copy code",
+    "codeCopied": "Code copied",
+    "openList": "Open list",
+    "deleteList": "Delete list",
+    "confirmDeleteTitle": "Delete list?",
+    "confirmDeleteText": "Are you sure you want to delete the list \"{{name}}\"? This action is irreversible."
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "username": "Username",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "register": "Create account",
+    "creating": "Creating…",
+    "forgot": "Forgot Password?",
+    "noAccount": "Don't have an account yet?",
+    "registerLink": "Register for free",
+    "hasAccount": "Already have an account?",
+    "signInLink": "Sign in"
+  },
+  "misc": {
+    "back": "Back",
+    "loading": "Loading…",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleting": "Deleting…"
+  }
+}
+
+

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register } from '../services/auth'
 import postersImg from '../assets/poster_background.png'
+import { useTranslation } from 'react-i18next'
 
 export default function RegistroPage() {
   const navigate = useNavigate()
@@ -11,6 +12,7 @@ export default function RegistroPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const { t } = useTranslation()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +42,7 @@ export default function RegistroPage() {
           href="/"
           className="absolute left-6 top-6 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/60 px-3 py-1.5 text-sm no-underline hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-white/40"
         >
-          ← Voltar
+          ← {t('misc.back')}
         </a>
         <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl shadow-lg shadow-white/10">
           <div className="text-center">
@@ -56,7 +58,7 @@ export default function RegistroPage() {
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block text-sm text-gray-300">
-              Username
+              {t('auth.username')}
               <input
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/40"
                 type="text"
@@ -69,7 +71,7 @@ export default function RegistroPage() {
             </label>
 
             <label className="block text-sm text-gray-300">
-              Email
+              {t('auth.email')}
               <input
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/40"
                 type="email"
@@ -82,7 +84,7 @@ export default function RegistroPage() {
             </label>
 
             <label className="block text-sm text-gray-300">
-              Password
+              {t('auth.password')}
               <input
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/40"
                 type="password"
@@ -99,12 +101,12 @@ export default function RegistroPage() {
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creating…' : 'Create account'}
+              {isSubmitting ? t('auth.creating') : t('auth.register')}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-gray-300">
-            Already have an account? <Link className="underline" to="/login">Sign in</Link>
+            {t('auth.hasAccount')} <Link className="underline" to="/login">{t('auth.signInLink')}</Link>
           </p>
         </div>
       </div>

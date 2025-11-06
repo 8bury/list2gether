@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { login } from '../services/auth'
 import postersImg from '../assets/poster_background.png'
+import { useTranslation } from 'react-i18next'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useTranslation()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,7 +41,7 @@ export default function LoginPage() {
           href="/"
           className="absolute left-6 top-6 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/60 px-3 py-1.5 text-sm no-underline hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-white/40"
         >
-          ← Voltar
+          ← {t('misc.back')}
         </a>
         <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl shadow-lg shadow-white/10">
           <div className="text-center">
@@ -52,7 +54,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block text-sm text-gray-300">
-              Email
+              {t('auth.email')}
               <input
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/40"
                 type="email"
@@ -65,7 +67,7 @@ export default function LoginPage() {
             </label>
 
             <label className="block text-sm text-gray-300">
-              Password
+              {t('auth.password')}
               <input
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-white/40"
                 type="password"
@@ -80,7 +82,7 @@ export default function LoginPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400"></span>
               <button type="button" className="text-sm text-gray-300 underline underline-offset-2 hover:opacity-80">
-                Forgot Password?
+                {t('auth.forgot')}
               </button>
             </div>
 
@@ -89,12 +91,12 @@ export default function LoginPage() {
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Signing in…' : 'Sign in'}
+              {isSubmitting ? t('auth.signingIn') : t('auth.signIn')}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-gray-300">
-            Don't have an account yet? <Link className="underline" to="/registro">Register for free</Link>
+            {t('auth.noAccount')} <Link className="underline" to="/registro">{t('auth.registerLink')}</Link>
           </p>
         </div>
       </div>

@@ -1,0 +1,116 @@
+{
+  "brand": {
+    "name": "list2gether"
+  },
+  "nav": {
+    "home": "Início",
+    "lists": "Listas",
+    "login": "Entrar",
+    "register": "Criar conta",
+    "logout": "Sair",
+    "loggingOut": "Saindo…"
+  },
+  "landing": {
+    "tagline": "A rede social para casais e amigos que amam filmes",
+    "cta": "Comece agora - é grátis",
+    "explore": "Explorar",
+    "s1": {
+      "title": "Compartilhe seus gostos, descubra histórias, viva emoções.",
+      "quote": "\"Chorei demais com isso\"",
+      "cta": "Experimente grátis"
+    },
+    "s2": {
+      "title": "Encontre os filmes certos para você e seus amigos.",
+      "quote": "\"Definitivamente um dos melhores de todos\"",
+      "cta": "Começar"
+    },
+    "s3": {
+      "title": "Mais do que assistir, é sobre conversar e se conectar.",
+      "card1": "Sua lista, seu estilo",
+      "card2": "Histórias que conectam"
+    },
+    "what": {
+      "title": "O que você pode fazer"
+    },
+    "features": {
+      "createLists": {
+        "title": "Crie listas compartilhadas ou pessoais",
+        "desc": "Crie listas com seu parceiro, amigos ou só para você."
+      },
+      "reviews": {
+        "title": "Escreva e compartilhe resenhas",
+        "desc": "Avalie o que assistiu e discuta com amigos ou a comunidade."
+      },
+      "rate": {
+        "title": "Avalie cada filme",
+        "desc": "Avalie o que assiste e veja o que combina com o gosto compartilhado."
+      },
+      "diary": {
+        "title": "Mantenha um diário dos seus filmes assistidos",
+        "desc": "Acompanhe o que viu, o que pular e o que vem a seguir."
+      }
+    },
+    "footer": {
+      "madeInBR": "Feito por fãs no Brasil",
+      "legal2": "Dados do TMDB usados sob licença. Este produto não é endossado pelo TMDB."
+    }
+  },
+  "lists": {
+    "title": "Suas listas",
+    "joinByCode": "Entrar por código",
+    "new": "Nova lista",
+    "join": "Entrar",
+    "joining": "Entrando…",
+    "create": "Criar lista",
+    "creating": "Criando…",
+    "joinTitle": "Entrar em lista por código",
+    "inviteCode": {
+      "label": "Código de convite",
+      "placeholder": "10 caracteres",
+      "placeholderFull": "Código de convite (10 caracteres)"
+    },
+    "createTitle": "Criar nova lista",
+    "name": "Nome",
+    "namePlaceholder": "Nome da lista",
+    "descriptionOptional": "Descrição (opcional)",
+    "description": "Descrição",
+    "loading": "Carregando…",
+    "empty": {
+      "createFirst": "Crie sua primeira lista",
+      "orJoin": "Ou entre com um código"
+    },
+    "counts": {
+      "movies": "Filmes",
+      "participants": "Participantes"
+    },
+    "copyCode": "Copiar código",
+    "codeCopied": "Código copiado",
+    "openList": "Abrir lista",
+    "deleteList": "Excluir lista",
+    "confirmDeleteTitle": "Excluir lista?",
+    "confirmDeleteText": "Tem certeza de que deseja excluir a lista \"{{name}}\"? Esta ação é irreversível."
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Senha",
+    "username": "Usuário",
+    "signIn": "Entrar",
+    "signingIn": "Entrando…",
+    "register": "Criar conta",
+    "creating": "Criando…",
+    "forgot": "Esqueceu a senha?",
+    "noAccount": "Ainda não tem conta?",
+    "registerLink": "Cadastre-se grátis",
+    "hasAccount": "Já tem uma conta?",
+    "signInLink": "Entrar"
+  },
+  "misc": {
+    "back": "Voltar",
+    "loading": "Carregando…",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "deleting": "Excluindo…"
+  }
+}
+
+
