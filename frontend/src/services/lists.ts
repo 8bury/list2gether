@@ -115,6 +115,19 @@ export interface MovieDTO {
   poster_url?: string | null
 }
 
+export interface ListMovieUserEntryDTO {
+  user_id: number
+  rating?: number | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+  user?: {
+    id: number
+    username: string
+    email: string
+  }
+}
+
 export interface ListMovieItemDTO {
   id: number
   list_id: number
@@ -126,6 +139,9 @@ export interface ListMovieItemDTO {
   updated_at: string
   rating?: number | null
   notes?: string | null
+  average_rating?: number | null
+  your_entry?: ListMovieUserEntryDTO | null
+  user_entries?: ListMovieUserEntryDTO[]
   movie: MovieDTO
 }
 
@@ -178,6 +194,10 @@ export interface UpdateListMovieResponseDTO {
     new_notes?: string | null
     watched_at?: string | null
     updated_at?: string
+    old_entry?: ListMovieUserEntryDTO | null
+    new_entry?: ListMovieUserEntryDTO | null
+    average_rating?: number | null
+    your_entry?: ListMovieUserEntryDTO | null
   }
 }
 

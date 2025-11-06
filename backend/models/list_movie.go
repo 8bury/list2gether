@@ -22,12 +22,11 @@ type ListMovie struct {
 	AddedAt   time.Time   `gorm:"autoCreateTime;column:added_at" json:"added_at"`
 	WatchedAt *time.Time  `gorm:"column:watched_at" json:"watched_at"`
 	UpdatedAt time.Time   `gorm:"autoUpdateTime;column:updated_at" json:"updated_at"`
-	Rating    *int        `gorm:"column:rating;check:rating BETWEEN 1 AND 10" json:"rating"`
-	Notes     *string     `gorm:"type:text;column:notes" json:"notes"`
 
-	List        MovieList `gorm:"foreignKey:ListID" json:"list,omitempty"`
-	Movie       Movie     `gorm:"foreignKey:MovieID" json:"movie,omitempty"`
-	AddedByUser *User     `gorm:"foreignKey:AddedBy" json:"added_by_user,omitempty"`
+	List        MovieList           `gorm:"foreignKey:ListID" json:"list,omitempty"`
+	Movie       Movie               `gorm:"foreignKey:MovieID" json:"movie,omitempty"`
+	AddedByUser *User               `gorm:"foreignKey:AddedBy" json:"added_by_user,omitempty"`
+	UserEntries []ListMovieUserData `gorm:"foreignKey:ListID,MovieID;references:ListID,MovieID" json:"user_entries,omitempty"`
 }
 
 func (ListMovie) TableName() string {

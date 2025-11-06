@@ -24,7 +24,7 @@ type ListService interface {
 	ListUserLists(userID int64, role *models.ListMemberRole, limit int, offset int) ([]models.ListMember, map[int64]int64, map[int64]int64, int64, error)
 	AddMediaToList(ctx context.Context, listID int64, userID int64, mediaID int64, mediaType string) (*models.ListMovie, *models.Movie, error)
 	RemoveMovieFromList(listID int64, userID int64, movieID int64) (*models.Movie, error)
-	UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, *models.Movie, *models.MovieStatus, *int, *string, error)
+	UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, ratingProvided bool, notes *string, notesProvided bool) (*models.ListMovie, *models.Movie, *models.MovieStatus, *models.ListMovieUserData, *models.ListMovieUserData, *float64, error)
 	ListMovies(listID int64, userID int64, status *models.MovieStatus) ([]models.ListMovie, error)
 	SearchListMovies(listID int64, userID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
 }
@@ -459,50 +459,85 @@ func (s *listService) RemoveMovieFromList(listID int64, userID int64, movieID in
 	return movie, nil
 }
 
-func (s *listService) UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, *models.Movie, *models.MovieStatus, *int, *string, error) {
+func (s *listService) UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, ratingProvided bool, notes *string, notesProvided bool) (*models.ListMovie, *models.Movie, *models.MovieStatus, *models.ListMovieUserData, *models.ListMovieUserData, *float64, error) {
 	_, err := s.lists.FindByID(listID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil, nil, nil, nil, ErrListNotFound
+			return nil, nil, nil, nil, nil, nil, ErrListNotFound
 		}
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, err
 	}
 
 	membership, err := s.lists.FindMembership(listID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil, nil, nil, nil, ErrForbiddenMembership
+			return nil, nil, nil, nil, nil, nil, ErrForbiddenMembership
 		}
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, err
 	}
 
 	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
-		return nil, nil, nil, nil, nil, ErrForbiddenMembership
+		return nil, nil, nil, nil, nil, nil, ErrForbiddenMembership
 	}
 
 	existingListMovie, err := s.lists.FindListMovieByListAndMovie(listID, movieID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil, nil, nil, nil, ErrMovieNotInList
+			return nil, nil, nil, nil, nil, nil, ErrMovieNotInList
 		}
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, err
 	}
 
 	oldStatus := &existingListMovie.Status
-	oldRating := existingListMovie.Rating
-	oldNotes := existingListMovie.Notes
 
-	updatedListMovie, err := s.lists.UpdateMovie(listID, movieID, status, rating, notes)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
+	var oldEntry *models.ListMovieUserData
+	if ratingProvided || notesProvided {
+		if data, findErr := s.lists.FindMovieUserData(listID, movieID, userID); findErr == nil {
+			oldEntry = data
+		} else if !errors.Is(findErr, gorm.ErrRecordNotFound) {
+			return nil, nil, nil, nil, nil, nil, findErr
+		}
+	}
+
+	var updatedListMovie *models.ListMovie
+	if status != nil {
+		updatedListMovie, err = s.lists.UpdateMovie(listID, movieID, status)
+		if err != nil {
+			return nil, nil, nil, nil, nil, nil, err
+		}
+	} else {
+		updatedListMovie = existingListMovie
+	}
+
+	var newEntry *models.ListMovieUserData
+	if ratingProvided || notesProvided {
+		upserted, upsertErr := s.lists.UpsertMovieUserData(listID, movieID, userID, rating, ratingProvided, notes, notesProvided)
+		if upsertErr != nil {
+			return nil, nil, nil, nil, nil, nil, upsertErr
+		}
+		if upserted != nil {
+			if data, findErr := s.lists.FindMovieUserData(listID, movieID, userID); findErr == nil {
+				newEntry = data
+			} else if !errors.Is(findErr, gorm.ErrRecordNotFound) {
+				return nil, nil, nil, nil, nil, nil, findErr
+			}
+		}
+	}
+
+	var averageRating *float64
+	if ratingProvided {
+		averageRating, err = s.lists.GetMovieAverageRating(listID, movieID)
+		if err != nil {
+			return nil, nil, nil, nil, nil, nil, err
+		}
 	}
 
 	movie, err := s.movies.FindByID(movieID)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, nil, err
 	}
 
-	return updatedListMovie, movie, oldStatus, oldRating, oldNotes, nil
+	return updatedListMovie, movie, oldStatus, oldEntry, newEntry, averageRating, nil
 }
 
 func (s *listService) ListMovies(listID int64, userID int64, status *models.MovieStatus) ([]models.ListMovie, error) {

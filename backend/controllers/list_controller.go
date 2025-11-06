@@ -1,14 +1,15 @@
 package controllers
 
 import (
+	"encoding/json"
+	"errors"
+	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
-
-	"errors"
-	"log"
 	"sync"
+	"time"
 
 	"github.com/8bury/list2gether/middleware"
 	"github.com/8bury/list2gether/models"
@@ -558,13 +559,34 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 	}
 
 	var req updateMovieRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
+	body, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
 		respondValidationError(ctx, []string{"Invalid request body"})
 		return
 	}
+	if len(body) == 0 {
+		respondValidationError(ctx, []string{"Invalid request body"})
+		return
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		respondValidationError(ctx, []string{"Invalid request body"})
+		return
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		respondValidationError(ctx, []string{"Invalid request body"})
+		return
+	}
+	ratingProvided := false
+	if _, ok := raw["rating"]; ok {
+		ratingProvided = true
+	}
+	notesProvided := false
+	if _, ok := raw["notes"]; ok {
+		notesProvided = true
+	}
 
-	// Validate that at least one field is provided
-	if req.Status == nil && req.Rating == nil && req.Notes == nil {
+	if req.Status == nil && !ratingProvided && !notesProvided {
 		respondValidationError(ctx, []string{"Pelo menos um campo deve ser fornecido: status, rating ou notes"})
 		return
 	}
@@ -586,7 +608,7 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 	}
 
 	// Validate rating if provided
-	if req.Rating != nil {
+	if ratingProvided && req.Rating != nil {
 		if *req.Rating < 1 || *req.Rating > 10 {
 			respondValidationError(ctx, []string{"Rating deve estar entre 1 e 10"})
 			return
@@ -602,7 +624,7 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 		return
 	}
 
-	updatedListMovie, movie, oldStatus, oldRating, oldNotes, err := c.service.UpdateMovie(listID, userID, movieID, status, req.Rating, req.Notes)
+	updatedListMovie, movie, oldStatus, oldEntry, newEntry, averageRating, err := c.service.UpdateMovie(listID, userID, movieID, status, req.Rating, ratingProvided, req.Notes, notesProvided)
 	if err != nil {
 		switch err {
 		case services.ErrListNotFound:
@@ -645,6 +667,41 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 		message = "Série atualizada com sucesso"
 	}
 
+	buildEntryPayload := func(entry *models.ListMovieUserData) gin.H {
+		if entry == nil {
+			return nil
+		}
+		payload := gin.H{
+			"user_id":    entry.UserID,
+			"rating":     entry.Rating,
+			"notes":      entry.Notes,
+			"created_at": entry.CreatedAt,
+			"updated_at": entry.UpdatedAt,
+		}
+		if entry.User.ID != 0 {
+			payload["user"] = gin.H{
+				"id":       entry.User.ID,
+				"username": entry.User.Username,
+				"email":    entry.User.Email,
+			}
+		}
+		return payload
+	}
+
+	var oldRating *int
+	var oldNotes *string
+	if oldEntry != nil {
+		oldRating = oldEntry.Rating
+		oldNotes = oldEntry.Notes
+	}
+
+	var newRating *int
+	var newNotes *string
+	if newEntry != nil {
+		newRating = newEntry.Rating
+		newNotes = newEntry.Notes
+	}
+
 	ctx.Header("Cache-Control", "no-store")
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -657,9 +714,18 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 			"old_status": oldStatus,
 			"new_status": updatedListMovie.Status,
 			"old_rating": oldRating,
-			"new_rating": updatedListMovie.Rating,
+			"new_rating": newRating,
 			"old_notes":  oldNotes,
-			"new_notes":  updatedListMovie.Notes,
+			"new_notes":  newNotes,
+			"old_entry":  buildEntryPayload(oldEntry),
+			"new_entry":  buildEntryPayload(newEntry),
+			"average_rating": func() *float64 {
+				if averageRating == nil {
+					return nil
+				}
+				return averageRating
+			}(),
+			"your_entry": buildEntryPayload(newEntry),
 			"watched_at": updatedListMovie.WatchedAt,
 			"updated_at": updatedListMovie.UpdatedAt.Format(time.RFC3339),
 		},
@@ -756,18 +822,87 @@ func (c *ListController) listMovies(ctx *gin.Context) {
 			m["genres"] = genres
 		}
 
+		var (
+			sumRatings   int
+			countRatings int
+			yourEntry    *models.ListMovieUserData
+			userEntries  = make([]gin.H, 0, len(lm.UserEntries))
+		)
+
+		for _, entry := range lm.UserEntries {
+			if entry.Rating != nil {
+				sumRatings += *entry.Rating
+				countRatings++
+			}
+
+			entryPayload := gin.H{
+				"user_id":    entry.UserID,
+				"rating":     entry.Rating,
+				"notes":      entry.Notes,
+				"created_at": entry.CreatedAt,
+				"updated_at": entry.UpdatedAt,
+			}
+			if entry.User.ID != 0 {
+				entryPayload["user"] = gin.H{
+					"id":       entry.User.ID,
+					"username": entry.User.Username,
+					"email":    entry.User.Email,
+				}
+			}
+			userEntries = append(userEntries, entryPayload)
+
+			if entry.UserID == userID {
+				copyEntry := entry
+				yourEntry = &copyEntry
+			}
+		}
+
+		var averageRating *float64
+		if countRatings > 0 {
+			avg := float64(sumRatings) / float64(countRatings)
+			averageRating = &avg
+		}
+
+		var yourEntryPayload gin.H
+		if yourEntry != nil {
+			yourEntryPayload = gin.H{
+				"user_id":    yourEntry.UserID,
+				"rating":     yourEntry.Rating,
+				"notes":      yourEntry.Notes,
+				"created_at": yourEntry.CreatedAt,
+				"updated_at": yourEntry.UpdatedAt,
+			}
+			if yourEntry.User.ID != 0 {
+				yourEntryPayload["user"] = gin.H{
+					"id":       yourEntry.User.ID,
+					"username": yourEntry.User.Username,
+					"email":    yourEntry.User.Email,
+				}
+			}
+		}
+
+		var ratingCompat *int
+		var notesCompat *string
+		if yourEntry != nil {
+			ratingCompat = yourEntry.Rating
+			notesCompat = yourEntry.Notes
+		}
+
 		item := gin.H{
-			"id":         lm.ID,
-			"list_id":    lm.ListID,
-			"movie_id":   lm.MovieID,
-			"status":     lm.Status,
-			"added_by":   lm.AddedBy,
-			"added_at":   lm.AddedAt,
-			"watched_at": lm.WatchedAt,
-			"updated_at": lm.UpdatedAt,
-			"rating":     lm.Rating,
-			"notes":      lm.Notes,
-			"movie":      m,
+			"id":             lm.ID,
+			"list_id":        lm.ListID,
+			"movie_id":       lm.MovieID,
+			"status":         lm.Status,
+			"added_by":       lm.AddedBy,
+			"added_at":       lm.AddedAt,
+			"watched_at":     lm.WatchedAt,
+			"updated_at":     lm.UpdatedAt,
+			"rating":         ratingCompat,
+			"notes":          notesCompat,
+			"average_rating": averageRating,
+			"your_entry":     yourEntryPayload,
+			"user_entries":   userEntries,
+			"movie":          m,
 		}
 		resp = append(resp, item)
 	}
@@ -889,18 +1024,85 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 			m["genres"] = genres
 		}
 
+		var (
+			sumRatings   int
+			countRatings int
+			yourEntry    *models.ListMovieUserData
+			userEntries  = make([]gin.H, 0, len(lm.UserEntries))
+		)
+
+		for _, entry := range lm.UserEntries {
+			if entry.Rating != nil {
+				sumRatings += *entry.Rating
+				countRatings++
+			}
+			entryPayload := gin.H{
+				"user_id":    entry.UserID,
+				"rating":     entry.Rating,
+				"notes":      entry.Notes,
+				"created_at": entry.CreatedAt,
+				"updated_at": entry.UpdatedAt,
+			}
+			if entry.User.ID != 0 {
+				entryPayload["user"] = gin.H{
+					"id":       entry.User.ID,
+					"username": entry.User.Username,
+					"email":    entry.User.Email,
+				}
+			}
+			userEntries = append(userEntries, entryPayload)
+			if entry.UserID == userID {
+				copyEntry := entry
+				yourEntry = &copyEntry
+			}
+		}
+
+		var averageRating *float64
+		if countRatings > 0 {
+			avg := float64(sumRatings) / float64(countRatings)
+			averageRating = &avg
+		}
+
+		var yourEntryPayload gin.H
+		if yourEntry != nil {
+			yourEntryPayload = gin.H{
+				"user_id":    yourEntry.UserID,
+				"rating":     yourEntry.Rating,
+				"notes":      yourEntry.Notes,
+				"created_at": yourEntry.CreatedAt,
+				"updated_at": yourEntry.UpdatedAt,
+			}
+			if yourEntry.User.ID != 0 {
+				yourEntryPayload["user"] = gin.H{
+					"id":       yourEntry.User.ID,
+					"username": yourEntry.User.Username,
+					"email":    yourEntry.User.Email,
+				}
+			}
+		}
+
+		var ratingCompat *int
+		var notesCompat *string
+		if yourEntry != nil {
+			ratingCompat = yourEntry.Rating
+			notesCompat = yourEntry.Notes
+		}
+
 		item := gin.H{
-			"id":         lm.ID,
-			"list_id":    lm.ListID,
-			"movie_id":   lm.MovieID,
-			"status":     lm.Status,
-			"added_by":   lm.AddedBy,
-			"added_at":   lm.AddedAt,
-			"watched_at": lm.WatchedAt,
-			"updated_at": lm.UpdatedAt,
-			"rating":     lm.Rating,
-			"notes":      lm.Notes,
-			"movie":      m,
+			"id":             lm.ID,
+			"list_id":        lm.ListID,
+			"movie_id":       lm.MovieID,
+			"status":         lm.Status,
+			"added_by":       lm.AddedBy,
+			"added_at":       lm.AddedAt,
+			"watched_at":     lm.WatchedAt,
+			"updated_at":     lm.UpdatedAt,
+			"rating":         ratingCompat,
+			"notes":          notesCompat,
+			"average_rating": averageRating,
+			"your_entry":     yourEntryPayload,
+			"user_entries":   userEntries,
+			"movie":          m,
 		}
 		resp = append(resp, item)
 	}

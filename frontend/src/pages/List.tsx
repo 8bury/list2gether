@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Header from '../components/Header'
-import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, type ListMovieItemDTO, type MovieStatus } from '../services/lists'
+import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, type ListMovieItemDTO, type ListMovieUserEntryDTO, type MovieStatus } from '../services/lists'
 import { searchMedia, type SearchResultDTO } from '../services/search'
 
 const statusLabels: Record<MovieStatus, string> = {
@@ -17,6 +17,24 @@ const statusClasses: Record<MovieStatus, string> = {
   watched: 'bg-white/10 border-white/10 text-emerald-300',
   dropped: 'bg-white/10 border-white/10 text-rose-300',
 }
+
+type ListMovieItem = ListMovieItemDTO & {
+  user_entries: ListMovieUserEntryDTO[]
+  your_entry?: ListMovieUserEntryDTO | null
+  average_rating?: number | null
+}
+
+const computeAverageRating = (entries: ListMovieUserEntryDTO[]): number | null => {
+  const ratings = entries
+    .map((entry) => entry.rating)
+    .filter((rating): rating is number => typeof rating === 'number' && !Number.isNaN(rating))
+  if (ratings.length === 0) return null
+  const sum = ratings.reduce((acc, value) => acc + value, 0)
+  return sum / ratings.length
+}
+
+const getEntryDisplayName = (entry: ListMovieUserEntryDTO) =>
+  entry.user?.username || entry.user?.email || `Usuário #${entry.user_id}`
 
 function StarIcon(props: { className?: string }) {
   return (
@@ -71,10 +89,10 @@ function SkeletonHeader() {
 }
 
 function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete, updatingRating, updatingStatus, deleting }: {
-  item: ListMovieItemDTO
+  item: ListMovieItem
   onChangeRating: (movieId: number, rating: number) => void
   onChangeStatus: (movieId: number, status: MovieStatus) => void
-  onOpenNotes: (item: ListMovieItemDTO) => void
+  onOpenNotes: (item: ListMovieItem) => void
   onDelete: (movieId: number) => void
   updatingRating?: boolean
   updatingStatus?: boolean
@@ -84,9 +102,12 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
   const title = media.title
   const original = media.original_title && media.original_title !== media.title ? media.original_title : undefined
   const posterUrl = media.poster_url || (media.poster_path ? `https://image.tmdb.org/t/p/w500${media.poster_path}` : null)
-  const rating = item.rating ?? 0
+  const userRatingValue = item.your_entry?.rating ?? item.rating ?? null
+  const rating = typeof userRatingValue === 'number' ? userRatingValue : 0
   const fullCount = Math.floor(rating / 2)
   const hasHalf = rating % 2 === 1
+  const averageRating = item.average_rating ?? computeAverageRating(item.user_entries)
+  const participantEntries = item.user_entries.filter((entry) => !item.your_entry || entry.user_id !== item.your_entry.user_id)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -147,7 +168,12 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
               </div>
               {item.rating != null && (
                 <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-yellow-300">
-                  Nota: {item.rating}
+                  Sua nota: {item.your_entry?.rating ?? item.rating}
+                </span>
+              )}
+              {averageRating != null && (
+                <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-sky-200">
+                  Nota média: {averageRating.toFixed(1)}
                 </span>
               )}
               <button
@@ -231,10 +257,35 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
                 <span>Anotações</span>
               </button>
             </div>
-            {item.notes && (
-              <div className="mt-2 text-sm text-neutral-200">
-                <span className="text-neutral-400">Notas: </span>
-                {item.notes}
+            {item.your_entry?.notes && (
+              <div className="mt-2 text-sm text-neutral-200 whitespace-pre-line">
+                <span className="text-neutral-400">Sua anotação: </span>
+                {item.your_entry.notes}
+              </div>
+            )}
+            {participantEntries.length > 0 && (
+              <div className="mt-3 text-xs text-neutral-300">
+                <h4 className="text-sm font-semibold text-neutral-100 mb-1">Notas dos participantes</h4>
+                <div className="grid gap-2">
+                  {participantEntries.map((entry) => (
+                    <div key={entry.user_id} className={`rounded-lg border border-white/10 bg-white/[0.02] p-2 ${item.your_entry && entry.user_id === item.your_entry.user_id ? 'border-sky-300/40' : ''}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-neutral-100">{getEntryDisplayName(entry)}</span>
+                        {entry.rating != null && (
+                          <span className="text-neutral-200">Nota: {entry.rating}</span>
+                        )}
+                      </div>
+                      {entry.notes && (
+                        <div className="mt-1 text-neutral-400 whitespace-pre-line">
+                          {entry.notes}
+                        </div>
+                      )}
+                      {!entry.notes && entry.rating == null && (
+                        <div className="mt-1 text-neutral-500 italic">Sem notas ainda</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -248,7 +299,7 @@ export default function ListPage() {
   const navigate = useNavigate()
   const { listId } = useParams<{ listId: string }>()
   const parsedId = useMemo(() => Number(listId), [listId])
-  const [items, setItems] = useState<ListMovieItemDTO[]>([])
+  const [items, setItems] = useState<ListMovieItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -265,7 +316,7 @@ export default function ListPage() {
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [updatingRatingId, setUpdatingRatingId] = useState<number | null>(null)
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
-  const [notesItem, setNotesItem] = useState<ListMovieItemDTO | null>(null)
+  const [notesItem, setNotesItem] = useState<ListMovieItem | null>(null)
   const [notesEditing, setNotesEditing] = useState(false)
   const [notesDraft, setNotesDraft] = useState('')
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -274,6 +325,56 @@ export default function ListPage() {
 
   // State for in-list search
   const [listSearchQuery, setListSearchQuery] = useState('')
+
+  const currentUserId = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('user')
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed.id === 'number') {
+        return parsed.id
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return null
+  }, [])
+
+  const normalizeItem = useCallback(
+    (item: ListMovieItemDTO): ListMovieItem => {
+      const userEntries = item.user_entries ? [...item.user_entries] : []
+      let yourEntry = item.your_entry ?? null
+      if (!yourEntry && currentUserId != null) {
+        yourEntry = userEntries.find((entry) => entry.user_id === currentUserId) ?? null
+      }
+      const averageRating = item.average_rating ?? computeAverageRating(userEntries)
+      const derivedRating = yourEntry?.rating ?? item.rating ?? null
+      const derivedNotes = yourEntry?.notes ?? item.notes ?? null
+      return {
+        ...item,
+        rating: derivedRating ?? null,
+        notes: derivedNotes ?? null,
+        average_rating: averageRating ?? null,
+        your_entry: yourEntry ?? null,
+        user_entries: userEntries,
+      }
+    },
+    [currentUserId],
+  )
+
+  const applyItems = useCallback(
+    (list: ListMovieItemDTO[]) => {
+      const normalized = list.map((entry) => normalizeItem(entry))
+      setItems(normalized)
+      return normalized
+    },
+    [normalizeItem],
+  )
+
+  const yourNotesEntry = notesItem?.your_entry ?? null
+  const otherNotesEntries = notesItem
+    ? notesItem.user_entries.filter((entry) => !yourNotesEntry || entry.user_id !== yourNotesEntry.user_id)
+    : []
 
   // Persistir filtros e busca por lista
   useEffect(() => {
@@ -313,7 +414,7 @@ export default function ListPage() {
       setError(null)
       try {
         const res = await getListMovies(parsedId)
-        setItems(res)
+        applyItems(res)
       } catch (err) {
         const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao carregar itens da lista'
         setError(message)
@@ -327,7 +428,7 @@ export default function ListPage() {
         setLoading(false)
       }
     })()
-  }, [navigate, parsedId])
+  }, [navigate, parsedId, applyItems])
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -365,7 +466,11 @@ export default function ListPage() {
         const title = (m.title || '').toLowerCase()
         const original = (m.original_title || '').toLowerCase()
         const notes = (it.notes || '').toLowerCase()
-        return title.includes(q) || original.includes(q) || notes.includes(q)
+        const matchesEntries = it.user_entries.some((entry) => {
+          const combined = `${entry.user?.username ?? ''} ${entry.user?.email ?? ''} ${entry.notes ?? ''} ${entry.rating ?? ''}`.toLowerCase()
+          return combined.includes(q)
+        })
+        return title.includes(q) || original.includes(q) || notes.includes(q) || matchesEntries
       })
     }
     return base
@@ -454,7 +559,7 @@ export default function ListPage() {
     try {
       await addListMovie(parsedId, { id: String(sel.id), media_type: sel.media_type })
       const res = await getListMovies(parsedId)
-      setItems(res)
+      applyItems(res)
       setIsAddOpen(false)
       setSearchQuery('')
       setSearchResults([])
@@ -473,14 +578,63 @@ export default function ListPage() {
   const handleChangeRating = async (movieId: number, value: number) => {
     if (!parsedId || Number.isNaN(parsedId)) return
     setUpdatingRatingId(movieId)
-    const old = items
+    const previousItems = items
+    const previousNotesItem = notesItem
     try {
-      setItems((prev) => prev.map((it) => it.movie_id === movieId ? { ...it, rating: value } : it))
+      setItems((prev) =>
+        prev.map((it) => {
+          if (it.movie_id !== movieId) return it
+          const nowIso = new Date().toISOString()
+          let updatedEntries = [...it.user_entries]
+          let updatedYourEntry: ListMovieUserEntryDTO | null = it.your_entry ? { ...it.your_entry } : null
+
+          if (currentUserId != null) {
+            const existingIndex = updatedEntries.findIndex((entry) => entry.user_id === currentUserId)
+            if (existingIndex >= 0) {
+              updatedYourEntry = { ...updatedEntries[existingIndex], rating: value, updated_at: nowIso }
+              updatedEntries = updatedEntries.map((entry, idx) => (idx === existingIndex ? updatedYourEntry! : entry))
+            } else {
+              updatedYourEntry = {
+                user_id: currentUserId,
+                rating: value,
+                notes: updatedYourEntry?.notes ?? null,
+                created_at: updatedYourEntry?.created_at ?? nowIso,
+                updated_at: nowIso,
+                user: updatedYourEntry?.user,
+              }
+              updatedEntries = [...updatedEntries, updatedYourEntry]
+            }
+          } else if (updatedYourEntry) {
+            updatedYourEntry = { ...updatedYourEntry, rating: value, updated_at: nowIso }
+            const existingIndex = updatedEntries.findIndex((entry) => entry.user_id === updatedYourEntry!.user_id)
+            if (existingIndex >= 0) {
+              updatedEntries = updatedEntries.map((entry, idx) => (idx === existingIndex ? updatedYourEntry! : entry))
+            }
+          }
+
+          const average = computeAverageRating(updatedEntries)
+          const resultingEntry = updatedYourEntry ?? it.your_entry ?? null
+          return {
+            ...it,
+            rating: value,
+            notes: resultingEntry?.notes ?? null,
+            your_entry: resultingEntry,
+            user_entries: updatedEntries,
+            average_rating: average ?? null,
+          }
+        }),
+      )
       await updateListMovie(parsedId, movieId, { rating: value })
       const res = await getListMovies(parsedId)
-      setItems(res)
+      const normalized = applyItems(res)
+      setNotesItem((prev) => {
+        if (!prev) return prev
+        const updated = normalized.find((it) => it.movie_id === prev.movie_id)
+        return updated ?? prev
+      })
     } catch (err) {
-      setItems(old)
+      setItems(previousItems)
+      setNotesItem(previousNotesItem)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao salvar nota'
       setError(message)
       if ((err as any)?.status === 401) {
@@ -497,14 +651,21 @@ export default function ListPage() {
   const handleChangeStatus = async (movieId: number, status: MovieStatus) => {
     if (!parsedId || Number.isNaN(parsedId)) return
     setUpdatingStatusId(movieId)
-    const old = items
+    const previousItems = items
+    const previousNotesItem = notesItem
     try {
       setItems((prev) => prev.map((it) => it.movie_id === movieId ? { ...it, status } : it))
       await updateListMovie(parsedId, movieId, { status })
       const res = await getListMovies(parsedId)
-      setItems(res)
+      const normalized = applyItems(res)
+      setNotesItem((prev) => {
+        if (!prev) return prev
+        const updated = normalized.find((it) => it.movie_id === prev.movie_id)
+        return updated ?? prev
+      })
     } catch (err) {
-      setItems(old)
+      setItems(previousItems)
+      setNotesItem(previousNotesItem)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao salvar status'
       setError(message)
       if ((err as any)?.status === 401) {
@@ -518,20 +679,112 @@ export default function ListPage() {
     }
   }
 
-  const openNotes = (it: ListMovieItemDTO) => {
+  const openNotes = (it: ListMovieItem) => {
     setNotesItem(it)
     setNotesEditing(false)
-    setNotesDraft(it.notes || '')
+    setNotesDraft(it.your_entry?.notes ?? '')
   }
 
   const saveNotes = async () => {
     if (!parsedId || Number.isNaN(parsedId) || !notesItem) return
+    const previousItems = items
+    const previousNotesItem = notesItem
+    const notesValue = notesDraft.length > 0 ? notesDraft : ''
+    const normalizedNotes = notesValue.trim().length === 0 ? null : notesValue
     try {
-      await updateListMovie(parsedId, notesItem.movie_id, { notes: notesDraft })
+      setItems((prev) =>
+        prev.map((it) => {
+          if (it.movie_id !== notesItem.movie_id) return it
+          const nowIso = new Date().toISOString()
+          let updatedEntries = [...it.user_entries]
+          let updatedYourEntry: ListMovieUserEntryDTO | null = it.your_entry ? { ...it.your_entry } : null
+
+          if (currentUserId != null) {
+            const idx = updatedEntries.findIndex((entry) => entry.user_id === currentUserId)
+            if (idx >= 0) {
+              updatedYourEntry = { ...updatedEntries[idx], notes: normalizedNotes, updated_at: nowIso }
+              updatedEntries[idx] = updatedYourEntry
+            } else {
+              updatedYourEntry = {
+                user_id: currentUserId,
+                rating: updatedYourEntry?.rating ?? null,
+                notes: normalizedNotes,
+                created_at: updatedYourEntry?.created_at ?? nowIso,
+                updated_at: nowIso,
+                user: updatedYourEntry?.user,
+              }
+              updatedEntries = [...updatedEntries, updatedYourEntry]
+            }
+          } else if (updatedYourEntry) {
+            updatedYourEntry = { ...updatedYourEntry, notes: normalizedNotes, updated_at: nowIso }
+            const idx = updatedEntries.findIndex((entry) => entry.user_id === updatedYourEntry!.user_id)
+            if (idx >= 0) {
+              updatedEntries[idx] = updatedYourEntry
+            }
+          }
+
+          const average = computeAverageRating(updatedEntries)
+          return {
+            ...it,
+            notes: normalizedNotes,
+            your_entry: updatedYourEntry ?? it.your_entry ?? null,
+            user_entries: updatedEntries,
+            average_rating: average ?? it.average_rating ?? null,
+          }
+        }),
+      )
+      setNotesItem((prev) => {
+        if (!prev) return prev
+        if (prev.movie_id !== notesItem.movie_id) return prev
+        const nowIso = new Date().toISOString()
+        let updatedEntries = [...prev.user_entries]
+        let updatedYourEntry: ListMovieUserEntryDTO | null = prev.your_entry ? { ...prev.your_entry } : null
+
+        if (currentUserId != null) {
+          const idx = updatedEntries.findIndex((entry) => entry.user_id === currentUserId)
+          if (idx >= 0) {
+            updatedYourEntry = { ...updatedEntries[idx], notes: normalizedNotes, updated_at: nowIso }
+            updatedEntries[idx] = updatedYourEntry
+          } else {
+            updatedYourEntry = {
+              user_id: currentUserId,
+              rating: updatedYourEntry?.rating ?? null,
+              notes: normalizedNotes,
+              created_at: updatedYourEntry?.created_at ?? nowIso,
+              updated_at: nowIso,
+              user: updatedYourEntry?.user,
+            }
+            updatedEntries = [...updatedEntries, updatedYourEntry]
+          }
+        } else if (updatedYourEntry) {
+          updatedYourEntry = { ...updatedYourEntry, notes: normalizedNotes, updated_at: nowIso }
+          const idx = updatedEntries.findIndex((entry) => entry.user_id === updatedYourEntry!.user_id)
+          if (idx >= 0) updatedEntries[idx] = updatedYourEntry
+        }
+
+        const average = computeAverageRating(updatedEntries)
+        return {
+          ...prev,
+          notes: normalizedNotes,
+          your_entry: updatedYourEntry ?? prev.your_entry ?? null,
+          user_entries: updatedEntries,
+          average_rating: average ?? prev.average_rating ?? null,
+        }
+      })
+
+      await updateListMovie(parsedId, notesItem.movie_id, { notes: notesValue })
       const res = await getListMovies(parsedId)
-      setItems(res)
+      const normalized = applyItems(res)
+      setNotesItem((prev) => {
+        if (!prev) return prev
+        const updated = normalized.find((it) => it.movie_id === prev.movie_id)
+        return updated ?? prev
+      })
+      setNotesDraft(normalizedNotes ?? '')
       setNotesEditing(false)
     } catch (err) {
+      setItems(previousItems)
+      setNotesItem(previousNotesItem)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao salvar anotações'
       setError(message)
       if ((err as any)?.status === 401) {
@@ -546,14 +799,22 @@ export default function ListPage() {
   const handleDelete = async (movieId: number) => {
     if (!parsedId || Number.isNaN(parsedId)) return
     setDeletingId(movieId)
-    const old = items
+    const previousItems = items
+    const previousNotesItem = notesItem
     try {
       setItems((prev) => prev.filter((it) => it.movie_id !== movieId))
       await deleteListMovie(parsedId, movieId)
       const res = await getListMovies(parsedId)
-      setItems(res)
+      const normalized = applyItems(res)
+      setNotesItem((prev) => {
+        if (!prev) return prev
+        if (prev.movie_id === movieId) return null
+        const updated = normalized.find((it) => it.movie_id === prev.movie_id)
+        return updated ?? prev
+      })
     } catch (err) {
-      setItems(old)
+      setItems(previousItems)
+      setNotesItem(previousNotesItem)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao remover'
       setError(message)
       if ((err as any)?.status === 401) {
@@ -736,18 +997,55 @@ export default function ListPage() {
             <div className="p-4 grid gap-3 flex-1 overflow-y-auto">
               {!notesEditing ? (
                 <>
-                  {notesItem.notes ? (
-                    <div className="whitespace-pre-wrap text-sm text-neutral-200">{notesItem.notes}</div>
-                  ) : (
-                    <textarea
-                      value={''}
-                      readOnly
-                      rows={6}
-                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-neutral-400"
-                      placeholder="Sem anotações"
-                    />
-                  )}
-                  <div className="flex justify-end">
+                  <div>
+                    <h4 className="text-sm font-semibold text-neutral-100">Sua anotação</h4>
+                    <div className="mt-2 space-y-2">
+                      {yourNotesEntry ? (
+                        <>
+                          {yourNotesEntry.notes ? (
+                            <div className="whitespace-pre-wrap text-sm text-neutral-200">{yourNotesEntry.notes}</div>
+                          ) : (
+                            <div className="text-sm text-neutral-400 italic">Você ainda não adicionou uma anotação.</div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
+                            {yourNotesEntry.rating != null && <span>Sua nota: {yourNotesEntry.rating}</span>}
+                            {yourNotesEntry.updated_at && <span>Atualizado: {new Date(yourNotesEntry.updated_at).toLocaleString()}</span>}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-sm text-neutral-400 italic">Você ainda não adicionou uma anotação.</div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-neutral-100 mt-4">Anotações dos participantes</h4>
+                    {otherNotesEntries.length === 0 ? (
+                      <div className="mt-2 text-sm text-neutral-400 italic">Nenhum outro participante adicionou anotações.</div>
+                    ) : (
+                      <div className="mt-2 grid gap-2">
+                        {otherNotesEntries.map((entry) => (
+                          <div key={entry.user_id} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                            <div className="flex items-center justify-between text-sm text-neutral-200">
+                              <span className="font-medium">{getEntryDisplayName(entry)}</span>
+                              {entry.rating != null && <span>Nota: {entry.rating}</span>}
+                            </div>
+                            {entry.notes ? (
+                              <div className="mt-2 text-sm text-neutral-300 whitespace-pre-line">{entry.notes}</div>
+                            ) : (
+                              <div className="mt-2 text-sm text-neutral-500 italic">Sem anotação.</div>
+                            )}
+                            <div className="mt-2 text-xs text-neutral-500 flex flex-wrap gap-3">
+                              {entry.updated_at && <span>Atualizado: {new Date(entry.updated_at).toLocaleString()}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-neutral-500">
+                      {notesItem.average_rating != null && <span>Nota média: {notesItem.average_rating.toFixed(1)}</span>}
+                    </div>
                     <button
                       className="inline-flex items-center gap-1 rounded-md border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-white/40"
                       onClick={() => setNotesEditing(true)}
@@ -769,7 +1067,7 @@ export default function ListPage() {
                     className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
                   />
                   <div className="flex items-center justify-end gap-2">
-                    <button className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10" onClick={() => { setNotesEditing(false); setNotesDraft(notesItem.notes || '') }}>Cancelar</button>
+                    <button className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10" onClick={() => { setNotesEditing(false); setNotesDraft(notesItem.your_entry?.notes ?? '') }}>Cancelar</button>
                     <button className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={saveNotes}>Salvar</button>
                   </div>
                 </>

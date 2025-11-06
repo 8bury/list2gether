@@ -1,9 +1,9 @@
 package daos
 
 import (
-	"time"
-
+	"errors"
 	"strings"
+	"time"
 
 	"github.com/8bury/list2gether/models"
 	"gorm.io/gorm"
@@ -28,7 +28,10 @@ type MovieListDAO interface {
 	AddMovieToList(listID, movieID int64, addedBy *int64) (*models.ListMovie, error)
 	FindListMovieByListAndMovie(listID, movieID int64) (*models.ListMovie, error)
 	RemoveMovieFromList(listID, movieID int64) error
-	UpdateMovie(listID, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, error)
+	UpdateMovie(listID, movieID int64, status *models.MovieStatus) (*models.ListMovie, error)
+	UpsertMovieUserData(listID, movieID, userID int64, rating *int, ratingProvided bool, notes *string, notesProvided bool) (*models.ListMovieUserData, error)
+	FindMovieUserData(listID, movieID, userID int64) (*models.ListMovieUserData, error)
+	GetMovieAverageRating(listID, movieID int64) (*float64, error)
 	FindListMoviesWithMovie(listID int64, status *models.MovieStatus) ([]models.ListMovie, error)
 	SearchListMoviesWithMovie(listID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
 }
@@ -128,6 +131,9 @@ func (d *movieListDAO) DeleteListCascadeIfOwner(listID, userID int64) error {
 			return gorm.ErrInvalidData
 		}
 
+		if err := tx.Where("list_id = ?", listID).Delete(&models.ListMovieUserData{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("list_id = ?", listID).Delete(&models.ListMovie{}).Error; err != nil {
 			return err
 		}
@@ -248,10 +254,20 @@ func (d *movieListDAO) FindListMovieByListAndMovie(listID, movieID int64) (*mode
 }
 
 func (d *movieListDAO) RemoveMovieFromList(listID, movieID int64) error {
-	return d.db.Where("list_id = ? AND movie_id = ?", listID, movieID).Delete(&models.ListMovie{}).Error
+	return d.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("list_id = ? AND movie_id = ?", listID, movieID).
+			Delete(&models.ListMovieUserData{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("list_id = ? AND movie_id = ?", listID, movieID).
+			Delete(&models.ListMovie{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
-func (d *movieListDAO) UpdateMovie(listID, movieID int64, status *models.MovieStatus, rating *int, notes *string) (*models.ListMovie, error) {
+func (d *movieListDAO) UpdateMovie(listID, movieID int64, status *models.MovieStatus) (*models.ListMovie, error) {
 	var listMovie models.ListMovie
 
 	updates := map[string]interface{}{}
@@ -267,16 +283,6 @@ func (d *movieListDAO) UpdateMovie(listID, movieID int64, status *models.MovieSt
 		}
 	}
 
-	// Update rating if provided
-	if rating != nil {
-		updates["rating"] = *rating
-	}
-
-	// Update notes if provided
-	if notes != nil {
-		updates["notes"] = *notes
-	}
-
 	if err := d.db.Model(&listMovie).
 		Where("list_id = ? AND movie_id = ?", listID, movieID).
 		Updates(updates).Error; err != nil {
@@ -290,11 +296,101 @@ func (d *movieListDAO) UpdateMovie(listID, movieID int64, status *models.MovieSt
 	return &listMovie, nil
 }
 
+func (d *movieListDAO) UpsertMovieUserData(listID, movieID, userID int64, rating *int, ratingProvided bool, notes *string, notesProvided bool) (*models.ListMovieUserData, error) {
+	var existing models.ListMovieUserData
+	err := d.db.Where("list_id = ? AND movie_id = ? AND user_id = ?", listID, movieID, userID).
+		First(&existing).Error
+
+	var cleanRating *int
+	if ratingProvided {
+		if rating != nil {
+			r := *rating
+			if r < 1 || r > 10 {
+				return nil, errors.New("rating must be between 1 and 10")
+			}
+			cleanRating = &r
+		} else {
+			cleanRating = nil
+		}
+	}
+
+	var cleanNotes *string
+	if notesProvided {
+		if notes != nil {
+			trimmed := strings.TrimSpace(*notes)
+			if trimmed == "" {
+				cleanNotes = nil
+			} else {
+				copy := trimmed
+				cleanNotes = &copy
+			}
+		} else {
+			cleanNotes = nil
+		}
+	}
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		if (!ratingProvided || cleanRating == nil) && (!notesProvided || cleanNotes == nil) {
+			return nil, nil
+		}
+		rec := &models.ListMovieUserData{
+			ListID:  listID,
+			MovieID: movieID,
+			UserID:  userID,
+		}
+		if ratingProvided {
+			rec.Rating = cleanRating
+		}
+		if notesProvided {
+			rec.Notes = cleanNotes
+		}
+		if err := d.db.Create(rec).Error; err != nil {
+			return nil, err
+		}
+		return rec, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if ratingProvided {
+		existing.Rating = cleanRating
+	}
+	if notesProvided {
+		existing.Notes = cleanNotes
+	}
+
+	if existing.Rating == nil && existing.Notes == nil {
+		if err := d.db.Delete(&existing).Error; err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	existing.UpdatedAt = time.Now()
+	if err := d.db.Save(&existing).Error; err != nil {
+		return nil, err
+	}
+	return &existing, nil
+}
+
+func (d *movieListDAO) FindMovieUserData(listID, movieID, userID int64) (*models.ListMovieUserData, error) {
+	var data models.ListMovieUserData
+	if err := d.db.Preload("User").
+		Where("list_id = ? AND movie_id = ? AND user_id = ?", listID, movieID, userID).
+		First(&data).Error; err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
 func (d *movieListDAO) FindListMoviesWithMovie(listID int64, status *models.MovieStatus) ([]models.ListMovie, error) {
 	var listMovies []models.ListMovie
 	q := d.db.
 		Preload("Movie").
 		Preload("Movie.Genres").
+		Preload("UserEntries").
+		Preload("UserEntries.User").
 		Where("list_id = ?", listID)
 	if status != nil {
 		q = q.Where("status = ?", string(*status))
@@ -303,6 +399,20 @@ func (d *movieListDAO) FindListMoviesWithMovie(listID int64, status *models.Movi
 		return nil, err
 	}
 	return listMovies, nil
+}
+
+func (d *movieListDAO) GetMovieAverageRating(listID, movieID int64) (*float64, error) {
+	type result struct {
+		Avg *float64
+	}
+	var res result
+	if err := d.db.Table(models.ListMovieUserData{}.TableName()).
+		Select("AVG(rating) AS avg").
+		Where("list_id = ? AND movie_id = ? AND rating IS NOT NULL", listID, movieID).
+		Scan(&res).Error; err != nil {
+		return nil, err
+	}
+	return res.Avg, nil
 }
 
 func (d *movieListDAO) SearchListMoviesWithMovie(listID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error) {
@@ -322,6 +432,8 @@ func (d *movieListDAO) SearchListMoviesWithMovie(listID int64, query string, lim
 	fetchQ := d.db.
 		Preload("Movie").
 		Preload("Movie.Genres").
+		Preload("UserEntries").
+		Preload("UserEntries.User").
 		Joins("JOIN movies ON movies.id = list_movies.movie_id").
 		Where("list_movies.list_id = ?", listID).
 		Where("movies.title LIKE ? OR movies.original_title LIKE ?", like, like).
