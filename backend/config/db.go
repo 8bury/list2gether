@@ -19,7 +19,12 @@ func connectDatabase() *gorm.DB {
 			fmt.Println("Warning: could not load .env file:", loadErr)
 		}
 	}
-	dsn := os.Getenv("DB_DSN")
+	dsn := strings.TrimSpace(os.Getenv("DB_DSN"))
+	if dsn == "" {
+		panic("DB_DSN is not set")
+	}
+	dsn = ensureDSNParam(dsn, "parseTime", "true")
+	dsn = ensureDSNParam(dsn, "loc", "UTC")
 
 	fmt.Print("Connecting to database with DSN: ", dsn, "\n")
 
@@ -142,4 +147,19 @@ func backfillLegacyListMovieUserData(db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+func ensureDSNParam(dsn, key, value string) string {
+	if strings.Contains(dsn, key+"=") {
+		return dsn
+	}
+	separator := "?"
+	if strings.Contains(dsn, "?") {
+		if strings.HasSuffix(dsn, "?") || strings.HasSuffix(dsn, "&") {
+			separator = ""
+		} else {
+			separator = "&"
+		}
+	}
+	return dsn + separator + key + "=" + value
 }
