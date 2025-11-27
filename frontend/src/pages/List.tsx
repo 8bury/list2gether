@@ -48,27 +48,39 @@ function SkeletonCard() {
   return (
     <div className="group rounded-xl bg-white/5 border border-white/10 overflow-hidden transition-all shadow-lg shadow-white/10">
       <div className="flex animate-pulse">
-        <div className="w-28 sm:w-32 bg-white/5 aspect-[2/3]"></div>
+        <div className="w-28 sm:w-32 bg-white/10 aspect-[2/3]"></div>
         <div className="p-3 sm:p-4 flex-1 grid gap-2">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="h-5 bg-white/10 rounded w-48"></div>
-              <div className="h-5 bg-white/10 rounded w-12"></div>
-              <div className="h-5 bg-white/10 rounded w-20"></div>
-              <div className="ml-auto h-5 bg-white/10 rounded w-16"></div>
+              {/* Title */}
+              <div className="h-5 sm:h-6 bg-white/10 rounded w-32 sm:w-48"></div>
+              {/* Media type badge */}
+              <div className="h-5 bg-white/10 rounded-full w-12"></div>
+              {/* Status badge */}
+              <div className="h-5 bg-white/10 rounded-full w-20"></div>
+              {/* Rating badge */}
+              <div className="h-5 bg-white/10 rounded-full w-16"></div>
+              {/* Average rating badge */}
+              <div className="h-5 bg-white/10 rounded-full w-20"></div>
+              {/* Details button */}
+              <div className="ml-auto h-5 bg-white/10 rounded-full w-16"></div>
             </div>
             <div className="mt-2 flex items-center gap-3">
+              {/* Star rating */}
               <div className="flex gap-1">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="w-5 h-5 bg-white/10 rounded"></div>
                 ))}
               </div>
-              <div className="w-8 h-8 bg-white/10 rounded-md"></div>
+              {/* Delete button */}
+              <div className="w-8 h-8 bg-white/10 rounded-md border border-white/10"></div>
             </div>
-            <div className="mt-2 h-4 bg-white/10 rounded w-32"></div>
+            {/* Original title */}
+            <div className="mt-2 h-3 bg-white/10 rounded w-40"></div>
           </div>
+          {/* Release date */}
           <div className="flex flex-wrap gap-x-3 gap-y-1">
-            <div className="h-3 bg-white/10 rounded w-24"></div>
+            <div className="h-3 bg-white/10 rounded w-28"></div>
           </div>
         </div>
       </div>
@@ -78,11 +90,35 @@ function SkeletonCard() {
 
 function SkeletonHeader() {
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div className="h-8 bg-white/10 rounded w-48 animate-pulse"></div>
-      <div className="flex items-center gap-2">
-        <div className="h-9 bg-white/10 rounded w-32 animate-pulse"></div>
-        <div className="h-9 bg-white/10 rounded w-16 animate-pulse"></div>
+    <div className="mb-4 grid gap-3 animate-pulse">
+      {/* Top row: back button, title, add button */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          {/* Back button */}
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-white/10 border border-white/10"></div>
+          {/* List title */}
+          <div className="h-7 sm:h-9 bg-white/10 rounded w-40 sm:w-56"></div>
+        </div>
+        <div className="flex gap-2 w-full sm:w-auto">
+          {/* Add button */}
+          <div className="flex-1 sm:flex-none h-10 bg-white/10 rounded-lg w-32 sm:w-36"></div>
+        </div>
+      </div>
+      {/* Desktop: search + filter row */}
+      <div className="hidden sm:grid sm:grid-cols-12 sm:items-start sm:gap-3">
+        <div className="sm:col-span-7">
+          {/* Search input */}
+          <div className="h-10 bg-white/10 rounded-lg border border-white/10"></div>
+        </div>
+        <div className="sm:col-span-5">
+          {/* Status filter */}
+          <div className="h-10 bg-white/10 rounded-lg border border-white/10"></div>
+        </div>
+      </div>
+      {/* Mobile: search + filter */}
+      <div className="sm:hidden">
+        <div className="h-10 bg-white/10 rounded-lg border border-white/10"></div>
+        <div className="mt-2 h-10 bg-white/10 rounded-lg border border-white/10"></div>
       </div>
     </div>
   )
