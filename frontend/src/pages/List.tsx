@@ -164,7 +164,7 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
     <div data-animate className="group rounded-xl bg-white/5 border border-white/10 overflow-hidden hover:border-white/20 hover:bg-white/10 transition-all shadow-lg shadow-white/10 hover:-translate-y-0.5">
       <div className="flex">
         {posterUrl ? (
-          <img src={posterUrl} alt={title} className="w-28 sm:w-32 object-cover aspect-[2/3]" />
+          <img src={posterUrl} alt={title} className="w-28 sm:w-32 object-cover aspect-[2/3]" loading="lazy" />
         ) : (
           <div className="w-28 sm:w-32 bg-white/5 grid place-items-center text-neutral-400 text-xs">Sem poster</div>
         )}
@@ -897,6 +897,9 @@ export default function ListPage() {
                       <path d="M19 11H8.41l4.3-4.29-1.42-1.42L4.59 12l6.7 6.71 1.42-1.42L8.41 13H19v-2z" />
                     </svg>
                   </button>
+                  <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7 text-white/80 flex-shrink-0" fill="currentColor" aria-hidden>
+                    <path d="M7 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM13 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 8h16v11c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V8zm16 2.5v7l4 2.5v-12l-4 2.5z"/>
+                  </svg>
                   <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex-1 min-w-0 truncate bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{listName || `Lista #${parsedId}`}</h2>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
@@ -1204,7 +1207,7 @@ export default function ListPage() {
                         disabled={isAdded}
                       >
                         {r.poster_url ? (
-                          <img src={r.poster_url} alt={r.name} className="w-12 h-16 object-cover rounded" />
+                          <img src={r.poster_url} alt={r.name} className="w-12 h-16 object-cover rounded" loading="lazy" />
                         ) : (
                           <div className="w-12 h-16 bg-white/5 rounded grid place-items-center text-[10px] text-neutral-400">Sem poster</div>
                         )}
