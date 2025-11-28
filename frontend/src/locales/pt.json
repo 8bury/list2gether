@@ -150,6 +150,17 @@
     "save": "Salvar alterações",
     "saving": "Salvando…",
     "saved": "Perfil atualizado com sucesso!"
+  },
+  "lucky": {
+    "button": "Estou com sorte",
+    "title": "Estou com sorte",
+    "spinning": "Sorteando...",
+    "result": "Você vai assistir:",
+    "noMovies": "Nenhum filme não assistido",
+    "noMoviesTooltip": "Nenhum filme não assistido na lista",
+    "close": "Fechar",
+    "spinAgain": "Sortear novamente",
+    "spinTooltip": "Sortear um filme para assistir"
   }
 }
 

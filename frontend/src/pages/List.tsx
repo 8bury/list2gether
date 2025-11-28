@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Header from '../components/Header'
 import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, getComments, createComment, updateComment, deleteComment, type ListMovieItemDTO, type ListMovieUserEntryDTO, type MovieStatus, type CommentDTO, type AddedByUserDTO } from '../services/lists'
 import { searchMedia, type SearchResultDTO } from '../services/search'
@@ -600,6 +601,7 @@ function MovieCard({ item, listId, currentUserId, currentUserName, currentUserAv
 
 export default function ListPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { listId } = useParams<{ listId: string }>()
   const parsedId = useMemo(() => Number(listId), [listId])
   const [items, setItems] = useState<ListMovieItem[]>([])
@@ -617,6 +619,8 @@ export default function ListPage() {
   const addInputRef = useRef<HTMLInputElement | null>(null)
   const resultsContainerRef = useRef<HTMLDivElement | null>(null)
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const popoverRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
   const [updatingRatingId, setUpdatingRatingId] = useState<number | null>(null)
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -626,6 +630,14 @@ export default function ListPage() {
 
   // State for in-list search
   const [listSearchQuery, setListSearchQuery] = useState('')
+
+  // State for "Estou com sorte" feature
+  const [isLuckyOpen, setIsLuckyOpen] = useState(false)
+  const [isSpinning, setIsSpinning] = useState(false)
+  const [selectedMovie, setSelectedMovie] = useState<ListMovieItem | null>(null)
+  const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0)
+  const [spinItems, setSpinItems] = useState<ListMovieItem[]>([])
+  const spinContainerRef = useRef<HTMLDivElement | null>(null)
 
   const currentUserId = useMemo(() => {
     try {
@@ -715,7 +727,26 @@ export default function ListPage() {
       localStorage.setItem(`${keyPrefix}:genreFilter`, genreFilter)
     } catch {}
   }, [parsedId, statusFilter, listSearchQuery, genreFilter])
-  
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isAddOpen &&
+        popoverRef.current &&
+        triggerRef.current &&
+        !popoverRef.current.contains(event.target as Node) &&
+        !triggerRef.current.contains(event.target as Node)
+      ) {
+        setIsAddOpen(false)
+        setSearchQuery('')
+        setSearchResults([])
+        setSearchError(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isAddOpen])
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -828,6 +859,84 @@ export default function ListPage() {
       .map(([id, { name, count }]) => ({ id, name, count }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [items])
+
+  // Filmes não assistidos para a roleta "Estou com sorte"
+  const unwatchedMovies = useMemo(() => {
+    return items.filter((it) => it.status === 'not_watched')
+  }, [items])
+
+  // Função para iniciar a roleta
+  const startLuckySpin = useCallback(() => {
+    if (unwatchedMovies.length === 0) return
+    
+    // Seleciona um filme aleatório como o vencedor
+    const winnerIndex = Math.floor(Math.random() * unwatchedMovies.length)
+    const winner = unwatchedMovies[winnerIndex]
+    
+    // Cria array de filmes para a animação (repetidos para ter pelo menos 25 itens antes do vencedor)
+    const minItemsBefore = 25
+    const itemsAfterWinner = 10 // Filmes após o vencedor para preencher o modal
+    let spinArray: ListMovieItem[] = []
+    while (spinArray.length < minItemsBefore) {
+      // Embaralha os filmes para variar a ordem
+      const shuffled = [...unwatchedMovies].sort(() => Math.random() - 0.5)
+      spinArray = spinArray.concat(shuffled)
+    }
+    // Adiciona o vencedor
+    const winnerPosition = spinArray.length
+    spinArray.push(winner)
+    
+    // Adiciona mais filmes após o vencedor para preencher o modal
+    let afterWinner: ListMovieItem[] = []
+    while (afterWinner.length < itemsAfterWinner) {
+      const shuffled = [...unwatchedMovies].sort(() => Math.random() - 0.5)
+      afterWinner = afterWinner.concat(shuffled)
+    }
+    spinArray = spinArray.concat(afterWinner.slice(0, itemsAfterWinner))
+    
+    setSpinItems(spinArray)
+    setSelectedMovie(null)
+    setCurrentDisplayIndex(0)
+    setIsSpinning(true)
+    setIsLuckyOpen(true)
+    
+    // Animação de atualização do nome do filme
+    const totalDuration = 3500 // ms
+    let currentIndex = 0
+    let elapsed = 0
+    const baseInterval = 50 // intervalo inicial rápido
+    
+    const animateNames = () => {
+      if (currentIndex >= winnerPosition) {
+        // Chegou no vencedor - parar
+        setCurrentDisplayIndex(winnerPosition)
+        setSelectedMovie(winner)
+        setIsSpinning(false)
+        return
+      }
+      
+      // Calcula o delay com desaceleração exponencial
+      const progress = elapsed / totalDuration
+      const delay = baseInterval + (progress * progress * 300)
+      
+      setTimeout(() => {
+        currentIndex++
+        elapsed += delay
+        setCurrentDisplayIndex(currentIndex)
+        animateNames()
+      }, delay)
+    }
+    
+    animateNames()
+  }, [unwatchedMovies])
+
+  const closeLuckyModal = useCallback(() => {
+    setIsLuckyOpen(false)
+    setIsSpinning(false)
+    setSelectedMovie(null)
+    setSpinItems([])
+    setCurrentDisplayIndex(0)
+  }, [])
 
   // Debounced add-modal search com cancelamento
   useEffect(() => {
@@ -1061,8 +1170,169 @@ export default function ListPage() {
                   </button>
                   <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex-1 min-w-0 truncate bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{listName || `Lista #${parsedId}`}</h2>
                 </div>
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button className="flex-1 sm:flex-none inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => setIsAddOpen(true)}>Adicionar título</button>
+                <div className="flex gap-2 w-full sm:w-auto items-end">
+                  <div className="relative group">
+                    <button
+                      className={`px-3 py-2 text-sm rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 ${
+                        unwatchedMovies.length > 0
+                          ? 'bg-white/10 border border-white/20 text-white hover:bg-white/20'
+                          : 'bg-white/5 border border-white/10 text-white/40 cursor-not-allowed'
+                      }`}
+                      onClick={startLuckySpin}
+                      disabled={unwatchedMovies.length === 0}
+                      title={unwatchedMovies.length === 0 ? t('lucky.noMoviesTooltip') : t('lucky.spinTooltip')}
+                    >
+                      {t('lucky.button')}
+                    </button>
+                    {unwatchedMovies.length === 0 && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-neutral-900 border border-white/10 rounded-lg text-xs text-neutral-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        {t('lucky.noMovies')}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral-900"></div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Popover trigger + container */}
+                  <div className="relative flex-1 sm:flex-none">
+                    <button
+                      ref={triggerRef}
+                      className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
+                      onClick={() => {
+                        if (isAddOpen) {
+                          setIsAddOpen(false)
+                          setSearchQuery('')
+                          setSearchResults([])
+                          setSearchError(null)
+                        } else {
+                          setIsAddOpen(true)
+                        }
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" className={`w-4 h-4 transition-transform duration-200 ${isAddOpen ? 'rotate-45' : ''}`} fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                      </svg>
+                      Adicionar título
+                    </button>
+                    
+                    {/* Popover */}
+                    {isAddOpen && (
+                      <div
+                        ref={popoverRef}
+                        className="absolute top-full right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl bg-neutral-900 border border-white/10 shadow-2xl shadow-black/50 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50"
+                      >
+                        <div className="p-4 space-y-3">
+                          <div className="relative">
+                            <input
+                              ref={addInputRef}
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (!displayResults.length) return
+                                if (e.key === 'ArrowDown') {
+                                  e.preventDefault()
+                                  setActiveResultIndex((i) => Math.min(i + 1, displayResults.length - 1))
+                                } else if (e.key === 'ArrowUp') {
+                                  e.preventDefault()
+                                  setActiveResultIndex((i) => Math.max(i - 1, 0))
+                                } else if (e.key === 'Enter') {
+                                  const sel = displayResults[activeResultIndex]
+                                  if (sel && !existingIds.has(sel.id)) {
+                                    handleAddSelect(sel)
+                                  }
+                                } else if (e.key === 'Escape') {
+                                  setIsAddOpen(false)
+                                  setSearchQuery('')
+                                  setSearchResults([])
+                                  setSearchError(null)
+                                }
+                              }}
+                              placeholder="Busque por um filme ou série"
+                              className="w-full pl-3 pr-9 py-2.5 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/30 focus:border-white/20 transition-all placeholder:text-neutral-500"
+                              role="combobox"
+                              aria-expanded={displayResults.length > 0}
+                              aria-controls="add-results"
+                              aria-autocomplete="list"
+                              autoFocus
+                            />
+                            {searchQuery && (
+                              <button
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white"
+                                onClick={() => setSearchQuery('')}
+                                aria-label="Limpar busca"
+                              >
+                                <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
+                                  <path d="M6.28 6.22a.75.75 0 011.06 0L10 8.88l2.66-2.66a.75.75 0 111.06 1.06L11.06 9.94l2.66 2.66a.75.75 0 11-1.06 1.06L10 11l-2.66 2.66a.75.75 0 11-1.06-1.06L8.94 9.94 6.28 7.28a.75.75 0 010-1.06z" fill="currentColor" />
+                                </svg>
+                              </button>
+                            )}
+                            {searchLoading && (
+                              <div className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-gray-300" aria-hidden>
+                                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+
+                          {!searchLoading && searchQuery.trim().length < 2 && !searchError && (
+                            <div className="text-sm text-neutral-400">Digite 2 ou mais caracteres para buscar.</div>
+                          )}
+                          {searchError && (
+                            <div className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+                              {searchError}
+                            </div>
+                          )}
+                          {!searchLoading && searchQuery.trim().length >= 2 && displayResults.length === 0 && !searchError && (
+                            <div className="text-neutral-400 text-sm">Nenhum resultado.</div>
+                          )}
+                          
+                          <div
+                            id="add-results"
+                            ref={resultsContainerRef}
+                            role="listbox"
+                            aria-label="Resultados de busca"
+                            className="grid gap-2 max-h-[50vh] overflow-y-auto pr-1"
+                          >
+                            {displayResults.map((r, idx) => {
+                              const isAdded = existingIds.has(r.id)
+                              const isActive = idx === activeResultIndex
+                              return (
+                                <button
+                                  ref={(el) => { itemRefs.current[idx] = el }}
+                                  key={`${r.media_type}-${r.id}`}
+                                  role="option"
+                                  aria-selected={isActive}
+                                  className={`flex items-center gap-3 p-2 rounded-lg border text-left ${isActive ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/20 hover:bg-white/5'} ${isAdded ? 'opacity-70' : ''}`}
+                                  onClick={() => !isAdded && handleAddSelect(r)}
+                                  disabled={isAdded}
+                                >
+                                  {r.poster_url ? (
+                                    <img src={r.poster_url} alt={r.name} className="w-12 h-16 object-cover rounded" loading="lazy" />
+                                  ) : (
+                                    <div className="w-12 h-16 bg-white/5 rounded grid place-items-center text-[10px] text-neutral-400">Sem poster</div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium flex items-center gap-2">
+                                      <span className={`truncate ${isAdded ? 'text-gray-400 line-through' : ''}`}>{r.name}</span>
+                                      {isAdded && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/10 text-gray-300 shrink-0">Já na lista</span>
+                                      )}
+                                    </div>
+                                    {r.original_name && r.original_name !== r.name && (
+                                      <div className="text-xs text-neutral-400 truncate">{r.original_name}</div>
+                                    )}
+                                  </div>
+                                  <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-neutral-300 shrink-0">
+                                    {r.media_type === 'movie' ? 'Filme' : 'Série'}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="hidden sm:grid sm:grid-cols-12 sm:items-start sm:gap-3">
@@ -1206,7 +1476,15 @@ export default function ListPage() {
                   <div className="rounded-xl bg-white/5 border border-white/10 p-6 text-center grid place-items-center">
                     <div className="text-gray-300">Nenhum título {listSearchQuery.trim().length >= 2 ? 'encontrado para a busca.' : 'nesta lista ainda.'}</div>
                     <div className="mt-4">
-                      <button className="inline-block px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => setIsAddOpen(true)}>Adicionar primeiro título</button>
+                      <button 
+                        className="inline-block px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" 
+                        onClick={() => {
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                          setIsAddOpen(true)
+                        }}
+                      >
+                        Adicionar primeiro título
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -1232,119 +1510,119 @@ export default function ListPage() {
           </>
         )}
       </main>
-      {isAddOpen && (
+      {/* Modal "Estou com sorte" */}
+      {isLuckyOpen && (
         <div className="fixed inset-0 z-50">
-          <button className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-label="Fechar" onClick={() => { setIsAddOpen(false); setSearchQuery(''); setSearchResults([]); setSearchError(null) }}></button>
+          <button 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+            aria-label="Fechar" 
+            onClick={closeLuckyModal}
+          />
           <div className="relative z-10 h-full w-full p-4 grid place-items-center">
-            <div className="w-full max-w-xl max-h-[80vh] bg-neutral-950 border border-white/10 rounded-2xl overflow-hidden shadow-lg shadow-white/10">
-              <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Adicionar título</h3>
-                <button className="text-neutral-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 rounded px-2 py-1" onClick={() => { setIsAddOpen(false); setSearchQuery(''); setSearchResults([]); setSearchError(null) }}>Fechar</button>
+            <div className="w-full max-w-2xl bg-neutral-950 border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-white/5">
+              {/* Header */}
+              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 3c.83 0 1.5.67 1.5 1.5S12.33 9 11.5 9 10 8.33 10 7.5 10.67 6 11.5 6zM8.5 9C7.67 9 7 8.33 7 7.5S7.67 6 8.5 6 10 6.67 10 7.5 9.33 9 8.5 9zM12 15c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3.5-6c-.83 0-1.5-.67-1.5-1.5S14.67 6 15.5 6s1.5.67 1.5 1.5S16.33 9 15.5 9zm-7 9c-.83 0-1.5-.67-1.5-1.5S7.67 15 8.5 15s1.5.67 1.5 1.5S9.33 18 8.5 18zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                  </svg>
+                  {isSpinning ? t('lucky.spinning') : t('lucky.title')}
+                </h3>
+                <button 
+                  className="text-neutral-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 rounded px-2 py-1" 
+                  onClick={closeLuckyModal}
+                >
+                  {t('lucky.close')}
+                </button>
               </div>
-              <div className="p-4 grid gap-3">
-                <div className="grid grid-cols-1 gap-2 items-center">
-                  <div>
-                    <div className="relative">
-                      <input
-                        ref={addInputRef}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (!displayResults.length) return
-                          if (e.key === 'ArrowDown') {
-                            e.preventDefault()
-                            setActiveResultIndex((i) => Math.min(i + 1, displayResults.length - 1))
-                          } else if (e.key === 'ArrowUp') {
-                            e.preventDefault()
-                            setActiveResultIndex((i) => Math.max(i - 1, 0))
-                          } else if (e.key === 'Enter') {
-                            const sel = displayResults[activeResultIndex]
-                            if (sel && !existingIds.has(sel.id)) {
-                              handleAddSelect(sel)
-                            }
-                          } else if (e.key === 'Escape') {
-                            setIsAddOpen(false)
-                          }
-                        }}
-                        placeholder="Busque por um filme ou série"
-                        className="w-full pl-3 pr-9 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                        role="combobox"
-                        aria-expanded={displayResults.length > 0}
-                        aria-controls="add-results"
-                        aria-autocomplete="list"
-                      />
-                      {searchQuery && (
-                        <button
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white"
-                          onClick={() => setSearchQuery('')}
-                          aria-label="Limpar busca"
-                        >
-                          <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
-                            <path d="M6.28 6.22a.75.75 0 011.06 0L10 8.88l2.66-2.66a.75.75 0 111.06 1.06L11.06 9.94l2.66 2.66a.75.75 0 11-1.06 1.06L10 11l-2.66 2.66a.75.75 0 11-1.06-1.06L8.94 9.94 6.28 7.28a.75.75 0 010-1.06z" fill="currentColor" />
-                          </svg>
-                        </button>
-                      )}
-                      {searchLoading && (
-                        <div className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-gray-300" aria-hidden>
-                          <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                          </svg>
-                        </div>
-                      )}
+              
+              {/* Slot Machine Container */}
+              <div className="p-6">
+                {/* Slot window with gradient masks */}
+                <div className="relative">
+                  {/* Gradient masks for slot effect */}
+                  <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-neutral-950 to-transparent z-10 pointer-events-none" />
+                  <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-neutral-950 to-transparent z-10 pointer-events-none" />
+                  
+                  {/* Center indicator */}
+                  <div className="absolute left-1/2 top-0 bottom-0 w-[120px] -translate-x-1/2 border-2 border-white/50 rounded-lg z-20 pointer-events-none">
+                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45" />
+                  </div>
+                  
+                  {/* Posters container */}
+                  <div 
+                    ref={spinContainerRef}
+                    className="overflow-hidden rounded-lg bg-neutral-900/50 border border-white/5"
+                  >
+                    <div 
+                      className="flex transition-transform ease-out"
+                      style={{
+                        transform: `translateX(calc(50% - ${currentDisplayIndex * 120 + 60}px))`,
+                        transitionDuration: isSpinning ? '150ms' : '500ms',
+                      }}
+                    >
+                      {spinItems.map((item, idx) => {
+                        const posterUrl = item.movie.poster_url || (item.movie.poster_path ? `https://image.tmdb.org/t/p/w500${item.movie.poster_path}` : null)
+                        const isCenter = idx === currentDisplayIndex
+                        return (
+                          <div 
+                            key={`${item.movie_id}-${idx}`}
+                            className={`flex-shrink-0 w-[120px] p-2 transition-all duration-150 ${isCenter ? 'scale-105' : 'scale-95 opacity-60'}`}
+                          >
+                            {posterUrl ? (
+                              <img 
+                                src={posterUrl} 
+                                alt={item.movie.title} 
+                                className="w-full aspect-[2/3] object-cover rounded-lg shadow-lg"
+                              />
+                            ) : (
+                              <div className="w-full aspect-[2/3] bg-white/5 rounded-lg grid place-items-center text-[10px] text-neutral-400">
+                                Sem poster
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
-
-                {!searchLoading && searchQuery.trim().length < 2 && !searchError && (
-                  <div className="text-sm text-neutral-400">Digite 2 ou mais caracteres para buscar.</div>
-                )}
-                {searchError && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300">{searchError}</div>}
-                {!searchLoading && searchQuery.trim().length >= 2 && displayResults.length === 0 && !searchError && (
-                  <div className="text-neutral-400">Nenhum resultado.</div>
-                )}
-                <div
-                  id="add-results"
-                  ref={resultsContainerRef}
-                  role="listbox"
-                  aria-label="Resultados de busca"
-                  className="grid gap-2 max-h-[46vh] overflow-y-auto pr-1"
-                >
-                  {displayResults.map((r, idx) => {
-                    const isAdded = existingIds.has(r.id)
-                    const isActive = idx === activeResultIndex
-                    return (
-                      <button
-                        ref={(el) => { itemRefs.current[idx] = el }}
-                        key={`${r.media_type}-${r.id}`}
-                        role="option"
-                        aria-selected={isActive}
-                        className={`flex items-center gap-3 p-2 rounded-lg border text-left ${isActive ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/20 hover:bg-white/5'} ${isAdded ? 'opacity-70' : ''}`}
-                        onClick={() => !isAdded && handleAddSelect(r)}
-                        disabled={isAdded}
-                      >
-                        {r.poster_url ? (
-                          <img src={r.poster_url} alt={r.name} className="w-12 h-16 object-cover rounded" loading="lazy" />
-                        ) : (
-                          <div className="w-12 h-16 bg-white/5 rounded grid place-items-center text-[10px] text-neutral-400">Sem poster</div>
-                        )}
-                        <div className="flex-1">
-                          <div className="font-medium flex items-center gap-2">
-                            <span className={`${isAdded ? 'text-gray-400 line-through' : ''}`}>{r.name}</span>
-                            {isAdded && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/10 text-gray-300">Já na lista</span>
-                            )}
-                          </div>
-                          {r.original_name && r.original_name !== r.name && (
-                            <div className="text-xs text-neutral-400">{r.original_name}</div>
+                
+                {/* Movie name display */}
+                <div className="mt-6 text-center min-h-[80px]">
+                  {spinItems.length > 0 && (
+                    <div className={`transition-all duration-300 ${!isSpinning && selectedMovie ? 'scale-110' : ''}`}>
+                      {!isSpinning && selectedMovie ? (
+                        <>
+                          <p className="text-sm text-neutral-400 mb-2">{t('lucky.result')}</p>
+                          <h4 className="text-2xl font-bold text-white">
+                            {selectedMovie.movie.title}
+                          </h4>
+                          {selectedMovie.movie.original_title && selectedMovie.movie.original_title !== selectedMovie.movie.title && (
+                            <p className="text-sm text-neutral-400 mt-1">{selectedMovie.movie.original_title}</p>
                           )}
-                        </div>
-                        <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-neutral-300">
-                          {r.media_type === 'movie' ? 'Filme' : 'Série'}
-                        </span>
-                      </button>
-                    )
-                  })}
+                        </>
+                      ) : (
+                        <h4 className="text-xl font-semibold text-neutral-300 truncate px-4">
+                          {spinItems[currentDisplayIndex]?.movie.title || '...'}
+                        </h4>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Actions */}
+                <div className="mt-6 flex justify-center gap-3">
+                  {!isSpinning && selectedMovie && (
+                    <button
+                      onClick={startLuckySpin}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+                        <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                      </svg>
+                      {t('lucky.spinAgain')}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

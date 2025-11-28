@@ -150,6 +150,17 @@
     "save": "Save changes",
     "saving": "Saving…",
     "saved": "Profile updated successfully!"
+  },
+  "lucky": {
+    "button": "I'm Feeling Lucky",
+    "title": "I'm Feeling Lucky",
+    "spinning": "Drawing...",
+    "result": "You're going to watch:",
+    "noMovies": "No unwatched movies",
+    "noMoviesTooltip": "No unwatched movies in the list",
+    "close": "Close",
+    "spinAgain": "Spin again",
+    "spinTooltip": "Draw a movie to watch"
   }
 }
 
