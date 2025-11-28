@@ -90,6 +90,14 @@ export async function deleteList(listId: number): Promise<void> {
   })
 }
 
+export async function leaveList(listId: number): Promise<void> {
+  const token = localStorage.getItem('access_token')
+  await requestJson<void>(`/api/lists/${listId}/leave`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
 
 export type MovieStatus = 'not_watched' | 'watching' | 'watched' | 'dropped'
 

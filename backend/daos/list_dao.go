@@ -34,6 +34,7 @@ type MovieListDAO interface {
 	GetMovieAverageRating(listID, movieID int64) (*float64, error)
 	FindListMoviesWithMovie(listID int64, status *models.MovieStatus) ([]models.ListMovie, error)
 	SearchListMoviesWithMovie(listID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
+	RemoveMember(listID, userID int64) error
 }
 
 type movieListDAO struct {
@@ -448,4 +449,20 @@ func (d *movieListDAO) SearchListMoviesWithMovie(listID int64, query string, lim
 		return nil, 0, err
 	}
 	return listMovies, total, nil
+}
+
+func (d *movieListDAO) RemoveMember(listID, userID int64) error {
+	return d.db.Transaction(func(tx *gorm.DB) error {
+		// Delete user's ratings and notes for movies in this list
+		if err := tx.Where("list_id = ? AND user_id = ?", listID, userID).
+			Delete(&models.ListMovieUserData{}).Error; err != nil {
+			return err
+		}
+		// Delete the membership
+		if err := tx.Where("list_id = ? AND user_id = ?", listID, userID).
+			Delete(&models.ListMember{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }

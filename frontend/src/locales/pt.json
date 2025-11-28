@@ -88,7 +88,11 @@
     "openList": "Abrir lista",
     "deleteList": "Excluir lista",
     "confirmDeleteTitle": "Excluir lista?",
-    "confirmDeleteText": "Tem certeza de que deseja excluir a lista \"{{name}}\"? Esta ação é irreversível."
+    "confirmDeleteText": "Tem certeza de que deseja excluir a lista \"{{name}}\"? Esta ação é irreversível.",
+    "leaveList": "Sair da lista",
+    "confirmLeaveTitle": "Sair da lista?",
+    "confirmLeaveText": "Tem certeza de que deseja sair da lista \"{{name}}\"? Suas avaliações e notas serão removidas.",
+    "leaving": "Saindo…"
   },
   "auth": {
     "email": "Email",

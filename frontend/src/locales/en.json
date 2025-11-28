@@ -88,7 +88,11 @@
     "openList": "Open list",
     "deleteList": "Delete list",
     "confirmDeleteTitle": "Delete list?",
-    "confirmDeleteText": "Are you sure you want to delete the list \"{{name}}\"? This action is irreversible."
+    "confirmDeleteText": "Are you sure you want to delete the list \"{{name}}\"? This action is irreversible.",
+    "leaveList": "Leave list",
+    "confirmLeaveTitle": "Leave list?",
+    "confirmLeaveText": "Are you sure you want to leave the list \"{{name}}\"? Your ratings and notes will be removed.",
+    "leaving": "Leaving…"
   },
   "auth": {
     "email": "Email",

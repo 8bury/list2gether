@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
-import { getUserLists, createList, joinList, deleteList, type UserListDTO } from '../services/lists'
+import { getUserLists, createList, joinList, deleteList, leaveList, type UserListDTO } from '../services/lists'
 import { useTranslation } from 'react-i18next'
 
 export default function HomePage() {
@@ -17,6 +17,8 @@ export default function HomePage() {
   const [inviteCode, setInviteCode] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<UserListDTO | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [confirmLeave, setConfirmLeave] = useState<UserListDTO | null>(null)
+  const [leaving, setLeaving] = useState(false)
   const [showCreateInline, setShowCreateInline] = useState(false)
   const [showJoinInline, setShowJoinInline] = useState(false)
   const { t } = useTranslation()
@@ -76,6 +78,27 @@ export default function HomePage() {
       }
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleConfirmLeave = async () => {
+    if (!confirmLeave) return
+    setLeaving(true)
+    try {
+      await leaveList(confirmLeave.id)
+      setLists((prev) => prev.filter((l) => l.id !== confirmLeave.id))
+      setConfirmLeave(null)
+    } catch (err) {
+      const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao sair da lista'
+      setError(message)
+      if ((err as any)?.status === 401) {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user')
+        navigate('/login')
+      }
+    } finally {
+      setLeaving(false)
     }
   }
 
@@ -367,6 +390,18 @@ export default function HomePage() {
                       </svg>
                     </button>
                   )}
+                  {list.your_role === 'participant' && (
+                    <button
+                      onClick={() => setConfirmLeave(list)}
+                      className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-amber-400/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition focus:outline-none focus:ring-2 focus:ring-white/40"
+                      aria-label={t('lists.leaveList')}
+                      title={t('lists.leaveList')}
+                    >
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden="true">
+                        <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5a2 2 0 00-2 2v4h2V5h14v14H5v-4H3v4a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             </li>
@@ -393,6 +428,32 @@ export default function HomePage() {
                   disabled={deleting}
                 >
                   {deleting ? t('misc.deleting') : t('misc.delete')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {confirmLeave && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-lg shadow-white/10">
+              <h3 className="text-lg font-semibold mb-2">{t('lists.confirmLeaveTitle')}</h3>
+              <p className="text-neutral-300 mb-4">
+                {t('lists.confirmLeaveText', { name: confirmLeave.name })}
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
+                  onClick={() => setConfirmLeave(null)}
+                  disabled={leaving}
+                >
+                  {t('misc.cancel')}
+                </button>
+                <button
+                  className="px-5 py-2.5 rounded-lg bg-amber-600 text-white hover:bg-amber-500 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-amber-500"
+                  onClick={handleConfirmLeave}
+                  disabled={leaving}
+                >
+                  {leaving ? t('lists.leaving') : t('lists.leaveList')}
                 </button>
               </div>
             </div>

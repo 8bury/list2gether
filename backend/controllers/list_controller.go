@@ -31,6 +31,7 @@ func NewListController(router *gin.Engine, service services.ListService, authMid
 	group.GET("", c.authMiddleware.Handler(), c.list)
 	group.POST("/join", c.authMiddleware.Handler(), c.join)
 	group.DELETE("/:id", c.authMiddleware.Handler(), c.delete)
+	group.POST("/:id/leave", c.authMiddleware.Handler(), c.leave)
 	group.POST("/:id/movies", c.authMiddleware.Handler(), c.addMovie)
 	group.GET("/:id/movies", c.authMiddleware.Handler(), c.listMovies)
 	group.DELETE("/:id/movies/:movieId", c.authMiddleware.Handler(), c.removeMovie)
@@ -345,6 +346,73 @@ func (c *ListController) delete(ctx *gin.Context) {
 	}
 	log.Printf("delete_list success user_id=%d list_id=%d", userID, listID)
 	ctx.Status(http.StatusNoContent)
+}
+
+func (c *ListController) leave(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	log.Printf("leave_list attempt user_id=%d list_id=%d", userID, listID)
+	if err := c.service.LeaveList(listID, userID); err != nil {
+		if errors.Is(err, services.ErrListNotFound) {
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "List not found",
+				"code":      "NOT_FOUND",
+				"details":   []string{"The specified list does not exist"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+		if errors.Is(err, services.ErrNotAMember) {
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Not a member",
+				"code":      "FORBIDDEN",
+				"details":   []string{"You are not a member of this list"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+		if errors.Is(err, services.ErrOwnerCannotLeave) {
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Owner cannot leave",
+				"code":      "FORBIDDEN",
+				"details":   []string{"The owner cannot leave the list. Delete the list instead."},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+		ctx.Header("Cache-Control", "no-store")
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error":     "Failed to leave list",
+			"code":      "INTERNAL_ERROR",
+			"details":   []string{err.Error()},
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+	log.Printf("leave_list success user_id=%d list_id=%d", userID, listID)
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"message":   "Successfully left the list",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 func (c *ListController) addMovie(ctx *gin.Context) {
