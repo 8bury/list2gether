@@ -374,6 +374,7 @@ func (d *movieListDAO) FindListMoviesWithMovie(listID int64, status *models.Movi
 		Preload("Movie.Genres").
 		Preload("UserEntries").
 		Preload("UserEntries.User").
+		Preload("AddedByUser").
 		Where("list_id = ?", listID)
 	if status != nil {
 		q = q.Where("status = ?", string(*status))
@@ -417,6 +418,7 @@ func (d *movieListDAO) SearchListMoviesWithMovie(listID int64, query string, lim
 		Preload("Movie.Genres").
 		Preload("UserEntries").
 		Preload("UserEntries.User").
+		Preload("AddedByUser").
 		Joins("JOIN movies ON movies.id = list_movies.movie_id").
 		Where("list_movies.list_id = ?", listID).
 		Where("movies.title LIKE ? OR movies.original_title LIKE ?", like, like).

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Header from '../components/Header'
-import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, getComments, createComment, updateComment, deleteComment, type ListMovieItemDTO, type ListMovieUserEntryDTO, type MovieStatus, type CommentDTO } from '../services/lists'
+import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, getComments, createComment, updateComment, deleteComment, type ListMovieItemDTO, type ListMovieUserEntryDTO, type MovieStatus, type CommentDTO, type AddedByUserDTO } from '../services/lists'
 import { searchMedia, type SearchResultDTO } from '../services/search'
 
 const statusLabels: Record<MovieStatus, string> = {
@@ -22,6 +22,7 @@ type ListMovieItem = ListMovieItemDTO & {
   user_entries: ListMovieUserEntryDTO[]
   your_entry?: ListMovieUserEntryDTO | null
   average_rating?: number | null
+  added_by_user?: AddedByUserDTO | null
 }
 
 const computeAverageRating = (entries: ListMovieUserEntryDTO[]): number | null => {
@@ -446,6 +447,19 @@ function MovieCard({ item, listId, currentUserId, currentUserName, currentUserAv
               {item.watched_at && <span>Assistido: {new Date(item.watched_at).toLocaleString()}</span>}
               {item.updated_at && <span>Atualizado: {new Date(item.updated_at).toLocaleString()}</span>}
             </div>
+            {item.added_by_user && (
+              <div className="mt-2 text-xs text-neutral-400 flex items-center gap-1.5">
+                <span>Adicionado por</span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-neutral-200">
+                  <UserAvatar
+                    avatarUrl={item.added_by_user.avatar_url}
+                    name={item.added_by_user.username || item.added_by_user.email}
+                    size="sm"
+                  />
+                  <span>{item.added_by_user.username || item.added_by_user.email}</span>
+                </span>
+              </div>
+            )}
             {media.genres && media.genres.length > 0 && (
               <div className="mt-2 text-xs text-neutral-300 flex flex-wrap gap-2">
                 {media.genres.map((g) => (

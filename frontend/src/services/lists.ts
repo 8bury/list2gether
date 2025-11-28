@@ -136,12 +136,20 @@ export interface ListMovieUserEntryDTO {
   }
 }
 
+export interface AddedByUserDTO {
+  id: number
+  username: string
+  email: string
+  avatar_url?: string | null
+}
+
 export interface ListMovieItemDTO {
   id: number
   list_id: number
   movie_id: number
   status: MovieStatus
   added_by?: number | null
+  added_by_user?: AddedByUserDTO | null
   added_at: string
   watched_at?: string | null
   updated_at: string

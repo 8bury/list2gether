@@ -951,12 +951,23 @@ func (c *ListController) listMovies(ctx *gin.Context) {
 			notesCompat = yourEntry.Notes
 		}
 
+		var addedByUserPayload gin.H
+		if lm.AddedByUser != nil && lm.AddedByUser.ID != 0 {
+			addedByUserPayload = gin.H{
+				"id":         lm.AddedByUser.ID,
+				"username":   lm.AddedByUser.Username,
+				"email":      lm.AddedByUser.Email,
+				"avatar_url": lm.AddedByUser.AvatarURL,
+			}
+		}
+
 		item := gin.H{
 			"id":             lm.ID,
 			"list_id":        lm.ListID,
 			"movie_id":       lm.MovieID,
 			"status":         lm.Status,
 			"added_by":       lm.AddedBy,
+			"added_by_user":  addedByUserPayload,
 			"added_at":       lm.AddedAt,
 			"watched_at":     lm.WatchedAt,
 			"updated_at":     lm.UpdatedAt,
@@ -1149,12 +1160,23 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 			ratingCompat = yourEntry.Rating
 		}
 
+		var addedByUserPayload gin.H
+		if lm.AddedByUser != nil && lm.AddedByUser.ID != 0 {
+			addedByUserPayload = gin.H{
+				"id":         lm.AddedByUser.ID,
+				"username":   lm.AddedByUser.Username,
+				"email":      lm.AddedByUser.Email,
+				"avatar_url": lm.AddedByUser.AvatarURL,
+			}
+		}
+
 		item := gin.H{
 			"id":             lm.ID,
 			"list_id":        lm.ListID,
 			"movie_id":       lm.MovieID,
 			"status":         lm.Status,
 			"added_by":       lm.AddedBy,
+			"added_by_user":  addedByUserPayload,
 			"added_at":       lm.AddedAt,
 			"watched_at":     lm.WatchedAt,
 			"updated_at":     lm.UpdatedAt,
