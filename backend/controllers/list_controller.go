@@ -575,14 +575,6 @@ func (c *ListController) removeMovie(ctx *gin.Context) {
 				"timestamp": time.Now().UTC().Format(time.RFC3339),
 			})
 			return
-		case services.ErrCannotRemoveOthersMovie:
-			ctx.Header("Cache-Control", "no-store")
-			ctx.JSON(http.StatusForbidden, gin.H{
-				"success":   false,
-				"error":     "Você só pode remover filmes que você mesmo adicionou",
-				"timestamp": time.Now().UTC().Format(time.RFC3339),
-			})
-			return
 		default:
 			ctx.Header("Cache-Control", "no-store")
 			ctx.JSON(http.StatusInternalServerError, gin.H{

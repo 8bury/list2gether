@@ -218,13 +218,12 @@ func (s *listService) ListUserLists(userID int64, role *models.ListMemberRole, l
 }
 
 var (
-	ErrInvalidMediaType        = errors.New("invalid media_type")
-	ErrForbiddenMembership     = errors.New("forbidden")
-	ErrListMovieAlreadyExists  = errors.New("list_movie_already_exists")
-	ErrListNotFound            = errors.New("list_not_found")
-	ErrMediaNotFound           = errors.New("media_not_found")
-	ErrMovieNotInList          = errors.New("movie_not_in_list")
-	ErrCannotRemoveOthersMovie = errors.New("cannot_remove_others_movie")
+	ErrInvalidMediaType       = errors.New("invalid media_type")
+	ErrForbiddenMembership    = errors.New("forbidden")
+	ErrListMovieAlreadyExists = errors.New("list_movie_already_exists")
+	ErrListNotFound           = errors.New("list_not_found")
+	ErrMediaNotFound          = errors.New("media_not_found")
+	ErrMovieNotInList         = errors.New("movie_not_in_list")
 )
 
 type tmdbMovieResponse struct {
@@ -470,12 +469,6 @@ func (s *listService) RemoveMovieFromList(listID int64, userID int64, movieID in
 			return nil, ErrMovieNotInList
 		}
 		return nil, err
-	}
-
-	if membership.Role == models.RoleParticipant {
-		if listMovie.AddedBy == nil || *listMovie.AddedBy != userID {
-			return nil, ErrCannotRemoveOthersMovie
-		}
 	}
 
 	movie, err := s.movies.FindByID(movieID)
