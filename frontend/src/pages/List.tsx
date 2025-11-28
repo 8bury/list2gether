@@ -60,6 +60,38 @@ const getRelativeTime = (dateStr: string): string => {
   return `há ${diffYear} ${diffYear === 1 ? 'ano' : 'anos'}`
 }
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase()
+  }
+  return name.slice(0, 2).toUpperCase()
+}
+
+function UserAvatar({ avatarUrl, name, size = 'sm' }: { avatarUrl?: string | null; name: string; size?: 'sm' | 'md' }) {
+  const [imgError, setImgError] = useState(false)
+  const initials = getInitials(name)
+  const sizeClasses = size === 'sm' ? 'w-6 h-6 text-[9px]' : 'w-8 h-8 text-xs'
+  
+  if (avatarUrl && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
+        className={`${sizeClasses} rounded-full object-cover border border-white/20`}
+      />
+    )
+  }
+  
+  return (
+    <div className={`${sizeClasses} rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center font-bold text-white border border-white/20`}>
+      {initials}
+    </div>
+  )
+}
+
 function StarIcon(props: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" className={props.className} aria-hidden>
@@ -148,11 +180,12 @@ function SkeletonHeader() {
   )
 }
 
-function MovieCard({ item, listId, currentUserId, currentUserName, onChangeRating, onChangeStatus, onDelete, updatingRating, updatingStatus, deleting }: {
+function MovieCard({ item, listId, currentUserId, currentUserName, currentUserAvatarUrl, onChangeRating, onChangeStatus, onDelete, updatingRating, updatingStatus, deleting }: {
   item: ListMovieItem
   listId: number
   currentUserId: number | null
   currentUserName: string | null
+  currentUserAvatarUrl: string | null
   onChangeRating: (movieId: number, rating: number) => void
   onChangeStatus: (movieId: number, status: MovieStatus) => void
   onDelete: (movieId: number) => void
@@ -378,9 +411,11 @@ function MovieCard({ item, listId, currentUserId, currentUserName, onChangeRatin
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-400 to-purple-500 flex items-center justify-center text-[9px] font-bold text-white">
-                          {getEntryDisplayName(entry).charAt(0).toUpperCase()}
-                        </div>
+                        <UserAvatar
+                          avatarUrl={entry.user?.avatar_url}
+                          name={getEntryDisplayName(entry)}
+                          size="sm"
+                        />
                         <span className="text-neutral-200">{getEntryDisplayName(entry)}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -440,8 +475,12 @@ function MovieCard({ item, listId, currentUserId, currentUserName, onChangeRatin
               
               {/* New comment input */}
               <div className="flex gap-2 mb-4">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                  {currentUserName ? currentUserName.charAt(0).toUpperCase() : '?'}
+                <div className="flex-shrink-0">
+                  <UserAvatar
+                    avatarUrl={currentUserAvatarUrl}
+                    name={currentUserName || '?'}
+                    size="md"
+                  />
                 </div>
                 <div className="flex-1">
                   <textarea
@@ -481,8 +520,12 @@ function MovieCard({ item, listId, currentUserId, currentUserName, onChangeRatin
                 <div className="space-y-3">
                   {comments.map((comment) => (
                     <div key={comment.id} className="flex gap-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                        {getCommentDisplayName(comment).charAt(0).toUpperCase()}
+                      <div className="flex-shrink-0">
+                        <UserAvatar
+                          avatarUrl={comment.user?.avatar_url}
+                          name={getCommentDisplayName(comment)}
+                          size="md"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -601,6 +644,17 @@ export default function ListPage() {
       if (!raw) return null
       const parsed = JSON.parse(raw)
       return parsed?.username || parsed?.email || null
+    } catch {
+      return null
+    }
+  }, [])
+
+  const currentUserAvatarUrl = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('user')
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      return parsed?.avatar_url || null
     } catch {
       return null
     }
@@ -1163,6 +1217,7 @@ export default function ListPage() {
                       listId={parsedId}
                       currentUserId={currentUserId}
                       currentUserName={currentUserName}
+                      currentUserAvatarUrl={currentUserAvatarUrl}
                       onChangeRating={handleChangeRating}
                       onChangeStatus={handleChangeStatus}
                       onDelete={handleDelete}

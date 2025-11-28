@@ -4,6 +4,7 @@ import LoginPage from './pages/Login'
 import RegistroPage from './pages/Registro'
 import HomePage from './pages/Home'
 import ListPage from './pages/List'
+import SettingsPage from './pages/Settings'
 import './App.css'
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
       <Route path="/list/:listId" element={<ListPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registro" element={<RegistroPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Routes>
   )
 }

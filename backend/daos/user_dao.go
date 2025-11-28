@@ -12,6 +12,7 @@ type UserDAO interface {
 	FindByEmail(email string) (*models.User, error)
 	FindByUsername(username string) (*models.User, error)
 	FindByID(id int64) (*models.User, error)
+	Update(user *models.User) error
 }
 
 type userDAO struct {
@@ -51,4 +52,8 @@ func (d *userDAO) FindByID(id int64) (*models.User, error) {
 		return nil, gorm.ErrRecordNotFound
 	}
 	return &user, err
+}
+
+func (d *userDAO) Update(user *models.User) error {
+	return d.db.Save(user).Error
 }

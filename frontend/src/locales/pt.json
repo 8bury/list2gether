@@ -8,7 +8,8 @@
     "login": "Entrar",
     "register": "Criar conta",
     "logout": "Sair",
-    "loggingOut": "Saindo…"
+    "loggingOut": "Saindo…",
+    "settings": "Configurações"
   },
   "landing": {
     "tagline": "A rede social para casais e amigos que amam filmes",
@@ -129,6 +130,20 @@
     "save": "Salvar",
     "cancel": "Cancelar",
     "edited": "(editado)"
+  },
+  "settings": {
+    "title": "Configurações",
+    "username": "Nome de usuário",
+    "usernamePlaceholder": "Seu nome de usuário",
+    "email": "Email",
+    "emailReadOnly": "não pode ser alterado",
+    "avatarUrl": "URL do Avatar",
+    "avatarUrlPlaceholder": "https://exemplo.com/sua-imagem.jpg",
+    "avatarUrlHint": "Insira uma URL para uma imagem. Deve começar com https://",
+    "avatarPreview": "Prévia do avatar",
+    "save": "Salvar alterações",
+    "saving": "Salvando…",
+    "saved": "Perfil atualizado com sucesso!"
   }
 }
 

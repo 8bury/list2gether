@@ -1,15 +1,64 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
-import { logout as logoutApi } from '../services/auth'
+import { useEffect, useRef, useState, useMemo } from 'react'
+import { logout as logoutApi, type UserDTO } from '../services/auth'
 import { useTranslation } from 'react-i18next'
 import { setLanguagePreference, type SupportedLanguage } from '../services/preferences'
+
+function getInitials(username: string): string {
+  const parts = username.trim().split(/\s+/)
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase()
+  }
+  return username.slice(0, 2).toUpperCase()
+}
+
+interface AvatarProps {
+  avatarUrl?: string
+  username: string
+  size?: 'sm' | 'md'
+}
+
+function Avatar({ avatarUrl, username, size = 'md' }: AvatarProps) {
+  const [imgError, setImgError] = useState(false)
+  const initials = useMemo(() => getInitials(username), [username])
+  
+  const sizeClasses = size === 'sm' ? 'w-8 h-8 text-xs' : 'w-9 h-9 sm:w-10 sm:h-10 text-sm'
+  
+  if (avatarUrl && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={username}
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
+        className={`${sizeClasses} rounded-full object-cover border-2 border-white/20`}
+      />
+    )
+  }
+  
+  return (
+    <div className={`${sizeClasses} rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center font-semibold text-white border-2 border-white/20`}>
+      {initials}
+    </div>
+  )
+}
 
 export default function Header() {
   const navigate = useNavigate()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const { t, i18n } = useTranslation()
-  const [langOpen, setLangOpen] = useState(false)
-  const langRef = useRef<HTMLDivElement | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [langSubmenuOpen, setLangSubmenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  
+  const user: UserDTO | null = useMemo(() => {
+    try {
+      const stored = localStorage.getItem('user')
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
+  }, [])
 
   const handleLogout = async () => {
     if (isLoggingOut) return
@@ -33,17 +82,21 @@ export default function Header() {
   const handleChangeLanguage = (lng: SupportedLanguage) => {
     i18n.changeLanguage(lng)
     setLanguagePreference(lng)
-    setLangOpen(false)
+    setLangSubmenuOpen(false)
+    setMenuOpen(false)
   }
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
-      if (!langRef.current) return
-      if (!langRef.current.contains(e.target as Node)) setLangOpen(false)
+      if (!menuRef.current) return
+      if (!menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+        setLangSubmenuOpen(false)
+      }
     }
-    if (langOpen) document.addEventListener('mousedown', onDocClick)
+    if (menuOpen) document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
-  }, [langOpen])
+  }, [menuOpen])
 
   return (
     <header className="sticky top-0 z-20 bg-black/30 supports-[backdrop-filter]:bg-black/30 backdrop-blur border-b border-white/10 p-4 sm:p-6">
@@ -58,50 +111,98 @@ export default function Header() {
           >
             {t('nav.home')}
           </Link>
-          <div className="relative" ref={langRef}>
+          
+          {/* Avatar Menu */}
+          <div className="relative" ref={menuRef}>
             <button
               type="button"
-              aria-label="Change language"
-              onClick={() => setLangOpen((v) => !v)}
-              className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/40"
+              aria-label="User menu"
+              onClick={() => {
+                setMenuOpen((v) => !v)
+                setLangSubmenuOpen(false)
+              }}
+              className="rounded-full focus:outline-none focus:ring-2 focus:ring-white/40 hover:opacity-90 transition-opacity"
             >
-              <svg viewBox="0 0 32 32" className="w-5 h-5 text-white" fill="currentColor" aria-hidden>
-                <path fillRule="evenodd" clipRule="evenodd" d="M16 5.63636C10.2763 5.63636 5.63636 10.2763 5.63636 16C5.63636 21.7236 10.2763 26.3636 16 26.3636C21.7237 26.3636 26.3638 21.7236 26.3638 16C26.3638 10.2763 21.7237 5.63636 16 5.63636ZM4 16C4 9.37258 9.37259 4 16 4C22.6274 4 28.0001 9.37258 28.0001 16C28.0001 22.6274 22.6274 28 16 28C9.37259 28 4 22.6274 4 16Z" />
-                <path fillRule="evenodd" clipRule="evenodd" d="M26.909 16.7273H5.09082V15.2727H26.909V16.7273Z" />
-                <path fillRule="evenodd" clipRule="evenodd" d="M15.2725 26.9088V5.09055H16.7271V26.9088H15.2725ZM21.2272 15.9996C21.2272 12.0492 19.8066 8.14107 17.0215 5.55703L17.8871 4.62402C20.9811 7.49452 22.5 11.7683 22.5 15.9996C22.5 20.231 20.9811 24.5048 17.8871 27.3753L17.0215 26.4422C19.8066 23.8582 21.2272 19.9501 21.2272 15.9996ZM9.63574 15.9997C9.63574 11.7744 11.1051 7.50288 14.1048 4.6309L14.985 5.55021C12.2876 8.13279 10.9085 12.0431 10.9085 15.9997C10.9085 19.9562 12.2876 23.8666 14.985 26.4491L14.1048 27.3684C11.1052 24.4964 9.63576 20.2249 9.63574 15.9997Z" />
-                <path fillRule="evenodd" clipRule="evenodd" d="M16.0002 9.55957C19.9444 9.55957 23.9553 10.2889 26.6741 11.8077C26.981 11.9791 27.0908 12.3668 26.9193 12.6736C26.7481 12.9804 26.3602 13.0902 26.0535 12.9188C23.5991 11.5478 19.8329 10.8323 16.0002 10.8323C12.1673 10.8323 8.40115 11.5478 5.94682 12.9188C5.63998 13.0902 5.25231 12.9804 5.08091 12.6736C4.90953 12.3668 5.01931 11.9791 5.32615 11.8077C8.04504 10.2889 12.0559 9.55957 16.0002 9.55957ZM16.0002 22.0905C19.9444 22.0905 23.9553 21.361 26.6741 19.8423C26.981 19.6709 27.0908 19.2832 26.9193 18.9764C26.7481 18.6696 26.3602 18.5598 26.0535 18.7312C23.5991 20.1022 19.8329 20.8178 16.0002 20.8178C12.1673 20.8178 8.40115 20.1022 5.94682 18.7312C5.63998 18.5598 5.25231 18.6696 5.08091 18.9764C4.90953 19.2832 5.01931 19.6709 5.32615 19.8423C8.04504 21.361 12.0559 22.0905 16.0002 22.0905Z" />
-              </svg>
+              <Avatar
+                avatarUrl={user?.avatar_url}
+                username={user?.username || 'U'}
+              />
             </button>
-            {langOpen && (
-              <div className="absolute right-0 mt-2 min-w-[8rem] bg-neutral-950 border border-white/10 rounded-lg shadow-lg shadow-white/10 p-1">
+            
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 min-w-[10rem] bg-neutral-950 border border-white/10 rounded-lg shadow-lg shadow-black/40 py-1 overflow-hidden">
+                {/* Language submenu */}
+                <div className="relative">
+                  <button
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center justify-between gap-2"
+                    onClick={() => setLangSubmenuOpen((v) => !v)}
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg viewBox="0 0 20 20" className="w-4 h-4 text-white/60" fill="currentColor" aria-hidden>
+                        <path fillRule="evenodd" clipRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM1 10a9 9 0 1118 0 9 9 0 01-18 0z" />
+                        <path fillRule="evenodd" clipRule="evenodd" d="M10 2c-1.5 0-3 2.5-3 8s1.5 8 3 8 3-2.5 3-8-1.5-8-3-8zM6 10c0-2.5.5-4.5 1.2-5.8C7.9 3 8.9 2.5 10 2.5s2.1.5 2.8 1.7c.7 1.3 1.2 3.3 1.2 5.8s-.5 4.5-1.2 5.8c-.7 1.2-1.7 1.7-2.8 1.7s-2.1-.5-2.8-1.7C6.5 14.5 6 12.5 6 10z" />
+                        <path d="M2 10h16M10 2v16" stroke="currentColor" strokeWidth="1" fill="none" />
+                      </svg>
+                      {i18n.language.startsWith('pt') ? 'PT' : 'EN'}
+                    </span>
+                    <svg className={`w-4 h-4 text-white/40 transition-transform ${langSubmenuOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  
+                  {langSubmenuOpen && (
+                    <div className="border-t border-white/5 bg-white/[0.02]">
+                      <button
+                        className={`w-full text-left px-6 py-2 text-sm hover:bg-white/5 ${i18n.language.startsWith('en') ? 'text-violet-400' : 'text-white/80'}`}
+                        onClick={() => handleChangeLanguage('en')}
+                      >
+                        English
+                      </button>
+                      <button
+                        className={`w-full text-left px-6 py-2 text-sm hover:bg-white/5 ${i18n.language.startsWith('pt') ? 'text-violet-400' : 'text-white/80'}`}
+                        onClick={() => handleChangeLanguage('pt')}
+                      >
+                        Português
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="border-t border-white/5 my-1" />
+                
+                {/* Settings */}
                 <button
-                  className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-white/5 ${i18n.language.startsWith('en') ? 'bg-white/5' : ''}`}
-                  onClick={() => handleChangeLanguage('en')}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    navigate('/settings')
+                  }}
                 >
-                  EN
+                  <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {t('nav.settings')}
                 </button>
+                
+                <div className="border-t border-white/5 my-1" />
+                
+                {/* Logout */}
                 <button
-                  className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-white/5 ${i18n.language.startsWith('pt') ? 'bg-white/5' : ''}`}
-                  onClick={() => handleChangeLanguage('pt')}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-red-400"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
                 >
-                  PT
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  {isLoggingOut ? t('nav.loggingOut') : t('nav.logout')}
                 </button>
               </div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            aria-busy={isLoggingOut}
-            className="inline-flex items-center bg-white text-black font-semibold rounded px-3 py-2 sm:px-4 sm:py-2 border border-white text-xs sm:text-sm hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {isLoggingOut ? t('nav.loggingOut') : t('nav.logout')}
-          </button>
         </nav>
       </div>
     </header>
   )
 }
-
-

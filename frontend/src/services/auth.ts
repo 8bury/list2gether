@@ -4,6 +4,7 @@ export interface UserDTO {
   id: number
   username: string
   email: string
+  avatar_url?: string
   created_at?: string
   updated_at?: string
 }
@@ -46,6 +47,25 @@ export async function logout(refreshToken: string): Promise<{ message?: string }
     method: 'POST',
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     body: { refresh_token: refreshToken },
+  })
+}
+
+export interface UpdateProfileBodyDTO {
+  username: string
+  avatar_url: string
+}
+
+export interface UpdateProfileResponseDTO {
+  message?: string
+  user: UserDTO
+}
+
+export async function updateProfile(body: UpdateProfileBodyDTO): Promise<UpdateProfileResponseDTO> {
+  const accessToken = localStorage.getItem('access_token')
+  return requestJson<UpdateProfileResponseDTO>('/auth/profile', {
+    method: 'PUT',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    body,
   })
 }
 

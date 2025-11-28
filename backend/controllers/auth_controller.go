@@ -24,6 +24,7 @@ func NewAuthController(router *gin.Engine, service services.AuthService, authMid
 	group.POST("/refresh", c.refresh)
 	group.POST("/logout", c.authMiddleware.Handler(), c.logout)
 	group.GET("/me", c.authMiddleware.Handler(), c.me)
+	group.PUT("/profile", c.authMiddleware.Handler(), c.updateProfile)
 	return c
 }
 
@@ -44,6 +45,11 @@ type refreshRequest struct {
 
 type logoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
+}
+
+type updateProfileRequest struct {
+	Username  string `json:"username"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 func (a *AuthController) register(c *gin.Context) {
@@ -139,6 +145,35 @@ func (a *AuthController) me(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{"user": user})
+}
+
+func (a *AuthController) updateProfile(c *gin.Context) {
+	rawClaims, _ := c.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	id, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(c)
+		return
+	}
+
+	var req updateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondValidationError(c, []string{"Invalid request body"})
+		return
+	}
+
+	user, err := a.service.UpdateProfile(id, req.Username, req.AvatarURL)
+	if err != nil {
+		respondValidationError(c, []string{err.Error()})
+		return
+	}
+
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Profile updated successfully",
+		"user":    user,
+	})
 }
 
 func respondValidationError(c *gin.Context, details []string) {

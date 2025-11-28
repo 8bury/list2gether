@@ -905,9 +905,10 @@ func (c *ListController) listMovies(ctx *gin.Context) {
 			}
 			if entry.User.ID != 0 {
 				entryPayload["user"] = gin.H{
-					"id":       entry.User.ID,
-					"username": entry.User.Username,
-					"email":    entry.User.Email,
+					"id":         entry.User.ID,
+					"username":   entry.User.Username,
+					"email":      entry.User.Email,
+					"avatar_url": entry.User.AvatarURL,
 				}
 			}
 			userEntries = append(userEntries, entryPayload)
@@ -935,9 +936,10 @@ func (c *ListController) listMovies(ctx *gin.Context) {
 			}
 			if yourEntry.User.ID != 0 {
 				yourEntryPayload["user"] = gin.H{
-					"id":       yourEntry.User.ID,
-					"username": yourEntry.User.Username,
-					"email":    yourEntry.User.Email,
+					"id":         yourEntry.User.ID,
+					"username":   yourEntry.User.Username,
+					"email":      yourEntry.User.Email,
+					"avatar_url": yourEntry.User.AvatarURL,
 				}
 			}
 		}
@@ -1105,9 +1107,10 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 			}
 			if entry.User.ID != 0 {
 				entryPayload["user"] = gin.H{
-					"id":       entry.User.ID,
-					"username": entry.User.Username,
-					"email":    entry.User.Email,
+					"id":         entry.User.ID,
+					"username":   entry.User.Username,
+					"email":      entry.User.Email,
+					"avatar_url": entry.User.AvatarURL,
 				}
 			}
 			userEntries = append(userEntries, entryPayload)
@@ -1133,9 +1136,10 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 			}
 			if yourEntry.User.ID != 0 {
 				yourEntryPayload["user"] = gin.H{
-					"id":       yourEntry.User.ID,
-					"username": yourEntry.User.Username,
-					"email":    yourEntry.User.Email,
+					"id":         yourEntry.User.ID,
+					"username":   yourEntry.User.Username,
+					"email":      yourEntry.User.Email,
+					"avatar_url": yourEntry.User.AvatarURL,
 				}
 			}
 		}
@@ -1262,9 +1266,10 @@ func (c *ListController) listComments(ctx *gin.Context) {
 		}
 		if comment.User.ID != 0 {
 			payload["user"] = gin.H{
-				"id":       comment.User.ID,
-				"username": comment.User.Username,
-				"email":    comment.User.Email,
+				"id":         comment.User.ID,
+				"username":   comment.User.Username,
+				"email":      comment.User.Email,
+				"avatar_url": comment.User.AvatarURL,
 			}
 		}
 		commentsPayload = append(commentsPayload, payload)
@@ -1362,9 +1367,10 @@ func (c *ListController) createComment(ctx *gin.Context) {
 	}
 	if comment.User.ID != 0 {
 		payload["user"] = gin.H{
-			"id":       comment.User.ID,
-			"username": comment.User.Username,
-			"email":    comment.User.Email,
+			"id":         comment.User.ID,
+			"username":   comment.User.Username,
+			"email":      comment.User.Email,
+			"avatar_url": comment.User.AvatarURL,
 		}
 	}
 
@@ -1462,9 +1468,10 @@ func (c *ListController) updateComment(ctx *gin.Context) {
 	}
 	if comment.User.ID != 0 {
 		payload["user"] = gin.H{
-			"id":       comment.User.ID,
-			"username": comment.User.Username,
-			"email":    comment.User.Email,
+			"id":         comment.User.ID,
+			"username":   comment.User.Username,
+			"email":      comment.User.Email,
+			"avatar_url": comment.User.AvatarURL,
 		}
 	}
 

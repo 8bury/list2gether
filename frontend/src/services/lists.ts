@@ -132,6 +132,7 @@ export interface ListMovieUserEntryDTO {
     id: number
     username: string
     email: string
+    avatar_url?: string | null
   }
 }
 
@@ -250,6 +251,7 @@ export interface CommentDTO {
     id: number
     username: string
     email: string
+    avatar_url?: string | null
   }
 }
 

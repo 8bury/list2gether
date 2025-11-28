@@ -8,7 +8,8 @@
     "login": "Login",
     "register": "Create Account",
     "logout": "Sign out",
-    "loggingOut": "Signing out…"
+    "loggingOut": "Signing out…",
+    "settings": "Settings"
   },
   "landing": {
     "tagline": "The social network for movie‑loving couples and friends",
@@ -129,6 +130,20 @@
     "save": "Save",
     "cancel": "Cancel",
     "edited": "(edited)"
+  },
+  "settings": {
+    "title": "Settings",
+    "username": "Username",
+    "usernamePlaceholder": "Your username",
+    "email": "Email",
+    "emailReadOnly": "cannot be changed",
+    "avatarUrl": "Avatar URL",
+    "avatarUrlPlaceholder": "https://example.com/your-image.jpg",
+    "avatarUrlHint": "Enter a URL to an image. Must start with https://",
+    "avatarPreview": "Avatar preview",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Profile updated successfully!"
   }
 }
 

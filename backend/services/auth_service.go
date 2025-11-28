@@ -21,6 +21,7 @@ type AuthService interface {
 	Refresh(refreshToken string) (string, int64, error)
 	Logout(refreshToken string) error
 	FindUserByID(id int64) (*models.User, error)
+	UpdateProfile(userID int64, username string, avatarURL string) (*models.User, error)
 	JWTSecret() []byte
 }
 
@@ -176,6 +177,45 @@ func (s *authService) FindUserByID(id int64) (*models.User, error) {
 	return user, nil
 }
 
+func (s *authService) UpdateProfile(userID int64, username string, avatarURL string) (*models.User, error) {
+	user, err := s.users.FindByID(userID)
+	if err != nil {
+		return nil, errors.New("User not found")
+	}
+
+	// Validate username
+	if err := validateUsername(username); err != nil {
+		return nil, err
+	}
+
+	// Check if new username is taken by another user
+	if username != user.Username {
+		existing, _ := s.users.FindByUsername(username)
+		if existing != nil && existing.ID != userID {
+			return nil, errors.New("Username already exists")
+		}
+	}
+
+	// Validate avatar URL
+	if err := validateAvatarURL(avatarURL); err != nil {
+		return nil, err
+	}
+
+	user.Username = username
+	if avatarURL == "" {
+		user.AvatarURL = nil
+	} else {
+		user.AvatarURL = &avatarURL
+	}
+
+	if err := s.users.Update(user); err != nil {
+		return nil, err
+	}
+
+	user.Password = ""
+	return user, nil
+}
+
 func (s *authService) generateAccessToken(user *models.User) (string, int64, error) {
 	now := time.Now().UTC()
 	exp := now.Add(s.accessExpiresIn)
@@ -256,6 +296,19 @@ func validateEmail(e string) error {
 	e = strings.TrimSpace(e)
 	if e == "" || !strings.Contains(e, "@") || len(e) > 255 {
 		return errors.New("Invalid email")
+	}
+	return nil
+}
+
+func validateAvatarURL(url string) error {
+	if url == "" {
+		return nil
+	}
+	if len(url) > 500 {
+		return errors.New("Avatar URL must be at most 500 characters")
+	}
+	if !strings.HasPrefix(url, "https://") {
+		return errors.New("Avatar URL must start with https://")
 	}
 	return nil
 }
