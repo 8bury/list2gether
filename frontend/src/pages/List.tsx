@@ -201,7 +201,6 @@ function MovieCard({ item, listId, currentUserId, currentUserName, currentUserAv
   const rating = typeof userRatingValue === 'number' ? userRatingValue : 0
   const fullCount = Math.floor(rating / 2)
   const hasHalf = rating % 2 === 1
-  const averageRating = item.average_rating ?? computeAverageRating(item.user_entries)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -323,16 +322,6 @@ function MovieCard({ item, listId, currentUserId, currentUserName, currentUserAv
                   </div>
                 )}
               </div>
-              {item.rating != null && (
-                <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-yellow-300">
-                  Sua nota: {item.your_entry?.rating ?? item.rating}
-                </span>
-              )}
-              {averageRating != null && (
-                <span className="text-xs px-2 py-0.5 rounded-full border border-white/10 text-sky-200">
-                  Nota média: {averageRating.toFixed(1)}
-                </span>
-              )}
               <button
                 className="ml-auto text-xs px-2 py-0.5 rounded-full border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 inline-flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-white/40"
                 onClick={() => setDetailsOpen((v) => !v)}
@@ -1056,9 +1045,6 @@ export default function ListPage() {
                       <path d="M19 11H8.41l4.3-4.29-1.42-1.42L4.59 12l6.7 6.71 1.42-1.42L8.41 13H19v-2z" />
                     </svg>
                   </button>
-                  <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-7 sm:h-7 text-white/80 flex-shrink-0" fill="currentColor" aria-hidden>
-                    <path d="M7 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM13 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 8h16v11c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V8zm16 2.5v7l4 2.5v-12l-4 2.5z"/>
-                  </svg>
                   <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex-1 min-w-0 truncate bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{listName || `Lista #${parsedId}`}</h2>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
