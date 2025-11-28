@@ -413,6 +413,7 @@ export default function ListPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [listName, setListName] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<MovieStatus | 'all'>('all')
+  const [genreFilter, setGenreFilter] = useState<string>('all')
 
   // State for in-list search
   const [listSearchQuery, setListSearchQuery] = useState('')
@@ -473,10 +474,12 @@ export default function ListPage() {
     try {
       const savedStatus = localStorage.getItem(`${keyPrefix}:statusFilter`)
       const savedQuery = localStorage.getItem(`${keyPrefix}:listSearchQuery`)
+      const savedGenre = localStorage.getItem(`${keyPrefix}:genreFilter`)
       if (savedStatus === 'all' || savedStatus === 'not_watched' || savedStatus === 'watching' || savedStatus === 'watched' || savedStatus === 'dropped') {
         setStatusFilter(savedStatus as MovieStatus | 'all')
       }
       if (savedQuery) setListSearchQuery(savedQuery)
+      if (savedGenre) setGenreFilter(savedGenre)
     } catch {}
   }, [parsedId])
 
@@ -485,8 +488,9 @@ export default function ListPage() {
     try {
       localStorage.setItem(`${keyPrefix}:statusFilter`, String(statusFilter))
       localStorage.setItem(`${keyPrefix}:listSearchQuery`, listSearchQuery)
+      localStorage.setItem(`${keyPrefix}:genreFilter`, genreFilter)
     } catch {}
-  }, [parsedId, statusFilter, listSearchQuery])
+  }, [parsedId, statusFilter, listSearchQuery, genreFilter])
   
 
   useEffect(() => {
@@ -550,6 +554,10 @@ export default function ListPage() {
     if (statusFilter !== 'all') {
       base = base.filter((it) => it.status === statusFilter)
     }
+    if (genreFilter !== 'all') {
+      const gid = Number(genreFilter)
+      base = base.filter((it) => it.movie.genres?.some((g) => g.id === gid))
+    }
     const q = listSearchQuery.trim().toLowerCase()
     if (q.length >= 2) {
       base = base.filter((it) => {
@@ -565,7 +573,7 @@ export default function ListPage() {
       })
     }
     return base
-  }, [items, statusFilter, listSearchQuery])
+  }, [items, statusFilter, genreFilter, listSearchQuery])
 
   const statusCounts = useMemo(() => {
     const counts: Record<MovieStatus | 'all', number> = {
@@ -579,6 +587,23 @@ export default function ListPage() {
       counts[it.status]++
     }
     return counts
+  }, [items])
+
+  const availableGenres = useMemo(() => {
+    const genreMap = new Map<number, { name: string; count: number }>()
+    for (const it of items) {
+      for (const g of it.movie.genres ?? []) {
+        const existing = genreMap.get(g.id)
+        if (existing) {
+          existing.count++
+        } else {
+          genreMap.set(g.id, { name: g.name, count: 1 })
+        }
+      }
+    }
+    return Array.from(genreMap.entries())
+      .map(([id, { name, count }]) => ({ id, name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name))
   }, [items])
 
   // Debounced add-modal search com cancelamento
@@ -962,7 +987,7 @@ export default function ListPage() {
                 </div>
               </div>
               <div className="hidden sm:grid sm:grid-cols-12 sm:items-start sm:gap-3">
-                <div className="sm:col-span-7">
+                <div className="sm:col-span-5">
                   <div className="relative">
                     <input
                       value={listSearchQuery}
@@ -983,20 +1008,41 @@ export default function ListPage() {
                     )}
                   </div>
                 </div>
-                <div className="sm:col-span-5">
+                <div className="sm:col-span-4">
                   <label className="sr-only" htmlFor="statusFilterSelect">Filtrar por status</label>
                   <div className="relative">
                     <select
                       id="statusFilterSelect"
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value as MovieStatus | 'all')}
-                      className="w-full appearance-none pl-3 pr-9 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40 text-sm"
+                      className="w-full appearance-none pl-3 pr-9 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:ring-2 focus:ring-white/40 text-sm"
                     >
-                      <option value="all">Todos ({statusCounts.all})</option>
-                      <option value="not_watched">Não Assistido ({statusCounts.not_watched})</option>
-                      <option value="watching">Assistindo ({statusCounts.watching})</option>
-                      <option value="watched">Assistido ({statusCounts.watched})</option>
-                      <option value="dropped">Abandonado ({statusCounts.dropped})</option>
+                      <option value="all" className="bg-neutral-900 text-white">Todos ({statusCounts.all})</option>
+                      <option value="not_watched" className="bg-neutral-900 text-white">Não Assistido ({statusCounts.not_watched})</option>
+                      <option value="watching" className="bg-neutral-900 text-white">Assistindo ({statusCounts.watching})</option>
+                      <option value="watched" className="bg-neutral-900 text-white">Assistido ({statusCounts.watched})</option>
+                      <option value="dropped" className="bg-neutral-900 text-white">Abandonado ({statusCounts.dropped})</option>
+                    </select>
+                    <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-300">
+                      <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
+                        <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="sr-only" htmlFor="genreFilterSelect">Filtrar por gênero</label>
+                  <div className="relative">
+                    <select
+                      id="genreFilterSelect"
+                      value={genreFilter}
+                      onChange={(e) => setGenreFilter(e.target.value)}
+                      className="w-full appearance-none pl-3 pr-9 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:ring-2 focus:ring-white/40 text-sm"
+                    >
+                      <option value="all" className="bg-neutral-900 text-white">Todos os gêneros</option>
+                      {availableGenres.map((g) => (
+                        <option key={g.id} value={String(g.id)} className="bg-neutral-900 text-white">{g.name} ({g.count})</option>
+                      ))}
                     </select>
                     <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-300">
                       <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
@@ -1027,25 +1073,48 @@ export default function ListPage() {
                   </button>
                 )}
               </div>
-              <div className="mt-2">
-                <label className="sr-only" htmlFor="statusFilterSelectMobile">Filtrar por status</label>
-                <div className="relative">
-                  <select
-                    id="statusFilterSelectMobile"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as MovieStatus | 'all')}
-                    className="w-full appearance-none pl-3 pr-9 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40 text-sm"
-                  >
-                    <option value="all">Todos ({statusCounts.all})</option>
-                    <option value="not_watched">Não Assistido ({statusCounts.not_watched})</option>
-                    <option value="watching">Assistindo ({statusCounts.watching})</option>
-                    <option value="watched">Assistido ({statusCounts.watched})</option>
-                    <option value="dropped">Abandonado ({statusCounts.dropped})</option>
-                  </select>
-                  <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-300">
-                    <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
-                      <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
-                    </svg>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div>
+                  <label className="sr-only" htmlFor="statusFilterSelectMobile">Filtrar por status</label>
+                  <div className="relative">
+                    <select
+                      id="statusFilterSelectMobile"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as MovieStatus | 'all')}
+                      className="w-full appearance-none pl-3 pr-9 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:ring-2 focus:ring-white/40 text-sm"
+                    >
+                      <option value="all" className="bg-neutral-900 text-white">Todos ({statusCounts.all})</option>
+                      <option value="not_watched" className="bg-neutral-900 text-white">Não Assistido ({statusCounts.not_watched})</option>
+                      <option value="watching" className="bg-neutral-900 text-white">Assistindo ({statusCounts.watching})</option>
+                      <option value="watched" className="bg-neutral-900 text-white">Assistido ({statusCounts.watched})</option>
+                      <option value="dropped" className="bg-neutral-900 text-white">Abandonado ({statusCounts.dropped})</option>
+                    </select>
+                    <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-300">
+                      <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
+                        <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="sr-only" htmlFor="genreFilterSelectMobile">Filtrar por gênero</label>
+                  <div className="relative">
+                    <select
+                      id="genreFilterSelectMobile"
+                      value={genreFilter}
+                      onChange={(e) => setGenreFilter(e.target.value)}
+                      className="w-full appearance-none pl-3 pr-9 py-2 rounded-lg bg-neutral-900 border border-neutral-700 outline-none focus:ring-2 focus:ring-white/40 text-sm"
+                    >
+                      <option value="all" className="bg-neutral-900 text-white">Todos os gêneros</option>
+                      {availableGenres.map((g) => (
+                        <option key={g.id} value={String(g.id)} className="bg-neutral-900 text-white">{g.name} ({g.count})</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-300">
+                      <svg viewBox="0 0 20 20" className="w-4 h-4" aria-hidden>
+                        <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
               </div>
