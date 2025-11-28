@@ -873,15 +873,19 @@ export default function ListPage() {
     const winnerIndex = Math.floor(Math.random() * unwatchedMovies.length)
     const winner = unwatchedMovies[winnerIndex]
     
-    // Cria array de filmes para a animação (repetidos para ter pelo menos 25 itens antes do vencedor)
-    const minItemsBefore = 25
-    const itemsAfterWinner = 10 // Filmes após o vencedor para preencher o modal
+    // Número fixo de itens para a animação (independente do tamanho da lista)
+    const itemsBeforeWinner = 25
+    const itemsAfterWinner = 10
+    
+    // Cria array de filmes para a animação
     let spinArray: ListMovieItem[] = []
-    while (spinArray.length < minItemsBefore) {
-      // Embaralha os filmes para variar a ordem
+    while (spinArray.length < itemsBeforeWinner) {
       const shuffled = [...unwatchedMovies].sort(() => Math.random() - 0.5)
       spinArray = spinArray.concat(shuffled)
     }
+    // Limita para exatamente itemsBeforeWinner
+    spinArray = spinArray.slice(0, itemsBeforeWinner)
+    
     // Adiciona o vencedor
     const winnerPosition = spinArray.length
     spinArray.push(winner)
@@ -900,28 +904,40 @@ export default function ListPage() {
     setIsSpinning(true)
     setIsLuckyOpen(true)
     
-    // Animação de atualização do nome do filme
-    const totalDuration = 3500 // ms
+    // Animação com tempo fixo total de 3 segundos
+    const totalDuration = 3000 // ms
+    const totalSteps = winnerPosition // número de passos até o vencedor
+    
+    // Pré-calcula os delays para cada passo com desaceleração
+    // Usamos uma função de easing que distribui o tempo total
+    const delays: number[] = []
+    let sumWeights = 0
+    for (let i = 0; i < totalSteps; i++) {
+      // Peso aumenta exponencialmente (mais lento no final)
+      const progress = i / totalSteps
+      const weight = 1 + (progress * progress * 8)
+      delays.push(weight)
+      sumWeights += weight
+    }
+    // Normaliza para que a soma seja igual ao totalDuration
+    for (let i = 0; i < delays.length; i++) {
+      delays[i] = (delays[i] / sumWeights) * totalDuration
+    }
+    
     let currentIndex = 0
-    let elapsed = 0
-    const baseInterval = 50 // intervalo inicial rápido
     
     const animateNames = () => {
       if (currentIndex >= winnerPosition) {
-        // Chegou no vencedor - parar
         setCurrentDisplayIndex(winnerPosition)
         setSelectedMovie(winner)
         setIsSpinning(false)
         return
       }
       
-      // Calcula o delay com desaceleração exponencial
-      const progress = elapsed / totalDuration
-      const delay = baseInterval + (progress * progress * 300)
+      const delay = delays[currentIndex]
       
       setTimeout(() => {
         currentIndex++
-        elapsed += delay
         setCurrentDisplayIndex(currentIndex)
         animateNames()
       }, delay)
