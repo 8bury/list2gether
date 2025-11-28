@@ -463,7 +463,7 @@ func (s *listService) RemoveMovieFromList(listID int64, userID int64, movieID in
 		return nil, ErrForbiddenMembership
 	}
 
-	listMovie, err := s.lists.FindListMovieByListAndMovie(listID, movieID)
+	_, err = s.lists.FindListMovieByListAndMovie(listID, movieID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrMovieNotInList
