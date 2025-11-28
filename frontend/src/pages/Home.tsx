@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import { getUserLists, createList, joinList, deleteList, leaveList, type UserListDTO } from '../services/lists'
@@ -19,9 +19,31 @@ export default function HomePage() {
   const [deleting, setDeleting] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState<UserListDTO | null>(null)
   const [leaving, setLeaving] = useState(false)
-  const [showCreateInline, setShowCreateInline] = useState(false)
-  const [showJoinInline, setShowJoinInline] = useState(false)
+  
+  // Popover state
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const [popoverMode, setPopoverMode] = useState<'create' | 'join'>('create')
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  
   const { t } = useTranslation()
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        popoverOpen &&
+        popoverRef.current &&
+        triggerRef.current &&
+        !popoverRef.current.contains(event.target as Node) &&
+        !triggerRef.current.contains(event.target as Node)
+      ) {
+        setPopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [popoverOpen])
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -102,218 +124,221 @@ export default function HomePage() {
     }
   }
 
+  const openPopover = (mode: 'create' | 'join') => {
+    setError(null)
+    setPopoverMode(mode)
+    setPopoverOpen(true)
+    if (mode === 'create') {
+      setCreateName('')
+      setCreateDescription('')
+    } else {
+      setInviteCode('')
+    }
+  }
+
+  const handleCreate = async () => {
+    if (!createName.trim()) return
+    setCreating(true)
+    try {
+      await createList({ name: createName.trim(), description: createDescription.trim() || undefined })
+      setCreateName('')
+      setCreateDescription('')
+      setPopoverOpen(false)
+      const res = await getUserLists()
+      setLists(res.lists)
+    } catch (err) {
+      const message = (err as any)?.payload?.error || (err as Error).message
+      setError(message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleJoin = async () => {
+    if (!inviteCode.trim()) return
+    setJoining(true)
+    try {
+      const res = await joinList(inviteCode.trim())
+      setInviteCode('')
+      setPopoverOpen(false)
+      navigate(`/list/${res.list.id}`)
+    } catch (err) {
+      const message = (err as any)?.payload?.error || (err as Error).message
+      setError(message)
+    } finally {
+      setJoining(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex items-center justify-between mb-5 gap-3">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">{t('lists.title')}</h2>
-          <div className="flex items-center gap-2">
+          
+          {/* Popover trigger + container */}
+          <div className="relative">
             <button
-              className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
+              ref={triggerRef}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
               onClick={() => {
-                setError(null)
-                setInviteCode('')
-                setShowJoinInline((v) => !v)
+                if (popoverOpen) {
+                  setPopoverOpen(false)
+                } else {
+                  openPopover('create')
+                }
               }}
             >
-              {t('lists.joinByCode')}
-            </button>
-            <button
-              className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
-              onClick={() => {
-                setError(null)
-                setCreateName('')
-                setCreateDescription('')
-                setShowCreateInline((v) => !v)
-              }}
-            >
+              <svg viewBox="0 0 24 24" className={`w-4 h-4 transition-transform duration-200 ${popoverOpen ? 'rotate-45' : ''}`} fill="currentColor">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
               {t('lists.new')}
             </button>
+            
+            {/* Popover */}
+            {popoverOpen && (
+              <div
+                ref={popoverRef}
+                className="absolute top-full right-0 mt-2 w-80 rounded-2xl bg-neutral-900 border border-white/10 shadow-2xl shadow-black/50 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50"
+              >
+                {/* Segmented control with sliding pill */}
+                <div className="p-3 pb-0">
+                  <div className="relative flex p-1 rounded-full bg-white/5">
+                    {/* Sliding pill indicator */}
+                    <div
+                      className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-lg transition-all duration-300 ease-out"
+                      style={{
+                        left: popoverMode === 'create' ? '4px' : 'calc(50% + 0px)',
+                      }}
+                    />
+                    <button
+                      className={`relative flex-1 py-2 text-sm font-medium rounded-full transition-colors duration-200 z-10 ${
+                        popoverMode === 'create'
+                          ? 'text-black'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                      onClick={() => {
+                        setPopoverMode('create')
+                        setError(null)
+                      }}
+                    >
+                      {t('lists.popover.create')}
+                    </button>
+                    <button
+                      className={`relative flex-1 py-2 text-sm font-medium rounded-full transition-colors duration-200 z-10 ${
+                        popoverMode === 'join'
+                          ? 'text-black'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                      onClick={() => {
+                        setPopoverMode('join')
+                        setError(null)
+                      }}
+                    >
+                      {t('lists.popover.join')}
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Form content */}
+                <div className="p-4 space-y-3">
+                  {popoverMode === 'create' ? (
+                    <>
+                      <div>
+                        <input
+                          className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/30 focus:border-white/20 transition-all placeholder:text-neutral-500"
+                          placeholder={t('lists.namePlaceholder')}
+                          value={createName}
+                          onChange={(e) => setCreateName(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <input
+                          className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/30 focus:border-white/20 transition-all placeholder:text-neutral-500"
+                          placeholder={t('lists.descriptionOptional')}
+                          value={createDescription}
+                          onChange={(e) => setCreateDescription(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <input
+                        className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/30 focus:border-white/20 transition-all text-center text-lg font-mono tracking-widest uppercase placeholder:text-neutral-500 placeholder:normal-case placeholder:tracking-normal placeholder:font-sans placeholder:text-sm"
+                        placeholder={t('lists.inviteCode.placeholder')}
+                        value={inviteCode}
+                        maxLength={10}
+                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                  
+                  {error && (
+                    <div className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+                      {error}
+                    </div>
+                  )}
+                  
+                  <button
+                    className="w-full py-2.5 bg-white text-black font-semibold rounded-xl hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={
+                      popoverMode === 'create'
+                        ? creating || createName.trim().length === 0
+                        : joining || inviteCode.trim().length === 0
+                    }
+                    onClick={popoverMode === 'create' ? handleCreate : handleJoin}
+                  >
+                    {popoverMode === 'create'
+                      ? (creating ? t('lists.creating') : t('lists.create'))
+                      : (joining ? t('lists.joining') : t('lists.join'))
+                    }
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {showJoinInline && (
-          <div className="mb-5 rounded-xl bg-white/5 border border-white/10 p-5">
-            <h3 className="text-lg font-semibold mb-2">{t('lists.joinTitle')}</h3>
-            <div className="grid gap-3 sm:flex sm:items-end sm:gap-3">
-              <div className="flex-1 min-w-[240px]">
-                <label className="block text-sm text-neutral-300 mb-1">{t('lists.inviteCode.label')}</label>
-                <input
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder={t('lists.inviteCode.placeholder')}
-                  value={inviteCode}
-                  maxLength={10}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
-                  onClick={() => setShowJoinInline(false)}
-                  disabled={joining}
-                >
-                  {t('misc.cancel')}
-                </button>
-                <button
-                  className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
-                  disabled={joining || inviteCode.trim().length === 0}
-                  onClick={async () => {
-                    if (!inviteCode.trim()) return
-                    setJoining(true)
-                    try {
-                      const res = await joinList(inviteCode.trim())
-                      setInviteCode('')
-                      setShowJoinInline(false)
-                      navigate(`/list/${res.list.id}`)
-                    } catch (err) {
-                      const message = (err as any)?.payload?.error || (err as Error).message
-                      setError(message)
-                    } finally {
-                      setJoining(false)
-                    }
-                  }}
-                >
-                  {joining ? t('lists.joining') : t('lists.join')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showCreateInline && (
-          <div className="mb-5 rounded-xl bg-white/5 border border-white/10 p-5">
-            <h3 className="text-lg font-semibold mb-2">{t('lists.createTitle')}</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('lists.name')}</label>
-                <input
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder={t('lists.namePlaceholder')}
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">{t('lists.descriptionOptional')}</label>
-                <input
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder={t('lists.description')}
-                  value={createDescription}
-                  onChange={(e) => setCreateDescription(e.target.value)}
-                />
-              </div>
-              <div className="sm:col-span-2 flex justify-end gap-2">
-                <button
-                  className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10"
-                  onClick={() => setShowCreateInline(false)}
-                  disabled={creating}
-                >
-                  {t('misc.cancel')}
-                </button>
-                <button
-                  className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
-                  disabled={creating || createName.trim().length === 0}
-                  onClick={async () => {
-                    if (!createName.trim()) return
-                    setCreating(true)
-                    try {
-                      await createList({ name: createName.trim(), description: createDescription.trim() || undefined })
-                      setCreateName('')
-                      setCreateDescription('')
-                      setShowCreateInline(false)
-                      const res = await getUserLists()
-                      setLists(res.lists)
-                    } catch (err) {
-                      const message = (err as any)?.payload?.error || (err as Error).message
-                      setError(message)
-                    } finally {
-                      setCreating(false)
-                    }
-                  }}
-                >
-                  {creating ? t('lists.creating') : t('lists.create')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {loading && <div className="text-neutral-300">{t('misc.loading')}</div>}
-        {error && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg">{error}</div>}
-        {!loading && !error && lists.length === 0 && (
-          <div className="grid gap-4 max-w-2xl">
-            <div className="rounded-xl bg-white/5 border border-white/10 p-5">
-              <h3 className="text-lg font-semibold mb-2">{t('lists.empty.createFirst')}</h3>
-              <div className="grid gap-3">
-                <input
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder={t('lists.namePlaceholder')}
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                />
-                <input
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder={t('lists.descriptionOptional')}
-                  value={createDescription}
-                  onChange={(e) => setCreateDescription(e.target.value)}
-                />
-                <button
-                  className="inline-block px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 w-fit"
-                  disabled={creating || createName.trim().length === 0}
-                  onClick={async () => {
-                    if (!createName.trim()) return
-                    setCreating(true)
-                    try {
-                      await createList({ name: createName.trim(), description: createDescription.trim() || undefined })
-                      setCreateName('')
-                      setCreateDescription('')
-                      const res = await getUserLists()
-                      setLists(res.lists)
-                    } catch (err) {
-                      const message = (err as any)?.payload?.error || (err as Error).message
-                      setError(message)
-                    } finally {
-                      setCreating(false)
-                    }
-                  }}
-                >
-                  {creating ? t('lists.creating') : t('lists.create')}
-                </button>
+        {error && !popoverOpen && <div className="rounded-lg bg-white/5 border border-white/10 p-3 text-sm text-rose-300 max-w-lg mb-4">{error}</div>}
+        
+        {/* Empty state with clickable cards */}
+        {!loading && lists.length === 0 && (
+          <div className="grid gap-4 md:grid-cols-2 max-w-2xl">
+            <button
+              onClick={() => openPopover('create')}
+              className="group text-left rounded-2xl bg-gradient-to-br from-emerald-600/20 to-emerald-600/5 border border-emerald-500/20 p-6 hover:border-emerald-500/40 hover:scale-[1.02] transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            >
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <svg viewBox="0 0 24 24" className="w-6 h-6 text-emerald-400" fill="currentColor">
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
               </div>
-            </div>
-            <div className="rounded-xl bg-white/5 border border-white/10 p-5">
-              <h3 className="text-lg font-semibold mb-2">{t('lists.empty.orJoin')}</h3>
-              <div className="grid gap-3">
-                <input
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  placeholder={t('lists.inviteCode.placeholderFull')}
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                />
-                <button
-                  className="px-6 py-3 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10 w-fit"
-                  disabled={joining || inviteCode.trim().length === 0}
-                  onClick={async () => {
-                    if (!inviteCode.trim()) return
-                    setJoining(true)
-                    try {
-                      const res = await joinList(inviteCode.trim())
-                      setInviteCode('')
-                      navigate(`/list/${res.list.id}`)
-                    } catch (err) {
-                      const message = (err as any)?.payload?.error || (err as Error).message
-                      setError(message)
-                    } finally {
-                      setJoining(false)
-                    }
-                  }}
-                >
-                  {joining ? t('lists.joining') : t('lists.join')}
-                </button>
+              <h3 className="text-xl font-semibold mb-2">{t('lists.empty.createFirst')}</h3>
+              <p className="text-neutral-400 text-sm">{t('lists.empty.createDesc')}</p>
+            </button>
+            
+            <button
+              onClick={() => openPopover('join')}
+              className="group text-left rounded-2xl bg-gradient-to-br from-blue-600/20 to-blue-600/5 border border-blue-500/20 p-6 hover:border-blue-500/40 hover:scale-[1.02] transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            >
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <svg viewBox="0 0 24 24" className="w-6 h-6 text-blue-400" fill="currentColor">
+                  <path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                </svg>
               </div>
-            </div>
+              <h3 className="text-xl font-semibold mb-2">{t('lists.empty.orJoin')}</h3>
+              <p className="text-neutral-400 text-sm">{t('lists.empty.joinDesc')}</p>
+            </button>
           </div>
         )}
+        
         <ul className="space-y-3">
           {lists.map((list) => (
             <li
@@ -463,5 +488,3 @@ export default function HomePage() {
     </div>
   )
 }
-
-

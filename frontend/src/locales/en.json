@@ -76,9 +76,15 @@
     "descriptionOptional": "Description (optional)",
     "description": "Description",
     "loading": "Loading…",
+    "popover": {
+      "create": "Create list",
+      "join": "Join with code"
+    },
     "empty": {
       "createFirst": "Create your first list",
-      "orJoin": "Or join with a code"
+      "createDesc": "Start a list and invite whoever you want",
+      "orJoin": "Join with code",
+      "joinDesc": "Already have an invite? Use the code here"
     },
     "counts": {
       "movies": "Movies",

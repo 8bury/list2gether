@@ -1,6 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
-import { logout as logoutApi } from '../services/auth'
+import { Link } from 'react-router-dom'
+import { useEffect, useMemo } from 'react'
 import mainBanner from '@assets/mainbanner.png'
 import coupleWatching from '@assets/couple_watching_movie.png'
 import movieScene from '@assets/movie_scene.png'
@@ -10,8 +9,6 @@ import connect from '@assets/connect.png'
 import { useTranslation } from 'react-i18next'
 
 export default function LandingPage() {
-  const navigate = useNavigate()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const { t } = useTranslation()
   const isLoggedIn = useMemo(() => {
     const access = localStorage.getItem('access_token')
@@ -55,35 +52,7 @@ export default function LandingPage() {
             <div className="text-lg sm:text-xl font-semibold tracking-tight">list2gether</div>
             <nav className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm" aria-label="Primary">
               {isLoggedIn ? (
-                <>
-                  <Link to="/home" className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white/10 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">{t('nav.lists')}</Link>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (isLoggingOut) return
-                      setIsLoggingOut(true)
-                      try {
-                        const refreshToken = localStorage.getItem('refresh_token')
-                        const accessToken = localStorage.getItem('access_token')
-                        if (refreshToken && accessToken) {
-                          await logoutApi(refreshToken)
-                        }
-                      } catch (_) {
-                      } finally {
-                        localStorage.removeItem('access_token')
-                        localStorage.removeItem('refresh_token')
-                        localStorage.removeItem('user')
-                        setIsLoggingOut(false)
-                        navigate('/login')
-                      }
-                    }}
-                    disabled={isLoggingOut}
-                    aria-busy={isLoggingOut}
-                    className="inline-flex items-center bg-white text-black font-semibold rounded px-3 py-2 sm:px-4 sm:py-2 border border-white hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    {isLoggingOut ? t('nav.loggingOut') : t('nav.logout')}
-                  </button>
-                </>
+                <Link to="/home" className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white/10 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">{t('nav.lists')}</Link>
               ) : (
                 <>
                   <Link to="/login" className="no-underline min-w-[120px] text-center px-3 py-2 sm:px-4 sm:py-2 bg-white/10 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40">{t('nav.login')}</Link>

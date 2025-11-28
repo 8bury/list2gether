@@ -105,13 +105,6 @@ export default function Header() {
           list2gether
         </Link>
         <nav className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
-          <Link
-            to="/"
-            className="no-underline px-3 py-2 sm:px-4 sm:py-2 bg-white/10 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
-          >
-            {t('nav.home')}
-          </Link>
-          
           {/* Avatar Menu */}
           <div className="relative" ref={menuRef}>
             <button
