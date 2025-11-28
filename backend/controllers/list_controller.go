@@ -37,6 +37,11 @@ func NewListController(router *gin.Engine, service services.ListService, authMid
 	group.DELETE("/:id/movies/:movieId", c.authMiddleware.Handler(), c.removeMovie)
 	group.PATCH("/:id/movies/:movieId", c.authMiddleware.Handler(), c.updateMovie)
 	group.GET("/:id/movies/search", c.authMiddleware.Handler(), c.searchMovies)
+	// Comment routes
+	group.GET("/:id/movies/:movieId/comments", c.authMiddleware.Handler(), c.listComments)
+	group.POST("/:id/movies/:movieId/comments", c.authMiddleware.Handler(), c.createComment)
+	group.PATCH("/:id/movies/:movieId/comments/:commentId", c.authMiddleware.Handler(), c.updateComment)
+	group.DELETE("/:id/movies/:movieId/comments/:commentId", c.authMiddleware.Handler(), c.deleteComment)
 	return c
 }
 
@@ -57,7 +62,14 @@ type addMovieRequest struct {
 type updateMovieRequest struct {
 	Status *string `json:"status"`
 	Rating *int    `json:"rating"`
-	Notes  *string `json:"notes"`
+}
+
+type createCommentRequest struct {
+	Content string `json:"content"`
+}
+
+type updateCommentRequest struct {
+	Content string `json:"content"`
 }
 
 func (c *ListController) list(ctx *gin.Context) {
@@ -641,13 +653,9 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 	if _, ok := raw["rating"]; ok {
 		ratingProvided = true
 	}
-	notesProvided := false
-	if _, ok := raw["notes"]; ok {
-		notesProvided = true
-	}
 
-	if req.Status == nil && !ratingProvided && !notesProvided {
-		respondValidationError(ctx, []string{"Pelo menos um campo deve ser fornecido: status, rating ou notes"})
+	if req.Status == nil && !ratingProvided {
+		respondValidationError(ctx, []string{"Pelo menos um campo deve ser fornecido: status ou rating"})
 		return
 	}
 
@@ -684,7 +692,7 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 		return
 	}
 
-	updatedListMovie, movie, oldStatus, oldEntry, newEntry, averageRating, err := c.service.UpdateMovie(listID, userID, movieID, status, req.Rating, ratingProvided, req.Notes, notesProvided)
+	updatedListMovie, movie, oldStatus, oldEntry, newEntry, averageRating, err := c.service.UpdateMovie(listID, userID, movieID, status, req.Rating, ratingProvided)
 	if err != nil {
 		switch err {
 		case services.ErrListNotFound:
@@ -734,7 +742,6 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 		payload := gin.H{
 			"user_id":    entry.UserID,
 			"rating":     entry.Rating,
-			"notes":      entry.Notes,
 			"created_at": entry.CreatedAt,
 			"updated_at": entry.UpdatedAt,
 		}
@@ -749,17 +756,13 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 	}
 
 	var oldRating *int
-	var oldNotes *string
 	if oldEntry != nil {
 		oldRating = oldEntry.Rating
-		oldNotes = oldEntry.Notes
 	}
 
 	var newRating *int
-	var newNotes *string
 	if newEntry != nil {
 		newRating = newEntry.Rating
-		newNotes = newEntry.Notes
 	}
 
 	ctx.Header("Cache-Control", "no-store")
@@ -775,8 +778,6 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 			"new_status": updatedListMovie.Status,
 			"old_rating": oldRating,
 			"new_rating": newRating,
-			"old_notes":  oldNotes,
-			"new_notes":  newNotes,
 			"old_entry":  buildEntryPayload(oldEntry),
 			"new_entry":  buildEntryPayload(newEntry),
 			"average_rating": func() *float64 {
@@ -1099,7 +1100,6 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 			entryPayload := gin.H{
 				"user_id":    entry.UserID,
 				"rating":     entry.Rating,
-				"notes":      entry.Notes,
 				"created_at": entry.CreatedAt,
 				"updated_at": entry.UpdatedAt,
 			}
@@ -1128,7 +1128,6 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 			yourEntryPayload = gin.H{
 				"user_id":    yourEntry.UserID,
 				"rating":     yourEntry.Rating,
-				"notes":      yourEntry.Notes,
 				"created_at": yourEntry.CreatedAt,
 				"updated_at": yourEntry.UpdatedAt,
 			}
@@ -1142,10 +1141,8 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 		}
 
 		var ratingCompat *int
-		var notesCompat *string
 		if yourEntry != nil {
 			ratingCompat = yourEntry.Rating
-			notesCompat = yourEntry.Notes
 		}
 
 		item := gin.H{
@@ -1158,7 +1155,6 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 			"watched_at":     lm.WatchedAt,
 			"updated_at":     lm.UpdatedAt,
 			"rating":         ratingCompat,
-			"notes":          notesCompat,
 			"average_rating": averageRating,
 			"your_entry":     yourEntryPayload,
 			"user_entries":   userEntries,
@@ -1178,5 +1174,376 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 			"offset":   offset,
 			"has_more": hasMore,
 		},
+	})
+}
+
+func (c *ListController) listComments(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	movieIdParam := ctx.Param("movieId")
+	movieID, err := strconv.ParseInt(movieIdParam, 10, 64)
+	if err != nil || movieID <= 0 {
+		respondValidationError(ctx, []string{"Invalid movie id"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	limit := 50
+	offset := 0
+	if v := ctx.Query("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			if n > 100 {
+				n = 100
+			}
+			limit = n
+		}
+	}
+	if v := ctx.Query("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	comments, total, err := c.service.GetComments(listID, userID, movieID, limit, offset)
+	if err != nil {
+		switch err {
+		case services.ErrListNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "Lista não encontrada",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrForbiddenMembership:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Você não tem permissão para acessar esta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrMovieNotInList:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "Filme não encontrado nesta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		default:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"error":     "Falha ao buscar comentários",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+	}
+
+	commentsPayload := make([]gin.H, 0, len(comments))
+	for _, comment := range comments {
+		payload := gin.H{
+			"id":         comment.ID,
+			"user_id":    comment.UserID,
+			"content":    comment.Content,
+			"created_at": comment.CreatedAt,
+			"updated_at": comment.UpdatedAt,
+		}
+		if comment.User.ID != 0 {
+			payload["user"] = gin.H{
+				"id":       comment.User.ID,
+				"username": comment.User.Username,
+				"email":    comment.User.Email,
+			}
+		}
+		commentsPayload = append(commentsPayload, payload)
+	}
+
+	hasMore := offset+len(comments) < int(total)
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"comments": commentsPayload,
+		"pagination": gin.H{
+			"total":    total,
+			"limit":    limit,
+			"offset":   offset,
+			"has_more": hasMore,
+		},
+	})
+}
+
+func (c *ListController) createComment(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	movieIdParam := ctx.Param("movieId")
+	movieID, err := strconv.ParseInt(movieIdParam, 10, 64)
+	if err != nil || movieID <= 0 {
+		respondValidationError(ctx, []string{"Invalid movie id"})
+		return
+	}
+
+	var req createCommentRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		respondValidationError(ctx, []string{"Invalid request body"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	comment, err := c.service.CreateComment(listID, userID, movieID, req.Content)
+	if err != nil {
+		switch err {
+		case services.ErrListNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "Lista não encontrada",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrForbiddenMembership:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Você não tem permissão para comentar nesta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrMovieNotInList:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "Filme não encontrado nesta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrCommentEmpty:
+			respondValidationError(ctx, []string{"O comentário não pode ser vazio"})
+			return
+		case services.ErrCommentTooLong:
+			respondValidationError(ctx, []string{"O comentário não pode ter mais de 2000 caracteres"})
+			return
+		default:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"error":     "Falha ao criar comentário",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+	}
+
+	payload := gin.H{
+		"id":         comment.ID,
+		"user_id":    comment.UserID,
+		"content":    comment.Content,
+		"created_at": comment.CreatedAt,
+		"updated_at": comment.UpdatedAt,
+	}
+	if comment.User.ID != 0 {
+		payload["user"] = gin.H{
+			"id":       comment.User.ID,
+			"username": comment.User.Username,
+			"email":    comment.User.Email,
+		}
+	}
+
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Comentário criado com sucesso",
+		"comment": payload,
+	})
+}
+
+func (c *ListController) updateComment(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	commentIdParam := ctx.Param("commentId")
+	commentID, err := strconv.ParseInt(commentIdParam, 10, 64)
+	if err != nil || commentID <= 0 {
+		respondValidationError(ctx, []string{"Invalid comment id"})
+		return
+	}
+
+	var req updateCommentRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		respondValidationError(ctx, []string{"Invalid request body"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	comment, err := c.service.UpdateComment(listID, userID, commentID, req.Content)
+	if err != nil {
+		switch err {
+		case services.ErrListNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "Lista não encontrada",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrForbiddenMembership:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Você não tem permissão para editar comentários nesta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrCommentNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "Comentário não encontrado",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrCommentNotOwned:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Você só pode editar seus próprios comentários",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrCommentEmpty:
+			respondValidationError(ctx, []string{"O comentário não pode ser vazio"})
+			return
+		case services.ErrCommentTooLong:
+			respondValidationError(ctx, []string{"O comentário não pode ter mais de 2000 caracteres"})
+			return
+		default:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"error":     "Falha ao atualizar comentário",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+	}
+
+	payload := gin.H{
+		"id":         comment.ID,
+		"user_id":    comment.UserID,
+		"content":    comment.Content,
+		"created_at": comment.CreatedAt,
+		"updated_at": comment.UpdatedAt,
+	}
+	if comment.User.ID != 0 {
+		payload["user"] = gin.H{
+			"id":       comment.User.ID,
+			"username": comment.User.Username,
+			"email":    comment.User.Email,
+		}
+	}
+
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Comentário atualizado com sucesso",
+		"comment": payload,
+	})
+}
+
+func (c *ListController) deleteComment(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	commentIdParam := ctx.Param("commentId")
+	commentID, err := strconv.ParseInt(commentIdParam, 10, 64)
+	if err != nil || commentID <= 0 {
+		respondValidationError(ctx, []string{"Invalid comment id"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	err = c.service.DeleteComment(listID, userID, commentID)
+	if err != nil {
+		switch err {
+		case services.ErrListNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "Lista não encontrada",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrForbiddenMembership:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Você não tem permissão para excluir comentários nesta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrCommentNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "Comentário não encontrado",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrCommentNotOwned:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Você só pode excluir seus próprios comentários",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		default:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"error":     "Falha ao excluir comentário",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+	}
+
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Comentário excluído com sucesso",
 	})
 }

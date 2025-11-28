@@ -29,12 +29,18 @@ type MovieListDAO interface {
 	FindListMovieByListAndMovie(listID, movieID int64) (*models.ListMovie, error)
 	RemoveMovieFromList(listID, movieID int64) error
 	UpdateMovie(listID, movieID int64, status *models.MovieStatus) (*models.ListMovie, error)
-	UpsertMovieUserData(listID, movieID, userID int64, rating *int, ratingProvided bool, notes *string, notesProvided bool) (*models.ListMovieUserData, error)
+	UpsertMovieUserData(listID, movieID, userID int64, rating *int, ratingProvided bool) (*models.ListMovieUserData, error)
 	FindMovieUserData(listID, movieID, userID int64) (*models.ListMovieUserData, error)
 	GetMovieAverageRating(listID, movieID int64) (*float64, error)
 	FindListMoviesWithMovie(listID int64, status *models.MovieStatus) ([]models.ListMovie, error)
 	SearchListMoviesWithMovie(listID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
 	RemoveMember(listID, userID int64) error
+	// Comment methods
+	CreateComment(listID, movieID, userID int64, content string) (*models.Comment, error)
+	FindComments(listID, movieID int64, limit, offset int) ([]models.Comment, int64, error)
+	FindCommentByID(commentID int64) (*models.Comment, error)
+	UpdateComment(commentID int64, content string) (*models.Comment, error)
+	DeleteComment(commentID int64) error
 }
 
 type movieListDAO struct {
@@ -132,6 +138,9 @@ func (d *movieListDAO) DeleteListCascadeIfOwner(listID, userID int64) error {
 			return gorm.ErrInvalidData
 		}
 
+		if err := tx.Where("list_id = ?", listID).Delete(&models.Comment{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("list_id = ?", listID).Delete(&models.ListMovieUserData{}).Error; err != nil {
 			return err
 		}
@@ -257,6 +266,10 @@ func (d *movieListDAO) FindListMovieByListAndMovie(listID, movieID int64) (*mode
 func (d *movieListDAO) RemoveMovieFromList(listID, movieID int64) error {
 	return d.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("list_id = ? AND movie_id = ?", listID, movieID).
+			Delete(&models.Comment{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("list_id = ? AND movie_id = ?", listID, movieID).
 			Delete(&models.ListMovieUserData{}).Error; err != nil {
 			return err
 		}
@@ -297,7 +310,7 @@ func (d *movieListDAO) UpdateMovie(listID, movieID int64, status *models.MovieSt
 	return &listMovie, nil
 }
 
-func (d *movieListDAO) UpsertMovieUserData(listID, movieID, userID int64, rating *int, ratingProvided bool, notes *string, notesProvided bool) (*models.ListMovieUserData, error) {
+func (d *movieListDAO) UpsertMovieUserData(listID, movieID, userID int64, rating *int, ratingProvided bool) (*models.ListMovieUserData, error) {
 	var existing models.ListMovieUserData
 	err := d.db.Where("list_id = ? AND movie_id = ? AND user_id = ?", listID, movieID, userID).
 		First(&existing).Error
@@ -315,23 +328,8 @@ func (d *movieListDAO) UpsertMovieUserData(listID, movieID, userID int64, rating
 		}
 	}
 
-	var cleanNotes *string
-	if notesProvided {
-		if notes != nil {
-			trimmed := strings.TrimSpace(*notes)
-			if trimmed == "" {
-				cleanNotes = nil
-			} else {
-				copy := trimmed
-				cleanNotes = &copy
-			}
-		} else {
-			cleanNotes = nil
-		}
-	}
-
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if (!ratingProvided || cleanRating == nil) && (!notesProvided || cleanNotes == nil) {
+		if !ratingProvided || cleanRating == nil {
 			return nil, nil
 		}
 		rec := &models.ListMovieUserData{
@@ -341,9 +339,6 @@ func (d *movieListDAO) UpsertMovieUserData(listID, movieID, userID int64, rating
 		}
 		if ratingProvided {
 			rec.Rating = cleanRating
-		}
-		if notesProvided {
-			rec.Notes = cleanNotes
 		}
 		if err := d.db.Create(rec).Error; err != nil {
 			return nil, err
@@ -357,11 +352,8 @@ func (d *movieListDAO) UpsertMovieUserData(listID, movieID, userID int64, rating
 	if ratingProvided {
 		existing.Rating = cleanRating
 	}
-	if notesProvided {
-		existing.Notes = cleanNotes
-	}
 
-	if existing.Rating == nil && existing.Notes == nil {
+	if existing.Rating == nil {
 		if err := d.db.Delete(&existing).Error; err != nil {
 			return nil, err
 		}
@@ -458,6 +450,11 @@ func (d *movieListDAO) RemoveMember(listID, userID int64) error {
 			Delete(&models.ListMovieUserData{}).Error; err != nil {
 			return err
 		}
+		// Delete user's comments for movies in this list
+		if err := tx.Where("list_id = ? AND user_id = ?", listID, userID).
+			Delete(&models.Comment{}).Error; err != nil {
+			return err
+		}
 		// Delete the membership
 		if err := tx.Where("list_id = ? AND user_id = ?", listID, userID).
 			Delete(&models.ListMember{}).Error; err != nil {
@@ -465,4 +462,73 @@ func (d *movieListDAO) RemoveMember(listID, userID int64) error {
 		}
 		return nil
 	})
+}
+
+func (d *movieListDAO) CreateComment(listID, movieID, userID int64, content string) (*models.Comment, error) {
+	comment := &models.Comment{
+		ListID:  listID,
+		MovieID: movieID,
+		UserID:  userID,
+		Content: content,
+	}
+	if err := d.db.Create(comment).Error; err != nil {
+		return nil, err
+	}
+	// Reload with user
+	if err := d.db.Preload("User").First(comment, comment.ID).Error; err != nil {
+		return nil, err
+	}
+	return comment, nil
+}
+
+func (d *movieListDAO) FindComments(listID, movieID int64, limit, offset int) ([]models.Comment, int64, error) {
+	var total int64
+	if err := d.db.Model(&models.Comment{}).
+		Where("list_id = ? AND movie_id = ?", listID, movieID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var comments []models.Comment
+	q := d.db.Preload("User").
+		Where("list_id = ? AND movie_id = ?", listID, movieID).
+		Order("created_at DESC")
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	if offset > 0 {
+		q = q.Offset(offset)
+	}
+	if err := q.Find(&comments).Error; err != nil {
+		return nil, 0, err
+	}
+	return comments, total, nil
+}
+
+func (d *movieListDAO) FindCommentByID(commentID int64) (*models.Comment, error) {
+	var comment models.Comment
+	if err := d.db.Preload("User").First(&comment, commentID).Error; err != nil {
+		return nil, err
+	}
+	return &comment, nil
+}
+
+func (d *movieListDAO) UpdateComment(commentID int64, content string) (*models.Comment, error) {
+	var comment models.Comment
+	if err := d.db.First(&comment, commentID).Error; err != nil {
+		return nil, err
+	}
+	comment.Content = content
+	if err := d.db.Save(&comment).Error; err != nil {
+		return nil, err
+	}
+	// Reload with user
+	if err := d.db.Preload("User").First(&comment, commentID).Error; err != nil {
+		return nil, err
+	}
+	return &comment, nil
+}
+
+func (d *movieListDAO) DeleteComment(commentID int64) error {
+	return d.db.Delete(&models.Comment{}, commentID).Error
 }

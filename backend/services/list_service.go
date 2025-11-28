@@ -25,9 +25,14 @@ type ListService interface {
 	ListUserLists(userID int64, role *models.ListMemberRole, limit int, offset int) ([]models.ListMember, map[int64]int64, map[int64]int64, int64, error)
 	AddMediaToList(ctx context.Context, listID int64, userID int64, mediaID int64, mediaType string) (*models.ListMovie, *models.Movie, error)
 	RemoveMovieFromList(listID int64, userID int64, movieID int64) (*models.Movie, error)
-	UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, ratingProvided bool, notes *string, notesProvided bool) (*models.ListMovie, *models.Movie, *models.MovieStatus, *models.ListMovieUserData, *models.ListMovieUserData, *float64, error)
+	UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, ratingProvided bool) (*models.ListMovie, *models.Movie, *models.MovieStatus, *models.ListMovieUserData, *models.ListMovieUserData, *float64, error)
 	ListMovies(listID int64, userID int64, status *models.MovieStatus) ([]models.ListMovie, error)
 	SearchListMovies(listID int64, userID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
+	// Comment methods
+	CreateComment(listID, userID, movieID int64, content string) (*models.Comment, error)
+	GetComments(listID, userID, movieID int64, limit, offset int) ([]models.Comment, int64, error)
+	UpdateComment(listID, userID, commentID int64, content string) (*models.Comment, error)
+	DeleteComment(listID, userID, commentID int64) error
 }
 
 type listService struct {
@@ -483,7 +488,7 @@ func (s *listService) RemoveMovieFromList(listID int64, userID int64, movieID in
 	return movie, nil
 }
 
-func (s *listService) UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, ratingProvided bool, notes *string, notesProvided bool) (*models.ListMovie, *models.Movie, *models.MovieStatus, *models.ListMovieUserData, *models.ListMovieUserData, *float64, error) {
+func (s *listService) UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, ratingProvided bool) (*models.ListMovie, *models.Movie, *models.MovieStatus, *models.ListMovieUserData, *models.ListMovieUserData, *float64, error) {
 	_, err := s.lists.FindByID(listID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -515,7 +520,7 @@ func (s *listService) UpdateMovie(listID int64, userID int64, movieID int64, sta
 	oldStatus := &existingListMovie.Status
 
 	var oldEntry *models.ListMovieUserData
-	if ratingProvided || notesProvided {
+	if ratingProvided {
 		if data, findErr := s.lists.FindMovieUserData(listID, movieID, userID); findErr == nil {
 			oldEntry = data
 		} else if !errors.Is(findErr, gorm.ErrRecordNotFound) {
@@ -534,8 +539,8 @@ func (s *listService) UpdateMovie(listID int64, userID int64, movieID int64, sta
 	}
 
 	var newEntry *models.ListMovieUserData
-	if ratingProvided || notesProvided {
-		upserted, upsertErr := s.lists.UpsertMovieUserData(listID, movieID, userID, rating, ratingProvided, notes, notesProvided)
+	if ratingProvided {
+		upserted, upsertErr := s.lists.UpsertMovieUserData(listID, movieID, userID, rating, ratingProvided)
 		if upsertErr != nil {
 			return nil, nil, nil, nil, nil, nil, upsertErr
 		}
@@ -625,4 +630,190 @@ func (s *listService) SearchListMovies(listID int64, userID int64, query string,
 		return nil, 0, findErr
 	}
 	return items, total, nil
+}
+
+var (
+	ErrCommentNotFound    = errors.New("comment_not_found")
+	ErrCommentNotOwned    = errors.New("comment_not_owned")
+	ErrCommentEmpty       = errors.New("comment_empty")
+	ErrCommentTooLong     = errors.New("comment_too_long")
+)
+
+func (s *listService) CreateComment(listID, userID, movieID int64, content string) (*models.Comment, error) {
+	// Validate content
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return nil, ErrCommentEmpty
+	}
+	if len(content) > 2000 {
+		return nil, ErrCommentTooLong
+	}
+
+	// Check list exists
+	if _, err := s.lists.FindByID(listID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrListNotFound
+		}
+		return nil, err
+	}
+
+	// Check user is a member
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrForbiddenMembership
+		}
+		return nil, err
+	}
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return nil, ErrForbiddenMembership
+	}
+
+	// Check movie is in list
+	if _, err := s.lists.FindListMovieByListAndMovie(listID, movieID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrMovieNotInList
+		}
+		return nil, err
+	}
+
+	return s.lists.CreateComment(listID, movieID, userID, content)
+}
+
+func (s *listService) GetComments(listID, userID, movieID int64, limit, offset int) ([]models.Comment, int64, error) {
+	// Check list exists
+	if _, err := s.lists.FindByID(listID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, 0, ErrListNotFound
+		}
+		return nil, 0, err
+	}
+
+	// Check user is a member
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, 0, ErrForbiddenMembership
+		}
+		return nil, 0, err
+	}
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return nil, 0, ErrForbiddenMembership
+	}
+
+	// Check movie is in list
+	if _, err := s.lists.FindListMovieByListAndMovie(listID, movieID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, 0, ErrMovieNotInList
+		}
+		return nil, 0, err
+	}
+
+	// Sanitize pagination
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	return s.lists.FindComments(listID, movieID, limit, offset)
+}
+
+func (s *listService) UpdateComment(listID, userID, commentID int64, content string) (*models.Comment, error) {
+	// Validate content
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return nil, ErrCommentEmpty
+	}
+	if len(content) > 2000 {
+		return nil, ErrCommentTooLong
+	}
+
+	// Check list exists
+	if _, err := s.lists.FindByID(listID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrListNotFound
+		}
+		return nil, err
+	}
+
+	// Check user is a member
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrForbiddenMembership
+		}
+		return nil, err
+	}
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return nil, ErrForbiddenMembership
+	}
+
+	// Check comment exists and belongs to user
+	comment, err := s.lists.FindCommentByID(commentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrCommentNotFound
+		}
+		return nil, err
+	}
+
+	// Check comment belongs to this list
+	if comment.ListID != listID {
+		return nil, ErrCommentNotFound
+	}
+
+	// Check user owns the comment
+	if comment.UserID != userID {
+		return nil, ErrCommentNotOwned
+	}
+
+	return s.lists.UpdateComment(commentID, content)
+}
+
+func (s *listService) DeleteComment(listID, userID, commentID int64) error {
+	// Check list exists
+	if _, err := s.lists.FindByID(listID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrListNotFound
+		}
+		return err
+	}
+
+	// Check user is a member
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrForbiddenMembership
+		}
+		return err
+	}
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return ErrForbiddenMembership
+	}
+
+	// Check comment exists
+	comment, err := s.lists.FindCommentByID(commentID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrCommentNotFound
+		}
+		return err
+	}
+
+	// Check comment belongs to this list
+	if comment.ListID != listID {
+		return ErrCommentNotFound
+	}
+
+	// Check user owns the comment
+	if comment.UserID != userID {
+		return ErrCommentNotOwned
+	}
+
+	return s.lists.DeleteComment(commentID)
 }

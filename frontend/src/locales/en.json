@@ -114,6 +114,21 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "deleting": "Deleting…"
+  },
+  "comments": {
+    "title": "Comments",
+    "placeholder": "Write a comment...",
+    "send": "Send",
+    "sending": "Sending...",
+    "sendHint": "Ctrl+Enter to send",
+    "loading": "Loading comments...",
+    "empty": "No comments yet. Be the first!",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edited": "(edited)"
   }
 }
 

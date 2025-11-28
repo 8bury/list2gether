@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Header from '../components/Header'
-import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, type ListMovieItemDTO, type ListMovieUserEntryDTO, type MovieStatus } from '../services/lists'
+import { getListMovies, addListMovie, updateListMovie, deleteListMovie, getUserLists, getComments, createComment, updateComment, deleteComment, type ListMovieItemDTO, type ListMovieUserEntryDTO, type MovieStatus, type CommentDTO } from '../services/lists'
 import { searchMedia, type SearchResultDTO } from '../services/search'
 
 const statusLabels: Record<MovieStatus, string> = {
@@ -35,6 +35,30 @@ const computeAverageRating = (entries: ListMovieUserEntryDTO[]): number | null =
 
 const getEntryDisplayName = (entry: ListMovieUserEntryDTO) =>
   entry.user?.username || entry.user?.email || `Usuário #${entry.user_id}`
+
+const getCommentDisplayName = (comment: CommentDTO) =>
+  comment.user?.username || comment.user?.email || `Usuário #${comment.user_id}`
+
+const getRelativeTime = (dateStr: string): string => {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHour = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHour / 24)
+  const diffWeek = Math.floor(diffDay / 7)
+  const diffMonth = Math.floor(diffDay / 30)
+  const diffYear = Math.floor(diffDay / 365)
+
+  if (diffSec < 60) return 'agora mesmo'
+  if (diffMin < 60) return `há ${diffMin} ${diffMin === 1 ? 'minuto' : 'minutos'}`
+  if (diffHour < 24) return `há ${diffHour} ${diffHour === 1 ? 'hora' : 'horas'}`
+  if (diffDay < 7) return `há ${diffDay} ${diffDay === 1 ? 'dia' : 'dias'}`
+  if (diffWeek < 4) return `há ${diffWeek} ${diffWeek === 1 ? 'semana' : 'semanas'}`
+  if (diffMonth < 12) return `há ${diffMonth} ${diffMonth === 1 ? 'mês' : 'meses'}`
+  return `há ${diffYear} ${diffYear === 1 ? 'ano' : 'anos'}`
+}
 
 function StarIcon(props: { className?: string }) {
   return (
@@ -124,11 +148,13 @@ function SkeletonHeader() {
   )
 }
 
-function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete, updatingRating, updatingStatus, deleting }: {
+function MovieCard({ item, listId, currentUserId, currentUserName, onChangeRating, onChangeStatus, onDelete, updatingRating, updatingStatus, deleting }: {
   item: ListMovieItem
+  listId: number
+  currentUserId: number | null
+  currentUserName: string | null
   onChangeRating: (movieId: number, rating: number) => void
   onChangeStatus: (movieId: number, status: MovieStatus) => void
-  onOpenNotes: (item: ListMovieItem) => void
   onDelete: (movieId: number) => void
   updatingRating?: boolean
   updatingStatus?: boolean
@@ -143,12 +169,72 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
   const fullCount = Math.floor(rating / 2)
   const hasHalf = rating % 2 === 1
   const averageRating = item.average_rating ?? computeAverageRating(item.user_entries)
-  const participantEntries = item.user_entries.filter((entry) => !item.your_entry || entry.user_id !== item.your_entry.user_id)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [ratingsExpanded, setRatingsExpanded] = useState(false)
   const ratedEntries = item.user_entries.filter((e) => e.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+
+  // Comments state
+  const [comments, setComments] = useState<CommentDTO[]>([])
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentsTotal, setCommentsTotal] = useState(0)
+  const [commentInput, setCommentInput] = useState('')
+  const [commentSubmitting, setCommentSubmitting] = useState(false)
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null)
+  const [editingContent, setEditingContent] = useState('')
+  const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null)
+  const commentsLoadedRef = useRef(false)
+
+  // Load comments when details open
+  useEffect(() => {
+    if (detailsOpen && !commentsLoadedRef.current) {
+      commentsLoadedRef.current = true
+      setCommentsLoading(true)
+      getComments(listId, item.movie_id, { limit: 50 })
+        .then((res) => {
+          setComments(res.comments)
+          setCommentsTotal(res.pagination.total)
+        })
+        .catch(() => {})
+        .finally(() => setCommentsLoading(false))
+    }
+  }, [detailsOpen, listId, item.movie_id])
+
+  const handleSubmitComment = async () => {
+    if (!commentInput.trim() || commentSubmitting) return
+    setCommentSubmitting(true)
+    try {
+      const res = await createComment(listId, item.movie_id, commentInput.trim())
+      setComments((prev) => [res.comment, ...prev])
+      setCommentsTotal((prev) => prev + 1)
+      setCommentInput('')
+    } catch {}
+    setCommentSubmitting(false)
+  }
+
+  const handleEditComment = async (commentId: number) => {
+    if (!editingContent.trim() || commentSubmitting) return
+    setCommentSubmitting(true)
+    try {
+      const res = await updateComment(listId, item.movie_id, commentId, editingContent.trim())
+      setComments((prev) => prev.map((c) => (c.id === commentId ? res.comment : c)))
+      setEditingCommentId(null)
+      setEditingContent('')
+    } catch {}
+    setCommentSubmitting(false)
+  }
+
+  const handleDeleteComment = async (commentId: number) => {
+    if (deletingCommentId) return
+    setDeletingCommentId(commentId)
+    try {
+      await deleteComment(listId, item.movie_id, commentId)
+      setComments((prev) => prev.filter((c) => c.id !== commentId))
+      setCommentsTotal((prev) => prev - 1)
+    } catch {}
+    setDeletingCommentId(null)
+  }
 
   const handleClickRating = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return
@@ -220,7 +306,10 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
                 aria-expanded={detailsOpen}
                 title={detailsOpen ? 'Ocultar detalhes' : 'Mostrar detalhes'}
               >
-                {detailsOpen ? 'Ocultar detalhes' : 'Detalhes'}
+                {detailsOpen ? 'Ocultar' : 'Detalhes'}
+                {commentsTotal > 0 && !detailsOpen && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 text-[10px]">{commentsTotal}</span>
+                )}
                 <svg viewBox="0 0 20 20" className={`w-3 h-3 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} aria-hidden>
                   <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
                 </svg>
@@ -340,45 +429,122 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
                 ))}
               </div>
             )}
-            <div className="mt-3 flex items-center justify-end gap-2">
-              <button className="inline-flex items-center gap-1 rounded-md border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-white/40" onClick={() => onOpenNotes(item)} title="Anotações">
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" aria-hidden>
-                  <path d="M6 4a2 2 0 00-2 2v12a2 2 0 002 2h7.5a2 2 0 001.414-.586l3.5-3.5A2 2 0 0019 14.5V6a2 2 0 00-2-2H6zm8 14.5V16a1 1 0 011-1h2.5L14 18.5zM7 8h10M7 11h10M7 14h6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            {/* Comments Section */}
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <h4 className="text-sm font-semibold text-neutral-100 mb-3 flex items-center gap-2">
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
-                <span>Anotações</span>
-              </button>
-            </div>
-            {item.your_entry?.notes && (
-              <div className="mt-2 text-sm text-neutral-200 whitespace-pre-line">
-                <span className="text-neutral-400">Sua anotação: </span>
-                {item.your_entry.notes}
+                Comentários {commentsTotal > 0 && <span className="text-xs font-normal text-neutral-400">({commentsTotal})</span>}
+              </h4>
+              
+              {/* New comment input */}
+              <div className="flex gap-2 mb-4">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                  {currentUserName ? currentUserName.charAt(0).toUpperCase() : '?'}
+                </div>
+                <div className="flex-1">
+                  <textarea
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    placeholder="Escreva um comentário..."
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40 text-sm resize-none"
+                    rows={2}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        handleSubmitComment()
+                      }
+                    }}
+                  />
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-[10px] text-neutral-500">Ctrl+Enter para enviar</span>
+                    <button
+                      onClick={handleSubmitComment}
+                      disabled={!commentInput.trim() || commentSubmitting}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-white text-black font-medium rounded-lg text-xs hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {commentSubmitting ? 'Enviando...' : 'Enviar'}
+                      <svg viewBox="0 0 20 20" className="w-3 h-3" fill="currentColor">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
-            {participantEntries.length > 0 && (
-              <div className="mt-3 text-xs text-neutral-300">
-                <h4 className="text-sm font-semibold text-neutral-100 mb-1">Notas dos participantes</h4>
-                <div className="grid gap-2">
-                  {participantEntries.map((entry) => (
-                    <div key={entry.user_id} className={`rounded-lg border border-white/10 bg-white/[0.02] p-2 ${item.your_entry && entry.user_id === item.your_entry.user_id ? 'border-sky-300/40' : ''}`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-neutral-100">{getEntryDisplayName(entry)}</span>
-                        {entry.rating != null && (
-                          <span className="text-neutral-200">Nota: {entry.rating}</span>
+              
+              {/* Comments list */}
+              {commentsLoading ? (
+                <div className="text-sm text-neutral-400 text-center py-4">Carregando comentários...</div>
+              ) : comments.length === 0 ? (
+                <div className="text-sm text-neutral-500 text-center py-4 italic">Nenhum comentário ainda. Seja o primeiro!</div>
+              ) : (
+                <div className="space-y-3">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="flex gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                        {getCommentDisplayName(comment).charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-neutral-200">{getCommentDisplayName(comment)}</span>
+                          <span className="text-[10px] text-neutral-500">{getRelativeTime(comment.created_at)}</span>
+                          {comment.updated_at !== comment.created_at && (
+                            <span className="text-[10px] text-neutral-600">(editado)</span>
+                          )}
+                        </div>
+                        {editingCommentId === comment.id ? (
+                          <div className="mt-1">
+                            <textarea
+                              value={editingContent}
+                              onChange={(e) => setEditingContent(e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40 text-sm resize-none"
+                              rows={2}
+                              autoFocus
+                            />
+                            <div className="mt-1 flex gap-2">
+                              <button
+                                onClick={() => handleEditComment(comment.id)}
+                                disabled={!editingContent.trim() || commentSubmitting}
+                                className="px-2 py-1 bg-white text-black font-medium rounded text-xs hover:bg-gray-100 disabled:opacity-50"
+                              >
+                                Salvar
+                              </button>
+                              <button
+                                onClick={() => { setEditingCommentId(null); setEditingContent('') }}
+                                className="px-2 py-1 bg-white/10 text-neutral-300 rounded text-xs hover:bg-white/20"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm text-neutral-300 mt-0.5 whitespace-pre-line break-words">{comment.content}</p>
+                            {currentUserId === comment.user_id && (
+                              <div className="mt-1 flex gap-2">
+                                <button
+                                  onClick={() => { setEditingCommentId(comment.id); setEditingContent(comment.content) }}
+                                  className="text-[10px] text-neutral-500 hover:text-neutral-300"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  disabled={deletingCommentId === comment.id}
+                                  className="text-[10px] text-rose-400 hover:text-rose-300 disabled:opacity-50"
+                                >
+                                  {deletingCommentId === comment.id ? 'Excluindo...' : 'Excluir'}
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
-                      {entry.notes && (
-                        <div className="mt-1 text-neutral-400 whitespace-pre-line">
-                          {entry.notes}
-                        </div>
-                      )}
-                      {!entry.notes && entry.rating == null && (
-                        <div className="mt-1 text-neutral-500 italic">Sem notas ainda</div>
-                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -407,9 +573,6 @@ export default function ListPage() {
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [updatingRatingId, setUpdatingRatingId] = useState<number | null>(null)
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null)
-  const [notesItem, setNotesItem] = useState<ListMovieItem | null>(null)
-  const [notesEditing, setNotesEditing] = useState(false)
-  const [notesDraft, setNotesDraft] = useState('')
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [listName, setListName] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<MovieStatus | 'all'>('all')
@@ -432,6 +595,17 @@ export default function ListPage() {
     return null
   }, [])
 
+  const currentUserName = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('user')
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      return parsed?.username || parsed?.email || null
+    } catch {
+      return null
+    }
+  }, [])
+
   const normalizeItem = useCallback(
     (item: ListMovieItemDTO): ListMovieItem => {
       const userEntries = item.user_entries ? [...item.user_entries] : []
@@ -441,11 +615,9 @@ export default function ListPage() {
       }
       const averageRating = item.average_rating ?? computeAverageRating(userEntries)
       const derivedRating = yourEntry?.rating ?? item.rating ?? null
-      const derivedNotes = yourEntry?.notes ?? item.notes ?? null
       return {
         ...item,
         rating: derivedRating ?? null,
-        notes: derivedNotes ?? null,
         average_rating: averageRating ?? null,
         your_entry: yourEntry ?? null,
         user_entries: userEntries,
@@ -462,11 +634,6 @@ export default function ListPage() {
     },
     [normalizeItem],
   )
-
-  const yourNotesEntry = notesItem?.your_entry ?? null
-  const otherNotesEntries = notesItem
-    ? notesItem.user_entries.filter((entry) => !yourNotesEntry || entry.user_id !== yourNotesEntry.user_id)
-    : []
 
   // Persistir filtros e busca por lista
   useEffect(() => {
@@ -564,12 +731,11 @@ export default function ListPage() {
         const m = it.movie
         const title = (m.title || '').toLowerCase()
         const original = (m.original_title || '').toLowerCase()
-        const notes = (it.notes || '').toLowerCase()
         const matchesEntries = it.user_entries.some((entry) => {
-          const combined = `${entry.user?.username ?? ''} ${entry.user?.email ?? ''} ${entry.notes ?? ''} ${entry.rating ?? ''}`.toLowerCase()
+          const combined = `${entry.user?.username ?? ''} ${entry.user?.email ?? ''} ${entry.rating ?? ''}`.toLowerCase()
           return combined.includes(q)
         })
-        return title.includes(q) || original.includes(q) || notes.includes(q) || matchesEntries
+        return title.includes(q) || original.includes(q) || matchesEntries
       })
     }
     return base
@@ -695,7 +861,6 @@ export default function ListPage() {
     if (!parsedId || Number.isNaN(parsedId)) return
     setUpdatingRatingId(movieId)
     const previousItems = items
-    const previousNotesItem = notesItem
     try {
       setItems((prev) =>
         prev.map((it) => {
@@ -713,7 +878,6 @@ export default function ListPage() {
               updatedYourEntry = {
                 user_id: currentUserId,
                 rating: value,
-                notes: updatedYourEntry?.notes ?? null,
                 created_at: updatedYourEntry?.created_at ?? nowIso,
                 updated_at: nowIso,
                 user: updatedYourEntry?.user,
@@ -733,7 +897,6 @@ export default function ListPage() {
           return {
             ...it,
             rating: value,
-            notes: resultingEntry?.notes ?? null,
             your_entry: resultingEntry,
             user_entries: updatedEntries,
             average_rating: average ?? null,
@@ -742,15 +905,9 @@ export default function ListPage() {
       )
       await updateListMovie(parsedId, movieId, { rating: value })
       const res = await getListMovies(parsedId)
-      const normalized = applyItems(res)
-      setNotesItem((prev) => {
-        if (!prev) return prev
-        const updated = normalized.find((it) => it.movie_id === prev.movie_id)
-        return updated ?? prev
-      })
+      applyItems(res)
     } catch (err) {
       setItems(previousItems)
-      setNotesItem(previousNotesItem)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao salvar nota'
       setError(message)
       if ((err as any)?.status === 401) {
@@ -768,20 +925,13 @@ export default function ListPage() {
     if (!parsedId || Number.isNaN(parsedId)) return
     setUpdatingStatusId(movieId)
     const previousItems = items
-    const previousNotesItem = notesItem
     try {
       setItems((prev) => prev.map((it) => it.movie_id === movieId ? { ...it, status } : it))
       await updateListMovie(parsedId, movieId, { status })
       const res = await getListMovies(parsedId)
-      const normalized = applyItems(res)
-      setNotesItem((prev) => {
-        if (!prev) return prev
-        const updated = normalized.find((it) => it.movie_id === prev.movie_id)
-        return updated ?? prev
-      })
+      applyItems(res)
     } catch (err) {
       setItems(previousItems)
-      setNotesItem(previousNotesItem)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao salvar status'
       setError(message)
       if ((err as any)?.status === 401) {
@@ -795,142 +945,17 @@ export default function ListPage() {
     }
   }
 
-  const openNotes = (it: ListMovieItem) => {
-    setNotesItem(it)
-    setNotesEditing(false)
-    setNotesDraft(it.your_entry?.notes ?? '')
-  }
-
-  const saveNotes = async () => {
-    if (!parsedId || Number.isNaN(parsedId) || !notesItem) return
-    const previousItems = items
-    const previousNotesItem = notesItem
-    const notesValue = notesDraft.length > 0 ? notesDraft : ''
-    const normalizedNotes = notesValue.trim().length === 0 ? null : notesValue
-    try {
-      setItems((prev) =>
-        prev.map((it) => {
-          if (it.movie_id !== notesItem.movie_id) return it
-          const nowIso = new Date().toISOString()
-          let updatedEntries = [...it.user_entries]
-          let updatedYourEntry: ListMovieUserEntryDTO | null = it.your_entry ? { ...it.your_entry } : null
-
-          if (currentUserId != null) {
-            const idx = updatedEntries.findIndex((entry) => entry.user_id === currentUserId)
-            if (idx >= 0) {
-              updatedYourEntry = { ...updatedEntries[idx], notes: normalizedNotes, updated_at: nowIso }
-              updatedEntries[idx] = updatedYourEntry
-            } else {
-              updatedYourEntry = {
-                user_id: currentUserId,
-                rating: updatedYourEntry?.rating ?? null,
-                notes: normalizedNotes,
-                created_at: updatedYourEntry?.created_at ?? nowIso,
-                updated_at: nowIso,
-                user: updatedYourEntry?.user,
-              }
-              updatedEntries = [...updatedEntries, updatedYourEntry]
-            }
-          } else if (updatedYourEntry) {
-            updatedYourEntry = { ...updatedYourEntry, notes: normalizedNotes, updated_at: nowIso }
-            const idx = updatedEntries.findIndex((entry) => entry.user_id === updatedYourEntry!.user_id)
-            if (idx >= 0) {
-              updatedEntries[idx] = updatedYourEntry
-            }
-          }
-
-          const average = computeAverageRating(updatedEntries)
-          return {
-            ...it,
-            notes: normalizedNotes,
-            your_entry: updatedYourEntry ?? it.your_entry ?? null,
-            user_entries: updatedEntries,
-            average_rating: average ?? it.average_rating ?? null,
-          }
-        }),
-      )
-      setNotesItem((prev) => {
-        if (!prev) return prev
-        if (prev.movie_id !== notesItem.movie_id) return prev
-        const nowIso = new Date().toISOString()
-        let updatedEntries = [...prev.user_entries]
-        let updatedYourEntry: ListMovieUserEntryDTO | null = prev.your_entry ? { ...prev.your_entry } : null
-
-        if (currentUserId != null) {
-          const idx = updatedEntries.findIndex((entry) => entry.user_id === currentUserId)
-          if (idx >= 0) {
-            updatedYourEntry = { ...updatedEntries[idx], notes: normalizedNotes, updated_at: nowIso }
-            updatedEntries[idx] = updatedYourEntry
-          } else {
-            updatedYourEntry = {
-              user_id: currentUserId,
-              rating: updatedYourEntry?.rating ?? null,
-              notes: normalizedNotes,
-              created_at: updatedYourEntry?.created_at ?? nowIso,
-              updated_at: nowIso,
-              user: updatedYourEntry?.user,
-            }
-            updatedEntries = [...updatedEntries, updatedYourEntry]
-          }
-        } else if (updatedYourEntry) {
-          updatedYourEntry = { ...updatedYourEntry, notes: normalizedNotes, updated_at: nowIso }
-          const idx = updatedEntries.findIndex((entry) => entry.user_id === updatedYourEntry!.user_id)
-          if (idx >= 0) updatedEntries[idx] = updatedYourEntry
-        }
-
-        const average = computeAverageRating(updatedEntries)
-        return {
-          ...prev,
-          notes: normalizedNotes,
-          your_entry: updatedYourEntry ?? prev.your_entry ?? null,
-          user_entries: updatedEntries,
-          average_rating: average ?? prev.average_rating ?? null,
-        }
-      })
-
-      await updateListMovie(parsedId, notesItem.movie_id, { notes: notesValue })
-      const res = await getListMovies(parsedId)
-      const normalized = applyItems(res)
-      setNotesItem((prev) => {
-        if (!prev) return prev
-        const updated = normalized.find((it) => it.movie_id === prev.movie_id)
-        return updated ?? prev
-      })
-      setNotesDraft(normalizedNotes ?? '')
-      setNotesEditing(false)
-    } catch (err) {
-      setItems(previousItems)
-      setNotesItem(previousNotesItem)
-      const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao salvar anotações'
-      setError(message)
-      if ((err as any)?.status === 401) {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
-        navigate('/login')
-      }
-    }
-  }
-
   const handleDelete = async (movieId: number) => {
     if (!parsedId || Number.isNaN(parsedId)) return
     setDeletingId(movieId)
     const previousItems = items
-    const previousNotesItem = notesItem
     try {
       setItems((prev) => prev.filter((it) => it.movie_id !== movieId))
       await deleteListMovie(parsedId, movieId)
       const res = await getListMovies(parsedId)
-      const normalized = applyItems(res)
-      setNotesItem((prev) => {
-        if (!prev) return prev
-        if (prev.movie_id === movieId) return null
-        const updated = normalized.find((it) => it.movie_id === prev.movie_id)
-        return updated ?? prev
-      })
+      applyItems(res)
     } catch (err) {
       setItems(previousItems)
-      setNotesItem(previousNotesItem)
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao remover'
       setError(message)
       if ((err as any)?.status === 401) {
@@ -1135,9 +1160,11 @@ export default function ListPage() {
                     <MovieCard
                       key={item.id}
                       item={item}
+                      listId={parsedId}
+                      currentUserId={currentUserId}
+                      currentUserName={currentUserName}
                       onChangeRating={handleChangeRating}
                       onChangeStatus={handleChangeStatus}
-                      onOpenNotes={openNotes}
                       onDelete={handleDelete}
                       updatingRating={updatingRatingId === item.movie_id}
                       updatingStatus={updatingStatusId === item.movie_id}
@@ -1150,95 +1177,6 @@ export default function ListPage() {
           </>
         )}
       </main>
-      {notesItem && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm grid place-items-center p-4 z-50">
-          <div className="w-full max-w-xl h-[420px] bg-neutral-950 border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-lg shadow-white/10">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Anotações</h3>
-              <button className="text-neutral-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 rounded px-2 py-1" onClick={() => { setNotesItem(null); setNotesEditing(false) }}>Fechar</button>
-            </div>
-            <div className="p-4 grid gap-3 flex-1 overflow-y-auto">
-              {!notesEditing ? (
-                <>
-                  <div>
-                    <h4 className="text-sm font-semibold text-neutral-100">Sua anotação</h4>
-                    <div className="mt-2 space-y-2">
-                      {yourNotesEntry ? (
-                        <>
-                          {yourNotesEntry.notes ? (
-                            <div className="whitespace-pre-wrap text-sm text-neutral-200">{yourNotesEntry.notes}</div>
-                          ) : (
-                            <div className="text-sm text-neutral-400 italic">Você ainda não adicionou uma anotação.</div>
-                          )}
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
-                            {yourNotesEntry.rating != null && <span>Sua nota: {yourNotesEntry.rating}</span>}
-                            {yourNotesEntry.updated_at && <span>Atualizado: {new Date(yourNotesEntry.updated_at).toLocaleString()}</span>}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-sm text-neutral-400 italic">Você ainda não adicionou uma anotação.</div>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-neutral-100 mt-4">Anotações dos participantes</h4>
-                    {otherNotesEntries.length === 0 ? (
-                      <div className="mt-2 text-sm text-neutral-400 italic">Nenhum outro participante adicionou anotações.</div>
-                    ) : (
-                      <div className="mt-2 grid gap-2">
-                        {otherNotesEntries.map((entry) => (
-                          <div key={entry.user_id} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
-                            <div className="flex items-center justify-between text-sm text-neutral-200">
-                              <span className="font-medium">{getEntryDisplayName(entry)}</span>
-                              {entry.rating != null && <span>Nota: {entry.rating}</span>}
-                            </div>
-                            {entry.notes ? (
-                              <div className="mt-2 text-sm text-neutral-300 whitespace-pre-line">{entry.notes}</div>
-                            ) : (
-                              <div className="mt-2 text-sm text-neutral-500 italic">Sem anotação.</div>
-                            )}
-                            <div className="mt-2 text-xs text-neutral-500 flex flex-wrap gap-3">
-                              {entry.updated_at && <span>Atualizado: {new Date(entry.updated_at).toLocaleString()}</span>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-neutral-500">
-                      {notesItem.average_rating != null && <span>Nota média: {notesItem.average_rating.toFixed(1)}</span>}
-                    </div>
-                    <button
-                      className="inline-flex items-center gap-1 rounded-md border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-white/40"
-                      onClick={() => setNotesEditing(true)}
-                      title="Editar anotações"
-                    >
-                      <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden>
-                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.25H5v-.92l8.06-8.06.92.92L5.92 19.5zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor" />
-                      </svg>
-                      <span>Editar</span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <textarea
-                    value={notesDraft}
-                    onChange={(e) => setNotesDraft(e.target.value)}
-                    rows={6}
-                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none focus:ring-2 focus:ring-white/40"
-                  />
-                  <div className="flex items-center justify-end gap-2">
-                    <button className="px-5 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40 border border-white/10" onClick={() => { setNotesEditing(false); setNotesDraft(notesItem.your_entry?.notes ?? '') }}>Cancelar</button>
-                    <button className="inline-block px-5 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40" onClick={saveNotes}>Salvar</button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       {isAddOpen && (
         <div className="fixed inset-0 z-50">
           <button className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-label="Fechar" onClick={() => { setIsAddOpen(false); setSearchQuery(''); setSearchResults([]); setSearchError(null) }}></button>

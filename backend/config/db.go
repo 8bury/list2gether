@@ -42,6 +42,7 @@ func connectDatabase() *gorm.DB {
 		&models.ListMovie{},
 		&models.ListMovieUserData{},
 		&models.RefreshToken{},
+		&models.Comment{},
 	)
 	if err != nil {
 		panic("failed to migrate database: " + err.Error())

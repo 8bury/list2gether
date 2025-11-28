@@ -114,6 +114,21 @@
     "cancel": "Cancelar",
     "delete": "Excluir",
     "deleting": "Excluindo…"
+  },
+  "comments": {
+    "title": "Comentários",
+    "placeholder": "Escreva um comentário...",
+    "send": "Enviar",
+    "sending": "Enviando...",
+    "sendHint": "Ctrl+Enter para enviar",
+    "loading": "Carregando comentários...",
+    "empty": "Nenhum comentário ainda. Seja o primeiro!",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "deleting": "Excluindo...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "edited": "(editado)"
   }
 }
 

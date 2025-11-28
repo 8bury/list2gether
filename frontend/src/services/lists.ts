@@ -126,7 +126,6 @@ export interface MovieDTO {
 export interface ListMovieUserEntryDTO {
   user_id: number
   rating?: number | null
-  notes?: string | null
   created_at: string
   updated_at: string
   user?: {
@@ -146,7 +145,6 @@ export interface ListMovieItemDTO {
   watched_at?: string | null
   updated_at: string
   rating?: number | null
-  notes?: string | null
   average_rating?: number | null
   your_entry?: ListMovieUserEntryDTO | null
   user_entries?: ListMovieUserEntryDTO[]
@@ -183,7 +181,6 @@ export async function addListMovie(listId: number, body: AddListMovieBodyDTO): P
 export interface UpdateListMovieBodyDTO {
   status?: MovieStatus
   rating?: number | null
-  notes?: string | null
 }
 
 export interface UpdateListMovieResponseDTO {
@@ -198,8 +195,6 @@ export interface UpdateListMovieResponseDTO {
     new_status?: MovieStatus | null
     old_rating?: number | null
     new_rating?: number | null
-    old_notes?: string | null
-    new_notes?: string | null
     watched_at?: string | null
     updated_at?: string
     old_entry?: ListMovieUserEntryDTO | null
@@ -240,6 +235,80 @@ export async function searchListMovies(listId: number, query: string, params?: {
   if (params?.offset) searchParams.set('offset', String(params.offset))
   return requestJson<SearchListMoviesResponseDTO>(`/api/lists/${listId}/movies/search?${searchParams.toString()}`, {
     method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+// Comment types and functions
+export interface CommentDTO {
+  id: number
+  user_id: number
+  content: string
+  created_at: string
+  updated_at: string
+  user?: {
+    id: number
+    username: string
+    email: string
+  }
+}
+
+export interface CommentsResponseDTO {
+  comments: CommentDTO[]
+  pagination: {
+    total: number
+    limit: number
+    offset: number
+    has_more: boolean
+  }
+}
+
+export interface CreateCommentResponseDTO {
+  success: boolean
+  message: string
+  comment: CommentDTO
+}
+
+export interface UpdateCommentResponseDTO {
+  success: boolean
+  message: string
+  comment: CommentDTO
+}
+
+export async function getComments(listId: number, movieId: number, params?: { limit?: number; offset?: number }): Promise<CommentsResponseDTO> {
+  const token = localStorage.getItem('access_token')
+  const searchParams = new URLSearchParams()
+  if (params?.limit) searchParams.set('limit', String(params.limit))
+  if (params?.offset) searchParams.set('offset', String(params.offset))
+  const query = searchParams.toString()
+  return requestJson<CommentsResponseDTO>(`/api/lists/${listId}/movies/${movieId}/comments${query ? `?${query}` : ''}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export async function createComment(listId: number, movieId: number, content: string): Promise<CreateCommentResponseDTO> {
+  const token = localStorage.getItem('access_token')
+  return requestJson<CreateCommentResponseDTO>(`/api/lists/${listId}/movies/${movieId}/comments`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: { content },
+  })
+}
+
+export async function updateComment(listId: number, movieId: number, commentId: number, content: string): Promise<UpdateCommentResponseDTO> {
+  const token = localStorage.getItem('access_token')
+  return requestJson<UpdateCommentResponseDTO>(`/api/lists/${listId}/movies/${movieId}/comments/${commentId}`, {
+    method: 'PATCH',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: { content },
+  })
+}
+
+export async function deleteComment(listId: number, movieId: number, commentId: number): Promise<void> {
+  const token = localStorage.getItem('access_token')
+  await requestJson<void>(`/api/lists/${listId}/movies/${movieId}/comments/${commentId}`, {
+    method: 'DELETE',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   })
 }
