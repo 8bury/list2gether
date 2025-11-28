@@ -267,7 +267,7 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
                 className="flex items-center justify-between w-full text-xs text-neutral-400 hover:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-white/40 rounded px-1 py-0.5"
               >
                 <span>
-                  {ratedEntries.length} avaliação{ratedEntries.length !== 1 ? 'ões' : ''}
+                  {ratedEntries.length} {ratedEntries.length !== 1 ? 'avaliações' : 'avaliação'}
                 </span>
                 <svg
                   className={`w-3 h-3 transition-transform ${ratingsExpanded ? 'rotate-180' : ''}`}
