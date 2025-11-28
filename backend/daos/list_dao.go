@@ -138,18 +138,8 @@ func (d *movieListDAO) DeleteListCascadeIfOwner(listID, userID int64) error {
 			return gorm.ErrInvalidData
 		}
 
-		if err := tx.Where("list_id = ?", listID).Delete(&models.Comment{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Where("list_id = ?", listID).Delete(&models.ListMovieUserData{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Where("list_id = ?", listID).Delete(&models.ListMovie{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Where("list_id = ?", listID).Delete(&models.ListMember{}).Error; err != nil {
-			return err
-		}
+		// Soft delete the list (GORM automatically sets deleted_at)
+		// Related data (members, movies, comments, ratings) are kept intact
 		if err := tx.Where("id = ?", listID).Delete(&models.MovieList{}).Error; err != nil {
 			return err
 		}
