@@ -147,6 +147,8 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [ratingsExpanded, setRatingsExpanded] = useState(false)
+  const ratedEntries = item.user_entries.filter((e) => e.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
 
   const handleClickRating = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return
@@ -258,6 +260,59 @@ function MovieCard({ item, onChangeRating, onChangeStatus, onOpenNotes, onDelete
           <div className="text-xs text-neutral-400 flex flex-wrap gap-x-3 gap-y-1">
             {media.release_date && <span>Lançamento: {new Date(media.release_date).toLocaleDateString()}</span>}
           </div>
+          {ratedEntries.length > 0 && (
+            <div className="border-t border-white/10 pt-2 mt-1">
+              <button
+                onClick={() => setRatingsExpanded((v) => !v)}
+                className="flex items-center justify-between w-full text-xs text-neutral-400 hover:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-white/40 rounded px-1 py-0.5"
+              >
+                <span>
+                  {ratedEntries.length} avaliação{ratedEntries.length !== 1 ? 'ões' : ''}
+                </span>
+                <svg
+                  className={`w-3 h-3 transition-transform ${ratingsExpanded ? 'rotate-180' : ''}`}
+                  viewBox="0 0 20 20"
+                  aria-hidden
+                >
+                  <path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" fill="currentColor" />
+                </svg>
+              </button>
+              {ratingsExpanded && (
+                <div className="mt-2 space-y-2">
+                  {ratedEntries.map((entry) => (
+                    <div
+                      key={entry.user_id}
+                      className={`flex items-center justify-between text-xs px-2 py-1.5 rounded-lg bg-white/5 border ${
+                        item.your_entry && entry.user_id === item.your_entry.user_id
+                          ? 'border-sky-300/40'
+                          : 'border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-400 to-purple-500 flex items-center justify-center text-[9px] font-bold text-white">
+                          {getEntryDisplayName(entry).charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-neutral-200">{getEntryDisplayName(entry)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex gap-0.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <StarIcon
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < Math.floor((entry.rating ?? 0) / 2) ? 'text-yellow-400' : 'text-neutral-600'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-yellow-300 font-semibold w-6 text-right">{entry.rating}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className={`${detailsOpen ? 'block' : 'hidden'} border-t border-white/10 pt-3 mt-1`}>
             <div className="text-sm text-neutral-200 whitespace-pre-line">
               {media.overview || 'Sem descrição.'}
