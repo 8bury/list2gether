@@ -101,27 +101,29 @@
     "confirmLeaveText": "Tem certeza de que deseja sair da lista \"{{name}}\"? Suas avaliações e notas serão removidas.",
     "leaving": "Saindo…"
   },
-  "auth": {
-    "email": "Email",
-    "password": "Senha",
-    "username": "Usuário",
-    "signIn": "Entrar",
-    "signingIn": "Entrando…",
-    "register": "Criar conta",
-    "creating": "Criando…",
-    "forgot": "Esqueceu a senha?",
-    "noAccount": "Ainda não tem conta?",
-    "registerLink": "Cadastre-se grátis",
-    "hasAccount": "Já tem uma conta?",
-    "signInLink": "Entrar"
-  },
-  "misc": {
-    "back": "Voltar",
-    "loading": "Carregando…",
-    "cancel": "Cancelar",
-    "delete": "Excluir",
-    "deleting": "Excluindo…"
-  },
+   "auth": {
+     "email": "Email",
+     "password": "Senha",
+     "username": "Usuário",
+     "signIn": "Entrar",
+     "signingIn": "Entrando…",
+     "register": "Criar conta",
+     "creating": "Criando…",
+     "registerSuccess": "Registro concluído. Você já pode fazer login.",
+     "forgot": "Esqueceu a senha?",
+     "noAccount": "Ainda não tem conta?",
+     "registerLink": "Cadastre-se grátis",
+     "hasAccount": "Já tem uma conta?",
+     "signInLink": "Entrar"
+   },
+   "misc": {
+     "back": "Voltar",
+     "loading": "Carregando…",
+     "cancel": "Cancelar",
+     "delete": "Excluir",
+     "deleting": "Excluindo…",
+     "clearSearch": "Limpar busca"
+   },
   "comments": {
     "title": "Comentários",
     "placeholder": "Escreva um comentário...",
@@ -151,7 +153,7 @@
     "saving": "Salvando…",
     "saved": "Perfil atualizado com sucesso!"
   },
-  "lucky": {
+"lucky": {
     "button": "Estou com sorte",
     "title": "Estou com sorte",
     "spinning": "Sorteando...",
@@ -161,6 +163,12 @@
     "close": "Fechar",
     "spinAgain": "Sortear novamente",
     "spinTooltip": "Sortear um filme para assistir"
+  },
+  "status": {
+    "not_watched": "Não Assistido",
+    "watching": "Assistindo",
+    "watched": "Assistido",
+    "dropped": "Abandonado"
   }
 }
 

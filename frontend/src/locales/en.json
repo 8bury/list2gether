@@ -101,27 +101,29 @@
     "confirmLeaveText": "Are you sure you want to leave the list \"{{name}}\"? Your ratings and notes will be removed.",
     "leaving": "Leaving…"
   },
-  "auth": {
-    "email": "Email",
-    "password": "Password",
-    "username": "Username",
-    "signIn": "Sign in",
-    "signingIn": "Signing in…",
-    "register": "Create account",
-    "creating": "Creating…",
-    "forgot": "Forgot Password?",
-    "noAccount": "Don't have an account yet?",
-    "registerLink": "Register for free",
-    "hasAccount": "Already have an account?",
-    "signInLink": "Sign in"
-  },
-  "misc": {
-    "back": "Back",
-    "loading": "Loading…",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "deleting": "Deleting…"
-  },
+   "auth": {
+     "email": "Email",
+     "password": "Password",
+     "username": "Username",
+     "signIn": "Sign in",
+     "signingIn": "Signing in…",
+     "register": "Create account",
+     "creating": "Creating…",
+     "registerSuccess": "Registration complete. You can now log in.",
+     "forgot": "Forgot Password?",
+     "noAccount": "Don't have an account yet?",
+     "registerLink": "Register for free",
+     "hasAccount": "Already have an account?",
+     "signInLink": "Sign in"
+   },
+   "misc": {
+     "back": "Back",
+     "loading": "Loading…",
+     "cancel": "Cancel",
+     "delete": "Delete",
+     "deleting": "Deleting…",
+     "clearSearch": "Clear search"
+   },
   "comments": {
     "title": "Comments",
     "placeholder": "Write a comment...",
@@ -151,7 +153,7 @@
     "saving": "Saving…",
     "saved": "Profile updated successfully!"
   },
-  "lucky": {
+"lucky": {
     "button": "I'm Feeling Lucky",
     "title": "I'm Feeling Lucky",
     "spinning": "Drawing...",
@@ -161,6 +163,12 @@
     "close": "Close",
     "spinAgain": "Spin again",
     "spinTooltip": "Draw a movie to watch"
+  },
+  "status": {
+    "not_watched": "Not Watched",
+    "watching": "Watching",
+    "watched": "Watched",
+    "dropped": "Dropped"
   }
 }
 

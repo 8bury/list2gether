@@ -1,0 +1,342 @@
+import { useState } from 'react'
+import { ChevronDown, Trash2, Film, Tv, Users, Calendar, Languages, TrendingUp } from 'lucide-react'
+import { StarRating } from './StarRating'
+import { CommentSection } from './CommentSection'
+import { UserAvatar } from '@/components/UserAvatar'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import type { ListMovieUserEntryDTO, MovieStatus } from '@/services/lists'
+
+interface MovieCardProps {
+  item: {
+    movie_id: number
+    status: MovieStatus
+    rating?: number | null
+    your_entry?: ListMovieUserEntryDTO | null
+    user_entries: ListMovieUserEntryDTO[]
+    average_rating?: number | null
+    added_by_user?: { username: string; email: string; avatar_url?: string | null } | null
+    added_at?: string
+    watched_at?: string | null
+    updated_at?: string
+    movie: {
+      title: string
+      original_title?: string | null
+      poster_path?: string | null
+      poster_url?: string | null
+      media_type: 'movie' | 'tv'
+      release_date?: string | null
+      overview?: string | null
+      original_lang?: string | null
+      popularity?: number | null
+      seasons_count?: number | null
+      episodes_count?: number | null
+      series_status?: string | null
+      genres?: Array<{ id: number; name: string }> | null
+    }
+  }
+  listId: number
+  currentUserId: number | null
+  currentUserName: string | null
+  currentUserAvatarUrl: string | null
+  onChangeRating: (movieId: number, rating: number) => void
+  onChangeStatus: (movieId: number, status: MovieStatus) => void
+  onDelete: (movieId: number) => void
+  updatingRating?: boolean
+  updatingStatus?: boolean
+  deleting?: boolean
+}
+
+const statusConfig: Record<MovieStatus, { label: string; color: string; gradient: string }> = {
+  not_watched: { label: 'Não Assistido', color: 'text-neutral-300', gradient: 'from-neutral-500/20 to-neutral-600/10' },
+  watching: { label: 'Assistindo', color: 'text-sky-300', gradient: 'from-sky-500/20 to-sky-600/10' },
+  watched: { label: 'Assistido', color: 'text-emerald-300', gradient: 'from-emerald-500/20 to-emerald-600/10' },
+  dropped: { label: 'Abandonado', color: 'text-rose-300', gradient: 'from-rose-500/20 to-rose-600/10' },
+}
+
+function getEntryDisplayName(entry: ListMovieUserEntryDTO) {
+  return entry.user?.username || entry.user?.email || `Usuário #${entry.user_id}`
+}
+
+export function MovieCard({ item, listId, currentUserId, currentUserName, currentUserAvatarUrl, onChangeRating, onChangeStatus, onDelete, updatingRating, updatingStatus, deleting }: MovieCardProps) {
+  const media = item.movie
+  const title = media.title
+  const original = media.original_title && media.original_title !== media.title ? media.original_title : undefined
+  const posterUrl = media.poster_url || (media.poster_path ? `https://image.tmdb.org/t/p/w500${media.poster_path}` : null)
+  const userRatingValue = item.your_entry?.rating ?? item.rating ?? null
+  const rating = typeof userRatingValue === 'number' ? userRatingValue : 0
+
+  const [statusOpen, setStatusOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [ratingsExpanded, setRatingsExpanded] = useState(false)
+
+  const ratedEntries = item.user_entries.filter((e) => e.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+
+  return (
+    <div
+      data-animate
+      className="group rounded-2xl bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 overflow-hidden hover:border-white/20 hover:from-white/10 hover:to-white/[0.05] transition-all duration-300 shadow-xl shadow-black/20 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/30"
+    >
+      <div className="flex">
+        {/* Poster */}
+        <div className="relative w-32 sm:w-36 flex-shrink-0">
+          {posterUrl ? (
+            <img
+              src={posterUrl}
+              alt={title}
+              className="w-full h-full object-cover aspect-[2/3]"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center aspect-[2/3]">
+              <Film className="w-12 h-12 text-neutral-600" />
+            </div>
+          )}
+          {/* Poster overlay gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        </div>
+
+        {/* Content */}
+        <div className="p-4 sm:p-5 flex-1 flex flex-col gap-3">
+          {/* Title & Badges */}
+          <div className="space-y-2">
+            <div className="flex items-start gap-2 flex-wrap">
+              <h3 className="text-lg sm:text-xl font-bold tracking-tight bg-gradient-to-br from-white via-white to-neutral-400 bg-clip-text text-transparent flex-1">
+                {title}
+              </h3>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Media type badge */}
+                <span className={cn(
+                  "inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border font-medium",
+                  "bg-white/5 border-white/10 text-neutral-300"
+                )}>
+                  {media.media_type === 'movie' ? <Film className="w-3 h-3" /> : <Tv className="w-3 h-3" />}
+                  {media.media_type === 'movie' ? 'Filme' : 'Série'}
+                </span>
+
+                {/* Status selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setStatusOpen(!statusOpen)}
+                    disabled={!!updatingStatus}
+                    className={cn(
+                      "inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium transition-all",
+                      `bg-gradient-to-r ${statusConfig[item.status].gradient}`,
+                      `border-white/20 ${statusConfig[item.status].color}`,
+                      "hover:scale-105 active:scale-95",
+                      updatingStatus && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    {statusConfig[item.status].label}
+                    <ChevronDown className={cn("w-3 h-3 transition-transform", statusOpen && "rotate-180")} />
+                  </button>
+
+                  {statusOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setStatusOpen(false)} />
+                      <div className="absolute right-0 z-20 mt-1 min-w-[160px] bg-neutral-950 border border-white/10 rounded-xl shadow-2xl shadow-black/50 overflow-hidden">
+                        {(['not_watched', 'watching', 'watched', 'dropped'] as MovieStatus[]).map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => {
+                              setStatusOpen(false)
+                              if (s !== item.status) onChangeStatus(item.movie_id, s)
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-2.5 text-sm transition-colors flex items-center gap-2",
+                              s === item.status ? 'bg-white/10' : 'hover:bg-white/5',
+                              statusConfig[s].color
+                            )}
+                          >
+                            <span className={cn(
+                              "w-2 h-2 rounded-full",
+                              `bg-gradient-to-r ${statusConfig[s].gradient}`
+                            )} />
+                            {statusConfig[s].label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {original && (
+              <p className="text-xs text-neutral-500 italic">
+                {original}
+              </p>
+            )}
+          </div>
+
+          {/* Rating & Actions */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <StarRating
+              rating={rating}
+              onChange={(r) => onChangeRating(item.movie_id, r)}
+              size="md"
+              disabled={!!updatingRating}
+            />
+
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onDelete(item.movie_id)}
+              disabled={!!deleting}
+              className="border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 h-9 w-9"
+              title="Remover"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+
+            {(updatingRating || deleting) && (
+              <span className="text-xs text-neutral-500">
+                {updatingRating ? 'Salvando…' : 'Removendo…'}
+              </span>
+            )}
+          </div>
+
+          {/* Release date */}
+          {media.release_date && (
+            <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+              <Calendar className="w-3.5 h-3.5" />
+              {new Date(media.release_date).toLocaleDateString()}
+            </div>
+          )}
+
+          {/* User ratings section */}
+          {ratedEntries.length > 0 && (
+            <div className="border-t border-white/10 pt-3">
+              <button
+                onClick={() => setRatingsExpanded(!ratingsExpanded)}
+                className="flex items-center justify-between w-full text-xs text-neutral-400 hover:text-neutral-300 transition-colors group/ratings"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" />
+                  {ratedEntries.length} {ratedEntries.length !== 1 ? 'avaliações' : 'avaliação'}
+                </span>
+                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", ratingsExpanded && "rotate-180")} />
+              </button>
+
+              {ratingsExpanded && (
+                <div className="mt-3 space-y-2">
+                  {ratedEntries.map((entry) => (
+                    <div
+                      key={entry.user_id}
+                      className={cn(
+                        "flex items-center justify-between px-3 py-2 rounded-lg border transition-colors",
+                        item.your_entry && entry.user_id === item.your_entry.user_id
+                          ? 'bg-sky-500/10 border-sky-500/30'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <UserAvatar
+                          avatarUrl={entry.user?.avatar_url}
+                          name={getEntryDisplayName(entry)}
+                          size="xs"
+                        />
+                        <span className="text-xs text-neutral-200">{getEntryDisplayName(entry)}</span>
+                      </div>
+                      <span className="text-sm font-semibold bg-gradient-to-br from-amber-200 to-amber-400 bg-clip-text text-transparent">
+                        {entry.rating}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Details toggle */}
+          <button
+            onClick={() => setDetailsOpen(!detailsOpen)}
+            className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 transition-all text-xs text-neutral-300 hover:text-white group/details"
+          >
+            <span>
+              {detailsOpen ? 'Ocultar detalhes' : 'Ver detalhes'}
+            </span>
+            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", detailsOpen && "rotate-180")} />
+          </button>
+
+          {/* Expanded details */}
+          {detailsOpen && (
+            <div className="space-y-4 border-t border-white/10 pt-4">
+              {/* Overview */}
+              <div>
+                <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">
+                  {media.overview || 'Sem descrição disponível.'}
+                </p>
+              </div>
+
+              {/* Meta info */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                {media.original_lang && (
+                  <div className="flex items-center gap-1.5 text-neutral-400">
+                    <Languages className="w-3.5 h-3.5" />
+                    <span>{media.original_lang.toUpperCase()}</span>
+                  </div>
+                )}
+                {media.popularity != null && (
+                  <div className="flex items-center gap-1.5 text-neutral-400">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>{Math.round(media.popularity)}</span>
+                  </div>
+                )}
+                {media.media_type === 'tv' && media.seasons_count != null && (
+                  <div className="text-neutral-400">
+                    {media.seasons_count} temporada{media.seasons_count !== 1 ? 's' : ''}
+                  </div>
+                )}
+                {media.media_type === 'tv' && media.episodes_count != null && (
+                  <div className="text-neutral-400">
+                    {media.episodes_count} episódio{media.episodes_count !== 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+
+              {/* Added by */}
+              {item.added_by_user && (
+                <div className="flex items-center gap-2 text-xs text-neutral-400">
+                  <span>Adicionado por</span>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-200">
+                    <UserAvatar
+                      avatarUrl={item.added_by_user.avatar_url}
+                      name={item.added_by_user.username || item.added_by_user.email}
+                      size="xs"
+                    />
+                    <span>{item.added_by_user.username || item.added_by_user.email}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Genres */}
+              {media.genres && media.genres.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {media.genres.map((g) => (
+                    <span
+                      key={g.id}
+                      className="px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-neutral-300"
+                    >
+                      {g.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Comments */}
+              <CommentSection
+                listId={listId}
+                movieId={item.movie_id}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                currentUserAvatarUrl={currentUserAvatarUrl}
+                isOpen={detailsOpen}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

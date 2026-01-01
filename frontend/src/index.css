@@ -3,14 +3,39 @@
 @tailwind utilities;
 
 @layer base {
-  html, body, #root {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 0 0% 80%;
+    --radius: 0.75rem;
+  }
+
+  :root {
     height: 100%;
     margin: 0;
     padding: 0;
   }
+
   body {
-    @apply bg-black text-white antialiased;
+    @apply bg-background text-foreground antialiased;
   }
+
   a {
     @apply underline underline-offset-2 hover:opacity-80;
   }
@@ -45,5 +70,3 @@
     @apply mt-4 text-sm text-neutral-300;
   }
 }
-
-
