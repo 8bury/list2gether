@@ -138,7 +138,7 @@ export default function ListPage() {
   }, [loading])
 
   const handleChangeRating = async (movieId: number, value: number) => {
-    if (!parsedId || Number.isNaN(parsedId)) return
+    if (!parsedId || Number.isNaN(parsedId) || currentUserId == null) return
     setUpdatingRatingId(movieId)
     const previousItems = items
 
@@ -148,7 +148,7 @@ export default function ListPage() {
         prev.map((it) => {
           if (it.movie_id !== movieId) return it
           const yourEntry = it.your_entry ?? {
-            user_id: currentUserId!,
+            user_id: currentUserId,
             rating: null,
             status: it.status,
             created_at: new Date().toISOString(),
