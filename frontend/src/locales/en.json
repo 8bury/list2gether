@@ -101,20 +101,21 @@
     "confirmLeaveText": "Are you sure you want to leave the list \"{{name}}\"? Your ratings and notes will be removed.",
     "leaving": "Leaving…"
   },
-  "auth": {
-    "email": "Email",
-    "password": "Password",
-    "username": "Username",
-    "signIn": "Sign in",
-    "signingIn": "Signing in…",
-    "register": "Create account",
-    "creating": "Creating…",
-    "forgot": "Forgot Password?",
-    "noAccount": "Don't have an account yet?",
-    "registerLink": "Register for free",
-    "hasAccount": "Already have an account?",
-    "signInLink": "Sign in"
-  },
+   "auth": {
+     "email": "Email",
+     "password": "Password",
+     "username": "Username",
+     "signIn": "Sign in",
+     "signingIn": "Signing in…",
+     "register": "Create account",
+     "creating": "Creating…",
+     "registerSuccess": "Registration complete. You can now log in.",
+     "forgot": "Forgot Password?",
+     "noAccount": "Don't have an account yet?",
+     "registerLink": "Register for free",
+     "hasAccount": "Already have an account?",
+     "signInLink": "Sign in"
+   },
    "misc": {
      "back": "Back",
      "loading": "Loading…",

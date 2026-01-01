@@ -114,39 +114,45 @@ export default function HomePage() {
     }
   }
 
-  const handleCreate = async () => {
-    if (!createName.trim()) return
-    setCreating(true)
-    try {
-      await createList({ name: createName.trim(), description: createDescription.trim() || undefined })
-      setCreateName('')
-      setCreateDescription('')
-      setPopoverOpen(false)
-      const res = await getUserLists()
-      setLists(res.lists)
-    } catch (err) {
-      const message = (err as any)?.payload?.error || (err as Error).message
-      setError(message)
-    } finally {
-      setCreating(false)
-    }
-  }
+   const handleCreate = async () => {
+     if (!createName.trim()) return
+     setCreating(true)
+     try {
+       await createList({ name: createName.trim(), description: createDescription.trim() || undefined })
+       setCreateName('')
+       setCreateDescription('')
+       setPopoverOpen(false)
+       const res = await getUserLists()
+       setLists(res.lists)
+     } catch (err) {
+       const message = (err as any)?.payload?.error || (err as Error).message
+       setError(message)
+       if ((err as any)?.status === 401) {
+         clearAuth()
+       }
+     } finally {
+       setCreating(false)
+     }
+   }
 
-  const handleJoin = async () => {
-    if (!inviteCode.trim()) return
-    setJoining(true)
-    try {
-      const res = await joinList(inviteCode.trim())
-      setInviteCode('')
-      setPopoverOpen(false)
-      navigate(`/list/${res.list.id}`)
-    } catch (err) {
-      const message = (err as any)?.payload?.error || (err as Error).message
-      setError(message)
-    } finally {
-      setJoining(false)
-    }
-  }
+   const handleJoin = async () => {
+     if (!inviteCode.trim()) return
+     setJoining(true)
+     try {
+       const res = await joinList(inviteCode.trim())
+       setInviteCode('')
+       setPopoverOpen(false)
+       navigate(`/list/${res.list.id}`)
+     } catch (err) {
+       const message = (err as any)?.payload?.error || (err as Error).message
+       setError(message)
+       if ((err as any)?.status === 401) {
+         clearAuth()
+       }
+     } finally {
+       setJoining(false)
+     }
+   }
 
   return (
     <div className="min-h-screen bg-black text-white">

@@ -101,20 +101,21 @@
     "confirmLeaveText": "Tem certeza de que deseja sair da lista \"{{name}}\"? Suas avaliações e notas serão removidas.",
     "leaving": "Saindo…"
   },
-  "auth": {
-    "email": "Email",
-    "password": "Senha",
-    "username": "Usuário",
-    "signIn": "Entrar",
-    "signingIn": "Entrando…",
-    "register": "Criar conta",
-    "creating": "Criando…",
-    "forgot": "Esqueceu a senha?",
-    "noAccount": "Ainda não tem conta?",
-    "registerLink": "Cadastre-se grátis",
-    "hasAccount": "Já tem uma conta?",
-    "signInLink": "Entrar"
-  },
+   "auth": {
+     "email": "Email",
+     "password": "Senha",
+     "username": "Usuário",
+     "signIn": "Entrar",
+     "signingIn": "Entrando…",
+     "register": "Criar conta",
+     "creating": "Criando…",
+     "registerSuccess": "Registro concluído. Você já pode fazer login.",
+     "forgot": "Esqueceu a senha?",
+     "noAccount": "Ainda não tem conta?",
+     "registerLink": "Cadastre-se grátis",
+     "hasAccount": "Já tem uma conta?",
+     "signInLink": "Entrar"
+   },
    "misc": {
      "back": "Voltar",
      "loading": "Carregando…",

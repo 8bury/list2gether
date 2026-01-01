@@ -83,13 +83,6 @@ export default function LoginPage() {
               />
             </label>
 
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400"></span>
-              <button type="button" className="text-sm text-gray-300 underline underline-offset-2 hover:opacity-80">
-                {t('auth.forgot')}
-              </button>
-            </div>
-
             <Button className="mt-2 w-full" type="submit" disabled={isSubmitting}>
               {isSubmitting ? t('auth.signingIn') : t('auth.signIn')}
             </Button>
