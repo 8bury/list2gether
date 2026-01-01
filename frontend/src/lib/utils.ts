@@ -43,3 +43,13 @@ export function getRelativeTime(dateStr: string, locale: 'pt' | 'en' = 'pt'): st
   if (diffMonth < 12) return `há ${diffMonth} ${diffMonth === 1 ? 'mês' : 'meses'}`
   return `há ${diffYear} ${diffYear === 1 ? 'ano' : 'anos'}`
 }
+
+export function shuffle<T>(array: T[]): T[] {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+

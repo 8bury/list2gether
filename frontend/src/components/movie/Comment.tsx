@@ -22,17 +22,26 @@ function getDisplayName(comment: CommentDTO) {
 export function Comment({ comment, currentUserId, onEdit, onDelete, isEditing, isDeleting }: CommentProps) {
   const [editMode, setEditMode] = useState(false)
   const [editContent, setEditContent] = useState(comment.content)
+  const [localError, setLocalError] = useState<string | null>(null)
 
   const handleSave = async () => {
     if (!editContent.trim()) return
-    await onEdit(comment.id, editContent.trim())
-    setEditMode(false)
+    setLocalError(null)
+    try {
+      await onEdit(comment.id, editContent.trim())
+      setEditMode(false)
+    } catch (err) {
+      console.error('Failed to update comment:', err)
+      setLocalError('Falha ao salvar comentário. Tente novamente.')
+    }
   }
 
   const handleCancel = () => {
     setEditContent(comment.content)
     setEditMode(false)
+    setLocalError(null)
   }
+
 
   const isOwn = currentUserId === comment.user_id
 
@@ -57,10 +66,14 @@ export function Comment({ comment, currentUserId, onEdit, onDelete, isEditing, i
             <Textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
-              className="min-h-[60px]"
+              className={`min-h-[60px] ${localError ? 'border-rose-500/50 focus:border-rose-500' : ''}`}
               autoFocus
             />
+            {localError && (
+              <p className="text-xs text-rose-400">{localError}</p>
+            )}
             <div className="flex gap-2">
+
               <Button
                 size="sm"
                 onClick={handleSave}
@@ -86,7 +99,11 @@ export function Comment({ comment, currentUserId, onEdit, onDelete, isEditing, i
             {isOwn && (
               <div className="mt-2 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                  onClick={() => setEditMode(true)}
+                  onClick={() => {
+                    setLocalError(null)
+                    setEditMode(true)
+                  }}
+
                   className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
                   <Pencil className="w-3 h-3" />

@@ -218,9 +218,15 @@ export default function ListPage() {
   const handleAddMovie = async (result: SearchResultDTO) => {
     if (!parsedId || Number.isNaN(parsedId)) return
 
-    await addListMovie(parsedId, { id: String(result.id), media_type: result.media_type })
-    const res = await getListMovies(parsedId)
-    applyItems(res)
+    try {
+      await addListMovie(parsedId, { id: String(result.id), media_type: result.media_type })
+      const res = await getListMovies(parsedId)
+      applyItems(res)
+    } catch (err) {
+      const message = (err as any)?.payload?.error || (err as Error).message
+      setError(message)
+      if ((err as any)?.status === 401) clearAuth()
+    }
   }
 
   // Filtered items

@@ -1,6 +1,7 @@
 import { Input } from '@/components/ui/input'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useTranslation } from 'react-i18next'
 
 interface SearchInputProps {
   value: string
@@ -19,6 +20,8 @@ export function SearchInput({
   autoFocus,
   onKeyDown,
 }: SearchInputProps) {
+  const { t } = useTranslation()
+  
   return (
     <div className={cn('relative', className)}>
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
@@ -36,6 +39,7 @@ export function SearchInput({
           type="button"
           onClick={() => onChange('')}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+          aria-label={t('misc.clearSearch')}
         >
           <X className="w-4 h-4" />
         </button>

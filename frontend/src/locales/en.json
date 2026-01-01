@@ -115,13 +115,14 @@
     "hasAccount": "Already have an account?",
     "signInLink": "Sign in"
   },
-  "misc": {
-    "back": "Back",
-    "loading": "Loading…",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "deleting": "Deleting…"
-  },
+   "misc": {
+     "back": "Back",
+     "loading": "Loading…",
+     "cancel": "Cancel",
+     "delete": "Delete",
+     "deleting": "Deleting…",
+     "clearSearch": "Clear search"
+   },
   "comments": {
     "title": "Comments",
     "placeholder": "Write a comment...",
@@ -151,7 +152,7 @@
     "saving": "Saving…",
     "saved": "Profile updated successfully!"
   },
-  "lucky": {
+"lucky": {
     "button": "I'm Feeling Lucky",
     "title": "I'm Feeling Lucky",
     "spinning": "Drawing...",
@@ -161,6 +162,12 @@
     "close": "Close",
     "spinAgain": "Spin again",
     "spinTooltip": "Draw a movie to watch"
+  },
+  "status": {
+    "not_watched": "Not Watched",
+    "watching": "Watching",
+    "watched": "Watched",
+    "dropped": "Dropped"
   }
 }
 

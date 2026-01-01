@@ -1,22 +1,19 @@
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { MovieStatus } from '@/services/lists'
 
-const statusConfig: Record<MovieStatus, { label: string; variant: 'not_watched' | 'watching' | 'watched' | 'dropped' }> = {
+const statusConfig: Record<MovieStatus, { variant: 'not_watched' | 'watching' | 'watched' | 'dropped' }> = {
   not_watched: {
-    label: 'Não Assistido',
     variant: 'not_watched',
   },
   watching: {
-    label: 'Assistindo',
     variant: 'watching',
   },
   watched: {
-    label: 'Assistido',
     variant: 'watched',
   },
   dropped: {
-    label: 'Abandonado',
     variant: 'dropped',
   },
 }
@@ -27,12 +24,13 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
+  const { t } = useTranslation()
   const config = statusConfig[status]
   return (
     <Badge variant={config.variant} className={cn(className)}>
-      {config.label}
+      {t(`status.${status}`)}
     </Badge>
   )
 }
 
-export { statusConfig }
+

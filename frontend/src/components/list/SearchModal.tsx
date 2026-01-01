@@ -26,17 +26,27 @@ export function SearchModal({ open, onOpenChange, onSelect }: SearchModalProps) 
 
   // Debounced search
   useEffect(() => {
-    if (!open) return
+    const cleanup = () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        debounceRef.current = null
+      }
+      if (abortRef.current) {
+        abortRef.current.abort()
+        abortRef.current = null
+      }
+    }
 
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (abortRef.current) abortRef.current.abort()
+    if (!open) return cleanup
+
+    cleanup()
 
     const q = query.trim()
     if (q.length < 2) {
       setResults([])
       setError(null)
       setLoading(false)
-      return
+      return cleanup
     }
 
     setLoading(true)
@@ -63,6 +73,8 @@ export function SearchModal({ open, onOpenChange, onSelect }: SearchModalProps) 
         }
       }
     }, 300)
+
+    return cleanup
   }, [query, open])
 
   // Auto-focus input
