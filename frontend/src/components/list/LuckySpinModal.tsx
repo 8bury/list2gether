@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { Sparkles, X, ExternalLink } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { X, RotateCcw } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 
 interface LuckySpinModalProps {
   open: boolean
@@ -11,6 +10,7 @@ interface LuckySpinModalProps {
     movie_id: number
     movie: {
       title: string
+      original_title?: string | null
       poster_path?: string | null
       poster_url?: string | null
       media_type: 'movie' | 'tv'
@@ -19,182 +19,229 @@ interface LuckySpinModalProps {
 }
 
 export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProps) {
-  const [spinning, setSpinning] = useState(false)
+  const [isSpinning, setIsSpinning] = useState(false)
   const [selectedMovie, setSelectedMovie] = useState<any>(null)
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0)
   const [spinItems, setSpinItems] = useState<any[]>([])
-  const intervalRef = useRef<number | null>(null)
+  const spinContainerRef = useRef<HTMLDivElement | null>(null)
+  const animationRef = useRef<number | null>(null)
 
+  // Reset state when modal closes
   useEffect(() => {
     if (!open) {
-      setSpinning(false)
+      setIsSpinning(false)
       setSelectedMovie(null)
       setSpinItems([])
-      setCurrentIndex(0)
-      if (intervalRef.current) clearInterval(intervalRef.current)
+      setCurrentDisplayIndex(0)
+      if (animationRef.current) {
+        clearTimeout(animationRef.current)
+        animationRef.current = null
+      }
     }
   }, [open])
 
-  const startSpin = () => {
-    if (items.length === 0 || spinning) return
+  const startSpin = useCallback(() => {
+    if (items.length === 0 || isSpinning) return
 
-    setSpinning(true)
-    setSelectedMovie(null)
+    // Select a random winner
+    const winnerIndex = Math.floor(Math.random() * items.length)
+    const winner = items[winnerIndex]
 
-    // Create randomized list for spinning effect
-    const shuffled = [...items].sort(() => Math.random() - 0.5)
-    setSpinItems(shuffled)
-    setCurrentIndex(0)
+    // Create array of items for the animation (need at least 25 items before winner)
+    const minItemsBefore = 25
+    const itemsAfterWinner = 10
+    let spinArray: any[] = []
 
-    let count = 0
-    const totalSpins = 20 + Math.floor(Math.random() * 10) // 20-30 spins
-    let currentDelay = 50 // Start fast
-
-    const spin = () => {
-      count++
-      setCurrentIndex((prev) => (prev + 1) % shuffled.length)
-
-      // Gradually slow down
-      if (count > totalSpins * 0.7) {
-        currentDelay += 20
-      }
-
-      if (count >= totalSpins) {
-        // Stop spinning
-        if (intervalRef.current) clearInterval(intervalRef.current)
-        setSpinning(false)
-
-        // Select final movie
-        const finalIndex = Math.floor(Math.random() * shuffled.length)
-        setSelectedMovie(shuffled[finalIndex])
-        setCurrentIndex(finalIndex)
-      } else {
-        intervalRef.current = window.setTimeout(spin, currentDelay)
-      }
+    while (spinArray.length < minItemsBefore) {
+      // Shuffle items to vary the order
+      const shuffled = [...items].sort(() => Math.random() - 0.5)
+      spinArray = spinArray.concat(shuffled)
     }
 
-    intervalRef.current = window.setTimeout(spin, currentDelay)
-  }
+    // Add the winner at a specific position
+    const winnerPosition = spinArray.length
+    spinArray.push(winner)
 
-  const currentItem = spinItems[currentIndex]
-  const posterUrl = currentItem?.movie.poster_url ||
-    (currentItem?.movie.poster_path ? `https://image.tmdb.org/t/p/w500${currentItem.movie.poster_path}` : null)
+    // Add more items after the winner to fill the modal
+    let afterWinner: any[] = []
+    while (afterWinner.length < itemsAfterWinner) {
+      const shuffled = [...items].sort(() => Math.random() - 0.5)
+      afterWinner = afterWinner.concat(shuffled)
+    }
+    spinArray = spinArray.concat(afterWinner.slice(0, itemsAfterWinner))
+
+    setSpinItems(spinArray)
+    setSelectedMovie(null)
+    setCurrentDisplayIndex(0)
+    setIsSpinning(true)
+
+    // Animation with gradual slowdown
+    const totalDuration = 3500 // ms
+    let currentIndex = 0
+    let elapsed = 0
+    const baseInterval = 50 // fast initial interval
+
+    const animateNames = () => {
+      if (currentIndex >= winnerPosition) {
+        // Reached the winner - stop
+        setCurrentDisplayIndex(winnerPosition)
+        setSelectedMovie(winner)
+        setIsSpinning(false)
+        return
+      }
+
+      // Calculate delay with exponential deceleration
+      const progress = elapsed / totalDuration
+      const delay = baseInterval + (progress * progress * 300)
+
+      animationRef.current = window.setTimeout(() => {
+        currentIndex++
+        elapsed += delay
+        setCurrentDisplayIndex(currentIndex)
+        animateNames()
+      }, delay)
+    }
+
+    animateNames()
+  }, [items, isSpinning])
+
+  const getPosterUrl = (item: any) => {
+    return item?.movie?.poster_url ||
+      (item?.movie?.poster_path ? `https://image.tmdb.org/t/p/w500${item.movie.poster_path}` : null)
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden bg-gradient-to-br from-neutral-950 via-black to-neutral-950 border-2 border-white/20">
-        {/* Close button */}
-        <button
-          onClick={() => onOpenChange(false)}
-          className="absolute right-4 top-4 z-10 rounded-full p-2 bg-black/50 hover:bg-black/70 text-white transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
+      <DialogContent className="sm:max-w-2xl p-0 overflow-hidden bg-neutral-950 border border-white/10">
+        {/* Header */}
+        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 3c.83 0 1.5.67 1.5 1.5S12.33 9 11.5 9 10 8.33 10 7.5 10.67 6 11.5 6zM8.5 9C7.67 9 7 8.33 7 7.5S7.67 6 8.5 6 10 6.67 10 7.5 9.33 9 8.5 9zM12 15c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3.5-6c-.83 0-1.5-.67-1.5-1.5S14.67 6 15.5 6s1.5.67 1.5 1.5S16.33 9 15.5 9zm-7 9c-.83 0-1.5-.67-1.5-1.5S7.67 15 8.5 15s1.5.67 1.5 1.5S9.33 18 8.5 18zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+            </svg>
+            {isSpinning ? 'Sorteando...' : 'Estou com Sorte'}
+          </h3>
+          <button
+            className="text-neutral-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 rounded p-1"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-        <div className="p-8 text-center">
-          {/* Title */}
-          <div className="mb-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/30 mb-3">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span className="text-sm font-semibold text-amber-300">Estou com Sorte</span>
-            </div>
-            <h2 className="text-2xl font-bold bg-gradient-to-br from-white via-neutral-200 to-neutral-500 bg-clip-text text-transparent">
-              {selectedMovie ? 'Escolhido!' : spinning ? 'Selecionando...' : 'Escolha Aleatória'}
-            </h2>
-          </div>
-
-          {/* Movie display */}
+        {/* Slot Machine Container */}
+        <div className="p-6">
           {items.length === 0 ? (
-            <div className="py-12 text-neutral-400">
+            <div className="py-12 text-center text-neutral-400">
               Nenhum filme não assistido disponível
             </div>
-          ) : currentItem ? (
-            <div className="space-y-6">
-              {/* Poster with spinning effect */}
-              <div className={cn(
-                "relative mx-auto w-48 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl transition-all duration-300",
-                spinning && "animate-pulse scale-105"
-              )}>
-                {posterUrl ? (
-                  <img
-                    src={posterUrl}
-                    alt={currentItem.movie.title}
-                    className={cn(
-                      "w-full h-full object-cover transition-transform duration-200",
-                      spinning && "scale-110"
-                    )}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                    <Sparkles className="w-16 h-16 text-neutral-600" />
-                  </div>
-                )}
+          ) : spinItems.length === 0 ? (
+            // Initial state - show spin button
+            <div className="py-12 text-center">
+              <p className="text-neutral-400 mb-6">
+                Escolha um filme aleatório da sua lista de não assistidos
+              </p>
+              <Button
+                onClick={startSpin}
+                size="lg"
+                className="gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold"
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 3c.83 0 1.5.67 1.5 1.5S12.33 9 11.5 9 10 8.33 10 7.5 10.67 6 11.5 6zM8.5 9C7.67 9 7 8.33 7 7.5S7.67 6 8.5 6 10 6.67 10 7.5 9.33 9 8.5 9zM12 15c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3.5-6c-.83 0-1.5-.67-1.5-1.5S14.67 6 15.5 6s1.5.67 1.5 1.5S16.33 9 15.5 9zm-7 9c-.83 0-1.5-.67-1.5-1.5S7.67 15 8.5 15s1.5.67 1.5 1.5S9.33 18 8.5 18zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                </svg>
+                Escolher para Mim
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Slot window with gradient masks */}
+              <div className="relative">
+                {/* Gradient masks for slot effect */}
+                <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-neutral-950 to-transparent z-10 pointer-events-none" />
+                <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-neutral-950 to-transparent z-10 pointer-events-none" />
 
-                {/* Glow effect when selected */}
-                {selectedMovie && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-amber-500/30 via-transparent to-transparent animate-pulse" />
-                )}
+                {/* Center indicator */}
+                <div className="absolute left-1/2 top-0 bottom-0 w-[120px] -translate-x-1/2 border-2 border-white/50 rounded-lg z-20 pointer-events-none">
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45" />
+                </div>
+
+                {/* Posters container */}
+                <div
+                  ref={spinContainerRef}
+                  className="overflow-hidden rounded-lg bg-neutral-900/50 border border-white/5"
+                >
+                  <div
+                    className="flex transition-transform ease-out"
+                    style={{
+                      transform: `translateX(calc(50% - ${currentDisplayIndex * 120 + 60}px))`,
+                      transitionDuration: isSpinning ? '150ms' : '500ms',
+                    }}
+                  >
+                    {spinItems.map((item, idx) => {
+                      const posterUrl = getPosterUrl(item)
+                      const isCenter = idx === currentDisplayIndex
+                      return (
+                        <div
+                          key={`${item.movie_id}-${idx}`}
+                          className={`flex-shrink-0 w-[120px] p-2 transition-all duration-150 ${
+                            isCenter ? 'scale-105' : 'scale-95 opacity-60'
+                          }`}
+                        >
+                          {posterUrl ? (
+                            <img
+                              src={posterUrl}
+                              alt={item.movie.title}
+                              className="w-full aspect-[2/3] object-cover rounded-lg shadow-lg"
+                            />
+                          ) : (
+                            <div className="w-full aspect-[2/3] bg-white/5 rounded-lg grid place-items-center text-[10px] text-neutral-400">
+                              Sem poster
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
 
-              {/* Title */}
-              <div>
-                <h3 className={cn(
-                  "text-xl font-bold transition-all duration-300",
-                  selectedMovie
-                    ? "bg-gradient-to-r from-amber-200 via-amber-300 to-amber-500 bg-clip-text text-transparent scale-110"
-                    : "text-white"
-                )}>
-                  {currentItem.movie.title}
-                </h3>
-                <p className="text-sm text-neutral-400 mt-1">
-                  {currentItem.movie.media_type === 'movie' ? 'Filme' : 'Série'}
-                </p>
+              {/* Movie name display */}
+              <div className="mt-6 text-center min-h-[80px]">
+                {spinItems.length > 0 && (
+                  <div className={`transition-all duration-300 ${!isSpinning && selectedMovie ? 'scale-110' : ''}`}>
+                    {!isSpinning && selectedMovie ? (
+                      <>
+                        <p className="text-sm text-neutral-400 mb-2">Você vai assistir:</p>
+                        <h4 className="text-2xl font-bold text-white">
+                          {selectedMovie.movie.title}
+                        </h4>
+                        {selectedMovie.movie.original_title && selectedMovie.movie.original_title !== selectedMovie.movie.title && (
+                          <p className="text-sm text-neutral-400 mt-1">{selectedMovie.movie.original_title}</p>
+                        )}
+                      </>
+                    ) : (
+                      <h4 className="text-xl font-semibold text-neutral-300 truncate px-4">
+                        {spinItems[currentDisplayIndex]?.movie.title || '...'}
+                      </h4>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
-              {!spinning && (
-                <div className="flex gap-3 justify-center">
-                  {selectedMovie ? (
-                    <>
-                      <Button
-                        onClick={startSpin}
-                        variant="outline"
-                        className="gap-2"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Tentar Novamente
-                      </Button>
-                      <Button
-                        onClick={() => onOpenChange(false)}
-                        className="gap-2"
-                      >
-                        Confirmar Escolha
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={startSpin}
-                      size="lg"
-                      className="gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold"
-                    >
-                      <Sparkles className="w-5 h-5" />
-                      Escolher para Mim
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : (
-            <Button
-              onClick={startSpin}
-              disabled={spinning}
-              size="lg"
-              className="gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold"
-            >
-              <Sparkles className="w-5 h-5" />
-              {spinning ? 'Escolhendo...' : 'Escolher para Mim'}
-            </Button>
+              <div className="mt-6 flex justify-center gap-3">
+                {!isSpinning && selectedMovie && (
+                  <Button
+                    onClick={startSpin}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Sortear Novamente
+                  </Button>
+                )}
+              </div>
+            </>
           )}
         </div>
       </DialogContent>
