@@ -1,28 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { X, RotateCcw } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { shuffle } from '@/lib/utils'
+
+interface MovieItem {
+  movie_id: number
+  movie: {
+    title: string
+    original_title?: string | null
+    poster_path?: string | null
+    poster_url?: string | null
+    media_type: 'movie' | 'tv'
+  }
+}
 
 interface LuckySpinModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  items: Array<{
-    movie_id: number
-    movie: {
-      title: string
-      original_title?: string | null
-      poster_path?: string | null
-      poster_url?: string | null
-      media_type: 'movie' | 'tv'
-    }
-  }>
+  items: MovieItem[]
 }
 
 export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProps) {
+  const { t } = useTranslation()
   const [isSpinning, setIsSpinning] = useState(false)
-  const [selectedMovie, setSelectedMovie] = useState<any>(null)
+  const [selectedMovie, setSelectedMovie] = useState<MovieItem | null>(null)
   const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0)
-  const [spinItems, setSpinItems] = useState<any[]>([])
+  const [spinItems, setSpinItems] = useState<MovieItem[]>([])
   const spinContainerRef = useRef<HTMLDivElement | null>(null)
   const animationRef = useRef<number | null>(null)
 
@@ -50,24 +55,26 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
     // Create array of items for the animation (need at least 25 items before winner)
     const minItemsBefore = 25
     const itemsAfterWinner = 10
-    let spinArray: any[] = []
+    let spinArray: MovieItem[] = []
 
     while (spinArray.length < minItemsBefore) {
       // Shuffle items to vary the order
-      const shuffled = [...items].sort(() => Math.random() - 0.5)
+      const shuffled = shuffle(items)
       spinArray = spinArray.concat(shuffled)
     }
+
 
     // Add the winner at a specific position
     const winnerPosition = spinArray.length
     spinArray.push(winner)
 
     // Add more items after the winner to fill the modal
-    let afterWinner: any[] = []
+    let afterWinner: MovieItem[] = []
     while (afterWinner.length < itemsAfterWinner) {
-      const shuffled = [...items].sort(() => Math.random() - 0.5)
+      const shuffled = shuffle(items)
       afterWinner = afterWinner.concat(shuffled)
     }
+
     spinArray = spinArray.concat(afterWinner.slice(0, itemsAfterWinner))
 
     setSpinItems(spinArray)
@@ -90,7 +97,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
         return
       }
 
-      // Calculate delay with exponential deceleration
+      // Calculate delay with quadratic easing (deceleration)
       const progress = elapsed / totalDuration
       const delay = baseInterval + (progress * progress * 300)
 
@@ -105,28 +112,22 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
     animateNames()
   }, [items, isSpinning])
 
-  const getPosterUrl = (item: any) => {
-    return item?.movie?.poster_url ||
-      (item?.movie?.poster_path ? `https://image.tmdb.org/t/p/w500${item.movie.poster_path}` : null)
+  const getPosterUrl = (item: MovieItem) => {
+    return item.movie.poster_url ||
+      (item.movie.poster_path ? `https://image.tmdb.org/t/p/w500${item.movie.poster_path}` : null)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl p-0 overflow-hidden bg-neutral-950 border border-white/10">
+      <DialogContent closeLabel={t('lucky.close')} className="sm:max-w-2xl p-0 overflow-hidden bg-neutral-950 border border-white/10">
         {/* Header */}
-        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+        <div className="p-4 border-b border-white/10 bg-white/5">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
               <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 3c.83 0 1.5.67 1.5 1.5S12.33 9 11.5 9 10 8.33 10 7.5 10.67 6 11.5 6zM8.5 9C7.67 9 7 8.33 7 7.5S7.67 6 8.5 6 10 6.67 10 7.5 9.33 9 8.5 9zM12 15c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3.5-6c-.83 0-1.5-.67-1.5-1.5S14.67 6 15.5 6s1.5.67 1.5 1.5S16.33 9 15.5 9zm-7 9c-.83 0-1.5-.67-1.5-1.5S7.67 15 8.5 15s1.5.67 1.5 1.5S9.33 18 8.5 18zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
             </svg>
             {isSpinning ? 'Sorteando...' : 'Estou com Sorte'}
           </h3>
-          <button
-            className="text-neutral-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40 rounded p-1"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         {/* Slot Machine Container */}

@@ -26,11 +26,7 @@
     --radius: 0.75rem;
   }
 
-  * {
-    @apply border-border;
-  }
-
-  html, body, #root {
+  :root {
     height: 100%;
     margin: 0;
     padding: 0;

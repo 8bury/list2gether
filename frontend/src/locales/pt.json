@@ -115,13 +115,14 @@
     "hasAccount": "Já tem uma conta?",
     "signInLink": "Entrar"
   },
-  "misc": {
-    "back": "Voltar",
-    "loading": "Carregando…",
-    "cancel": "Cancelar",
-    "delete": "Excluir",
-    "deleting": "Excluindo…"
-  },
+   "misc": {
+     "back": "Voltar",
+     "loading": "Carregando…",
+     "cancel": "Cancelar",
+     "delete": "Excluir",
+     "deleting": "Excluindo…",
+     "clearSearch": "Limpar busca"
+   },
   "comments": {
     "title": "Comentários",
     "placeholder": "Escreva um comentário...",
@@ -151,7 +152,7 @@
     "saving": "Salvando…",
     "saved": "Perfil atualizado com sucesso!"
   },
-  "lucky": {
+"lucky": {
     "button": "Estou com sorte",
     "title": "Estou com sorte",
     "spinning": "Sorteando...",
@@ -161,6 +162,12 @@
     "close": "Fechar",
     "spinAgain": "Sortear novamente",
     "spinTooltip": "Sortear um filme para assistir"
+  },
+  "status": {
+    "not_watched": "Não Assistido",
+    "watching": "Assistindo",
+    "watched": "Assistido",
+    "dropped": "Abandonado"
   }
 }
 

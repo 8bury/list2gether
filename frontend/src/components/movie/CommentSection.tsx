@@ -23,7 +23,15 @@ export function CommentSection({ listId, movieId, currentUserId, currentUserName
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null)
   const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const commentsLoadedRef = useRef(false)
+
+  // Reset loaded state when listId or movieId changes
+  useEffect(() => {
+    commentsLoadedRef.current = false
+    setComments([])
+    setCommentsTotal(0)
+  }, [listId, movieId])
 
   // Load comments when section opens
   useEffect(() => {
@@ -35,7 +43,10 @@ export function CommentSection({ listId, movieId, currentUserId, currentUserName
           setComments(res.comments)
           setCommentsTotal(res.pagination.total)
         })
-        .catch(() => {})
+        .catch((err) => {
+          console.error('Failed to load comments:', err)
+          setError('Failed to load comments. Please try again.')
+        })
         .finally(() => setCommentsLoading(false))
     }
   }, [isOpen, listId, movieId])
@@ -48,7 +59,11 @@ export function CommentSection({ listId, movieId, currentUserId, currentUserName
       setComments((prev) => [res.comment, ...prev])
       setCommentsTotal((prev) => prev + 1)
       setCommentInput('')
-    } catch {}
+      setError(null)
+    } catch (err) {
+      console.error('Failed to create comment:', err)
+      setError('Failed to create comment. Please try again.')
+    }
     setCommentSubmitting(false)
   }
 
@@ -58,7 +73,11 @@ export function CommentSection({ listId, movieId, currentUserId, currentUserName
     try {
       const res = await updateComment(listId, movieId, commentId, content)
       setComments((prev) => prev.map((c) => (c.id === commentId ? res.comment : c)))
-    } catch {}
+      setError(null)
+    } catch (err) {
+      console.error('Failed to update comment:', err)
+      setError('Failed to update comment. Please try again.')
+    }
     setEditingCommentId(null)
     setCommentSubmitting(false)
   }
@@ -69,7 +88,11 @@ export function CommentSection({ listId, movieId, currentUserId, currentUserName
       await deleteComment(listId, movieId, commentId)
       setComments((prev) => prev.filter((c) => c.id !== commentId))
       setCommentsTotal((prev) => prev - 1)
-    } catch {}
+      setError(null)
+    } catch (err) {
+      console.error('Failed to delete comment:', err)
+      setError('Failed to delete comment. Please try again.')
+    }
     setDeletingCommentId(null)
   }
 
@@ -82,6 +105,20 @@ export function CommentSection({ listId, movieId, currentUserId, currentUserName
           <span className="text-xs font-normal text-neutral-400">({commentsTotal})</span>
         )}
       </h4>
+
+      {/* Error alert */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-md flex items-start justify-between gap-3">
+          <p className="text-sm text-red-400">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-400 hover:text-red-300 font-bold"
+            aria-label="Close error"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* New comment input */}
       <div className="flex gap-3 mb-4">
