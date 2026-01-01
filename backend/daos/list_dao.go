@@ -152,6 +152,7 @@ func (d *movieListDAO) FindUserMemberships(userID int64, role *models.ListMember
 	q := d.db.Model(&models.ListMember{}).
 		Joins("JOIN movie_lists ON movie_lists.id = list_members.list_id").
 		Where("list_members.user_id = ?", userID).
+		Where("movie_lists.deleted_at IS NULL").
 		Order("movie_lists.created_at DESC").
 		Preload("List")
 	if role != nil {
