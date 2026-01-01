@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -17,6 +17,13 @@ export default function RegistroPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (success) {
+      const timeoutId = setTimeout(() => navigate('/login'), 1000)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [success, navigate])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -24,8 +31,7 @@ export default function RegistroPage() {
     setIsSubmitting(true)
     try {
       const res = await register({ username: username.trim(), email: email.trim(), password })
-      setSuccess(res.message || 'Registro concluído. Você já pode fazer login.')
-      setTimeout(() => navigate('/login'), 1000)
+      setSuccess(res.message || t('auth.registerSuccess'))
     } catch (err) {
       const message = (err as any)?.payload?.error || (err as Error).message || 'Falha no registro'
       setError(message)
