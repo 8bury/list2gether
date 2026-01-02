@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useMemo, memo } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -22,6 +22,36 @@ interface LuckySpinModalProps {
   items: MovieItem[]
 }
 
+// Memoized poster component to prevent unnecessary re-renders
+interface PosterItemProps {
+  posterUrl: string | null
+  title: string
+  isCenter: boolean
+}
+
+const PosterItem = memo(({ posterUrl, title, isCenter }: PosterItemProps) => {
+  return (
+    <div
+      className={`flex-shrink-0 w-[120px] p-2 transition-all duration-150 ${
+        isCenter ? 'scale-105' : 'scale-95 opacity-60'
+      }`}
+    >
+      {posterUrl ? (
+        <img
+          src={posterUrl}
+          alt={title}
+          className="w-full aspect-[2/3] object-cover rounded-lg shadow-lg"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-full aspect-[2/3] bg-white/5 rounded-lg grid place-items-center text-[10px] text-neutral-400">
+          Sem poster
+        </div>
+      )}
+    </div>
+  )
+})
+
 export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProps) {
   const { t } = useTranslation()
   const [isSpinning, setIsSpinning] = useState(false)
@@ -39,7 +69,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
       setSpinItems([])
       setCurrentDisplayIndex(0)
       if (animationRef.current) {
-        clearTimeout(animationRef.current)
+        cancelAnimationFrame(animationRef.current)
         animationRef.current = null
       }
     }
@@ -52,44 +82,48 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
     const winnerIndex = Math.floor(Math.random() * items.length)
     const winner = items[winnerIndex]
 
-    // Create array of items for the animation (need at least 25 items before winner)
-    const minItemsBefore = 25
-    const itemsAfterWinner = 10
+    // Create array of items for the animation (optimized - fewer items)
+    const minItemsBefore = 15 // Reduced from 25
+    const itemsAfterWinner = 5 // Reduced from 10
     let spinArray: MovieItem[] = []
 
+    // Build the spin array more efficiently
+    const shuffled = shuffle([...items])
     while (spinArray.length < minItemsBefore) {
-      // Shuffle items to vary the order
-      const shuffled = shuffle(items)
-      spinArray = spinArray.concat(shuffled)
+      spinArray = spinArray.concat(shuffled.slice(0, Math.min(shuffled.length, minItemsBefore - spinArray.length)))
     }
-
 
     // Add the winner at a specific position
     const winnerPosition = spinArray.length
     spinArray.push(winner)
 
-    // Add more items after the winner to fill the modal
-    let afterWinner: MovieItem[] = []
-    while (afterWinner.length < itemsAfterWinner) {
-      const shuffled = shuffle(items)
-      afterWinner = afterWinner.concat(shuffled)
-    }
-
-    spinArray = spinArray.concat(afterWinner.slice(0, itemsAfterWinner))
+    // Add more items after the winner
+    spinArray = spinArray.concat(shuffled.slice(0, itemsAfterWinner))
 
     setSpinItems(spinArray)
     setSelectedMovie(null)
     setCurrentDisplayIndex(0)
     setIsSpinning(true)
 
-    // Animation with gradual slowdown
-    const totalDuration = 3500 // ms
+    // Animation with gradual slowdown - using requestAnimationFrame for better performance
+    const totalDuration = 3000 // ms (reduced from 3500)
+    const startTime = Date.now()
     let currentIndex = 0
-    let elapsed = 0
-    const baseInterval = 50 // fast initial interval
 
     const animateNames = () => {
-      if (currentIndex >= winnerPosition) {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / totalDuration, 1)
+
+      // Quadratic easing out
+      const easedProgress = 1 - Math.pow(1 - progress, 2)
+      const targetIndex = Math.floor(easedProgress * winnerPosition)
+
+      if (targetIndex > currentIndex && currentIndex < winnerPosition) {
+        currentIndex = targetIndex
+        setCurrentDisplayIndex(currentIndex)
+      }
+
+      if (currentIndex >= winnerPosition || progress >= 1) {
         // Reached the winner - stop
         setCurrentDisplayIndex(winnerPosition)
         setSelectedMovie(winner)
@@ -97,25 +131,32 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
         return
       }
 
-      // Calculate delay with quadratic easing (deceleration)
-      const progress = elapsed / totalDuration
-      const delay = baseInterval + (progress * progress * 300)
-
-      animationRef.current = window.setTimeout(() => {
-        currentIndex++
-        elapsed += delay
-        setCurrentDisplayIndex(currentIndex)
-        animateNames()
-      }, delay)
+      animationRef.current = window.requestAnimationFrame(animateNames)
     }
 
-    animateNames()
+    animationRef.current = window.requestAnimationFrame(animateNames)
   }, [items, isSpinning])
 
-  const getPosterUrl = (item: MovieItem) => {
+  const getPosterUrl = useCallback((item: MovieItem) => {
     return item.movie.poster_url ||
       (item.movie.poster_path ? `https://image.tmdb.org/t/p/w500${item.movie.poster_path}` : null)
-  }
+  }, [])
+
+  // Memoize rendered posters to prevent unnecessary re-renders
+  const renderedPosters = useMemo(() => {
+    return spinItems.map((item: MovieItem, idx: number) => {
+      const posterUrl = getPosterUrl(item)
+      const isCenter = idx === currentDisplayIndex
+      return (
+        <PosterItem
+          key={`${item.movie_id}-${idx}`}
+          posterUrl={posterUrl}
+          title={item.movie.title}
+          isCenter={isCenter}
+        />
+      )
+    })
+  }, [spinItems, currentDisplayIndex, getPosterUrl])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -172,36 +213,13 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
                   className="overflow-hidden rounded-lg bg-neutral-900/50 border border-white/5"
                 >
                   <div
-                    className="flex transition-transform ease-out"
+                    className="flex transition-transform ease-out will-change-transform"
                     style={{
                       transform: `translateX(calc(50% - ${currentDisplayIndex * 120 + 60}px))`,
                       transitionDuration: isSpinning ? '150ms' : '500ms',
                     }}
                   >
-                    {spinItems.map((item, idx) => {
-                      const posterUrl = getPosterUrl(item)
-                      const isCenter = idx === currentDisplayIndex
-                      return (
-                        <div
-                          key={`${item.movie_id}-${idx}`}
-                          className={`flex-shrink-0 w-[120px] p-2 transition-all duration-150 ${
-                            isCenter ? 'scale-105' : 'scale-95 opacity-60'
-                          }`}
-                        >
-                          {posterUrl ? (
-                            <img
-                              src={posterUrl}
-                              alt={item.movie.title}
-                              className="w-full aspect-[2/3] object-cover rounded-lg shadow-lg"
-                            />
-                          ) : (
-                            <div className="w-full aspect-[2/3] bg-white/5 rounded-lg grid place-items-center text-[10px] text-neutral-400">
-                              Sem poster
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+                    {renderedPosters}
                   </div>
                 </div>
               </div>
