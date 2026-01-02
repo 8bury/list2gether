@@ -52,6 +52,8 @@ const PosterItem = memo(({ posterUrl, title, isCenter }: PosterItemProps) => {
   )
 })
 
+PosterItem.displayName = 'PosterItem'
+
 export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProps) {
   const { t } = useTranslation()
   const [isSpinning, setIsSpinning] = useState(false)
@@ -88,7 +90,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
     let spinArray: MovieItem[] = []
 
     // Build the spin array more efficiently
-    const shuffled = shuffle([...items])
+    const shuffled = shuffle(items)
     while (spinArray.length < minItemsBefore) {
       spinArray = spinArray.concat(shuffled.slice(0, Math.min(shuffled.length, minItemsBefore - spinArray.length)))
     }
@@ -107,11 +109,11 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
 
     // Animation with gradual slowdown - using requestAnimationFrame for better performance
     const totalDuration = 3000 // ms (reduced from 3500)
-    const startTime = Date.now()
+    const startTime = performance.now()
     let currentIndex = 0
 
     const animateNames = () => {
-      const elapsed = Date.now() - startTime
+      const elapsed = performance.now() - startTime
       const progress = Math.min(elapsed / totalDuration, 1)
 
       // Quadratic easing out
