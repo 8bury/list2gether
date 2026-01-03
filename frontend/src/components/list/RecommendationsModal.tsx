@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Sparkles, Plus, Loader2, Star } from 'lucide-react'
+import { Sparkles, Plus, Loader2, Star, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { getListRecommendations, type RecommendationDTO, addListMovie } from '@/services/lists'
 
@@ -93,13 +93,29 @@ export function RecommendationsModal({ open, onOpenChange, listId, onMovieAdded 
       >
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-b from-neutral-950 via-neutral-950 to-neutral-950/95 pt-6 px-4 sm:px-6 pb-4 border-b border-white/10 z-10 backdrop-blur-sm">
-          <h3 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 animate-pulse" />
-            {t('recommendations.title')}
-          </h3>
-          <p className="text-xs sm:text-sm text-neutral-400 mt-1 sm:mt-2">
-            {t('recommendations.subtitle')}
-          </p>
+          <div className="flex items-start justify-between gap-4 mb-1 sm:mb-2">
+            <div className="flex-1">
+              <h3 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 animate-pulse" />
+                {t('recommendations.title')}
+              </h3>
+              <p className="text-xs sm:text-sm text-neutral-400 mt-1 sm:mt-2">
+                {t('recommendations.subtitle')}
+              </p>
+            </div>
+
+            {/* Close button */}
+            <DialogClose asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 rounded-full hover:bg-white/10 flex-shrink-0"
+                aria-label={t('recommendations.close')}
+              >
+                <X className="h-5 w-5 text-neutral-400 hover:text-white transition-colors" />
+              </Button>
+            </DialogClose>
+          </div>
         </div>
 
         {/* Content */}
