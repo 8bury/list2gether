@@ -153,20 +153,6 @@
     "saving": "Saving…",
     "saved": "Profile updated successfully!"
   },
-"lucky": {
-    "button": "I'm Feeling Lucky",
-    "title": "I'm Feeling Lucky",
-    "spinning": "Drawing...",
-    "result": "You're going to watch:",
-    "noMovies": "No unwatched movies available",
-    "noMoviesTooltip": "No unwatched movies in the list",
-    "close": "Close",
-    "spinAgain": "Spin again",
-    "spinTooltip": "Draw a movie to watch",
-    "description": "Choose a random movie from your unwatched list",
-    "chooseForMe": "Choose for Me",
-    "noPoster": "No poster"
-  },
   "status": {
     "not_watched": "Not Watched",
     "watching": "Watching",

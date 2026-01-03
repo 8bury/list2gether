@@ -153,20 +153,6 @@
     "saving": "Salvando…",
     "saved": "Perfil atualizado com sucesso!"
   },
-"lucky": {
-    "button": "Estou com sorte",
-    "title": "Estou com sorte",
-    "spinning": "Sorteando...",
-    "result": "Você vai assistir:",
-    "noMovies": "Nenhum filme não assistido disponível",
-    "noMoviesTooltip": "Nenhum filme não assistido na lista",
-    "close": "Fechar",
-    "spinAgain": "Sortear novamente",
-    "spinTooltip": "Sortear um filme para assistir",
-    "description": "Escolha um filme aleatório da sua lista de não assistidos",
-    "chooseForMe": "Escolher para Mim",
-    "noPoster": "Sem poster"
-  },
   "status": {
     "not_watched": "Não Assistido",
     "watching": "Assistindo",
