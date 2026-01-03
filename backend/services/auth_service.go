@@ -61,14 +61,14 @@ func (s *authService) Register(username string, email string, password string) (
 		return nil, err
 	}
 	if len(password) < 8 {
-		return nil, errors.New("Password must be at least 8 characters")
+		return nil, errors.New("password must be at least 8 characters")
 	}
 
 	if existing, _ := s.users.FindByEmail(strings.ToLower(email)); existing != nil {
-		return nil, errors.New("Email already exists")
+		return nil, errors.New("email already exists")
 	}
 	if existing, _ := s.users.FindByUsername(username); existing != nil {
-		return nil, errors.New("Username already exists")
+		return nil, errors.New("username already exists")
 	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), s.bcryptCost)
@@ -90,10 +90,10 @@ func (s *authService) Register(username string, email string, password string) (
 func (s *authService) Login(email string, password string) (*models.User, string, string, int64, error) {
 	user, err := s.users.FindByEmail(strings.ToLower(email))
 	if err != nil {
-		return nil, "", "", 0, errors.New("Invalid credentials")
+		return nil, "", "", 0, errors.New("invalid credentials")
 	}
 	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) != nil {
-		return nil, "", "", 0, errors.New("Invalid credentials")
+		return nil, "", "", 0, errors.New("invalid credentials")
 	}
 
 	accessToken, accessExp, err := s.generateAccessToken(user)
@@ -125,34 +125,34 @@ func (s *authService) Refresh(refreshToken string) (string, int64, error) {
 		return s.jwtSecret, nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
 	if err != nil || !token.Valid {
-		return "", 0, errors.New("Invalid or expired refresh token")
+		return "", 0, errors.New("invalid or expired refresh token")
 	}
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return "", 0, errors.New("Invalid or expired refresh token")
+		return "", 0, errors.New("invalid or expired refresh token")
 	}
 	if typ, ok := claims["type"].(string); !ok || typ != "refresh" {
-		return "", 0, errors.New("Invalid or expired refresh token")
+		return "", 0, errors.New("invalid or expired refresh token")
 	}
 	sub, ok := claims["sub"].(string)
 	if !ok {
-		return "", 0, errors.New("Invalid or expired refresh token")
+		return "", 0, errors.New("invalid or expired refresh token")
 	}
 	userID, err := strconv.ParseInt(sub, 10, 64)
 	if err != nil {
-		return "", 0, errors.New("Invalid or expired refresh token")
+		return "", 0, errors.New("invalid or expired refresh token")
 	}
 
 	hashed := sha256.Sum256([]byte(refreshToken))
 	tokenHash := hex.EncodeToString(hashed[:])
 	rec, err := s.refreshTokens.FindByHash(tokenHash)
 	if err != nil || rec.IsRevoked || rec.ExpiresAt.Before(time.Now().UTC()) || rec.UserID != userID {
-		return "", 0, errors.New("Invalid or expired refresh token")
+		return "", 0, errors.New("invalid or expired refresh token")
 	}
 
 	user, err := s.users.FindByID(userID)
 	if err != nil {
-		return "", 0, errors.New("Invalid or expired refresh token")
+		return "", 0, errors.New("invalid or expired refresh token")
 	}
 
 	accessToken, accessExp, err := s.generateAccessToken(user)
@@ -180,7 +180,7 @@ func (s *authService) FindUserByID(id int64) (*models.User, error) {
 func (s *authService) UpdateProfile(userID int64, username string, avatarURL string) (*models.User, error) {
 	user, err := s.users.FindByID(userID)
 	if err != nil {
-		return nil, errors.New("User not found")
+		return nil, errors.New("user not found")
 	}
 
 	// Validate username
@@ -192,7 +192,7 @@ func (s *authService) UpdateProfile(userID int64, username string, avatarURL str
 	if username != user.Username {
 		existing, _ := s.users.FindByUsername(username)
 		if existing != nil && existing.ID != userID {
-			return nil, errors.New("Username already exists")
+			return nil, errors.New("username already exists")
 		}
 	}
 
@@ -287,7 +287,7 @@ func parseInt(s string, def int) int {
 
 func validateUsername(u string) error {
 	if len(u) < 3 || len(u) > 50 {
-		return errors.New("Username must be between 3 and 50 characters")
+		return errors.New("username must be between 3 and 50 characters")
 	}
 	return nil
 }
@@ -295,7 +295,7 @@ func validateUsername(u string) error {
 func validateEmail(e string) error {
 	e = strings.TrimSpace(e)
 	if e == "" || !strings.Contains(e, "@") || len(e) > 255 {
-		return errors.New("Invalid email")
+		return errors.New("invalid email")
 	}
 	return nil
 }
@@ -305,10 +305,10 @@ func validateAvatarURL(url string) error {
 		return nil
 	}
 	if len(url) > 500 {
-		return errors.New("Avatar URL must be at most 500 characters")
+		return errors.New("avatar URL must be at most 500 characters")
 	}
 	if !strings.HasPrefix(url, "https://") {
-		return errors.New("Avatar URL must start with https://")
+		return errors.New("avatar URL must start with https://")
 	}
 	return nil
 }

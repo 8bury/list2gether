@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Header from '@/components/Header'
 import { MovieCard } from '@/components/movie/MovieCard'
+import { MovieOverlay } from '@/components/movie/MovieOverlay'
 import { ListHeader } from '@/components/list/ListHeader'
 import { SearchModal } from '@/components/list/SearchModal'
-import { LuckySpinModal } from '@/components/list/LuckySpinModal'
 import { RecommendationsModal } from '@/components/list/RecommendationsModal'
 import { SkeletonCard } from '@/components/list/SkeletonCard'
 import { SkeletonHeader } from '@/components/list/SkeletonHeader'
@@ -50,7 +50,7 @@ export default function ListPage() {
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [isLuckyOpen, setIsLuckyOpen] = useState(false)
+  const [overlayMovieId, setOverlayMovieId] = useState<number | null>(null)
   const [isRecommendationsOpen, setIsRecommendationsOpen] = useState(false)
 
   // Filter states
@@ -252,11 +252,6 @@ export default function ListPage() {
     return filtered
   }, [items, statusFilter, listSearchQuery])
 
-  // Unwatched items for lucky feature
-  const unwatchedItems = useMemo(
-    () => items.filter((it) => it.status === 'not_watched'),
-    [items]
-  )
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -275,14 +270,12 @@ export default function ListPage() {
               listName={listName}
               onBack={() => navigate('/home')}
               onAddMovie={() => setIsAddOpen(true)}
-              onLuckyClick={() => setIsLuckyOpen(true)}
               onRecommendationsClick={() => setIsRecommendationsOpen(true)}
+              movieCount={items.length}
               searchQuery={listSearchQuery}
               onSearchChange={setListSearchQuery}
               statusFilter={statusFilter}
               onStatusFilterChange={(v) => setStatusFilter(v as MovieStatus | 'all')}
-              hasUnwatchedMovies={unwatchedItems.length > 0}
-              movieCount={items.length}
             />
 
             {error && (
@@ -310,6 +303,7 @@ export default function ListPage() {
                     onChangeRating={handleChangeRating}
                     onChangeStatus={handleChangeStatus}
                     onDelete={handleDelete}
+                    onOpenOverlay={setOverlayMovieId}
                     updatingRating={updatingRatingId === item.movie_id}
                     updatingStatus={updatingStatusId === item.movie_id}
                     deleting={deletingId === item.movie_id}
@@ -328,12 +322,6 @@ export default function ListPage() {
         onSelect={handleAddMovie}
       />
 
-      <LuckySpinModal
-        open={isLuckyOpen}
-        onOpenChange={setIsLuckyOpen}
-        items={unwatchedItems}
-      />
-
       <RecommendationsModal
         open={isRecommendationsOpen}
         onOpenChange={setIsRecommendationsOpen}
@@ -347,6 +335,21 @@ export default function ListPage() {
           }
         }}
       />
+
+      {/* Movie Overlay */}
+      {overlayMovieId !== null && (
+        <MovieOverlay
+          isOpen={overlayMovieId !== null}
+          onClose={() => setOverlayMovieId(null)}
+          item={items.find((item) => item.movie_id === overlayMovieId)!}
+          listId={parsedId}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          currentUserAvatarUrl={currentUserAvatarUrl}
+          onChangeRating={handleChangeRating}
+          updatingRating={updatingRatingId === overlayMovieId}
+        />
+      )}
     </div>
   )
 }

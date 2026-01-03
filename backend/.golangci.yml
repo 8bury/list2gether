@@ -1,0 +1,66 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Vet examines Go source code
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Advanced static analysis
+    - unused        # Check for unused constants, variables, functions
+    - gofmt         # Check formatting
+    - goimports     # Check import formatting
+    - gosec         # Security issues
+    - misspell      # Spelling mistakes
+    - unconvert     # Unnecessary type conversions
+    - bodyclose     # Check HTTP response body is closed
+    - gocyclo       # Cyclomatic complexity
+
+linters-settings:
+  errcheck:
+    check-blank: false  # Don't force checking blank identifier assignments
+    check-type-assertions: false  # Don't force checking all type assertions
+    exclude-functions:
+      - (io.Closer).Close  # Allow ignoring Close() errors
+
+  govet:
+    disable:
+      - fieldalignment  # Don't enforce struct field alignment optimization
+
+  gocyclo:
+    min-complexity: 35  # Increased to allow existing complex functions
+
+  gosec:
+    excludes:
+      - G404  # Allow non-crypto random for non-security purposes
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - gosec
+
+    # Allow intentional blank error checks in specific patterns
+    - text: "Error return value of.*FindBy.* is not checked"
+      linters:
+        - errcheck
+
+    # Allow type assertions in controllers (protected by middleware)
+    - path: controllers/
+      text: "Error return value.*Get.*is not checked"
+      linters:
+        - errcheck
+
+  max-issues-per-linter: 50  # Limit to 50 issues per linter
+  max-same-issues: 10  # Limit to 10 occurrences of same issue
+
+output:
+  formats:
+    - format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true

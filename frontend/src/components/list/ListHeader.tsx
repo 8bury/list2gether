@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, Sparkles, Lightbulb } from 'lucide-react'
+import { ArrowLeft, Plus, Lightbulb } from 'lucide-react'
 import { SearchInput } from '@/components/SearchInput'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -8,13 +8,11 @@ interface ListHeaderProps {
   listName: string | null
   onBack: () => void
   onAddMovie: () => void
-  onLuckyClick: () => void
   onRecommendationsClick: () => void
   searchQuery: string
   onSearchChange: (value: string) => void
   statusFilter: MovieStatus | 'all'
   onStatusFilterChange: (value: MovieStatus | 'all') => void
-  hasUnwatchedMovies: boolean
   movieCount: number
 }
 
@@ -22,13 +20,11 @@ export function ListHeader({
   listName,
   onBack,
   onAddMovie,
-  onLuckyClick,
   onRecommendationsClick,
   searchQuery,
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
-  hasUnwatchedMovies,
   movieCount
 }: ListHeaderProps) {
   return (
@@ -52,17 +48,6 @@ export function ListHeader({
         </div>
 
         <div className="flex gap-2 flex-shrink-0">
-          {hasUnwatchedMovies && (
-            <Button
-              onClick={onLuckyClick}
-              variant="outline"
-              className="gap-2 bg-gradient-to-r from-amber-500/10 to-amber-600/5 border-amber-500/30 hover:from-amber-500/20 hover:to-amber-600/10 text-amber-300 hover:text-amber-200"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span className="hidden sm:inline">Estou com Sorte</span>
-            </Button>
-          )}
-
           {movieCount >= 2 && (
             <Button
               onClick={onRecommendationsClick}
