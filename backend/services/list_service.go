@@ -113,7 +113,7 @@ func (s *listService) JoinListByInviteCode(inviteCode string, userID int64) (*mo
 
 	membership, err := s.lists.FindMembership(list.ID, userID)
 	alreadyMember := false
-	role := models.RoleParticipant
+	var role models.ListMemberRole
 	if err == nil {
 		alreadyMember = true
 		role = membership.Role
@@ -428,7 +428,9 @@ func (s *listService) generateUniqueInviteCode() (string, error) {
 func randomAlphaNum(n int) string {
 	b := make([]byte, n)
 	tmp := make([]byte, n*2)
-	rand.Read(tmp)
+	if _, err := rand.Read(tmp); err != nil {
+		panic(err) // Crypto rand should never fail in practice
+	}
 	enc := base64.RawURLEncoding.EncodeToString(tmp)
 	idx := 0
 	for i := 0; i < len(enc) && idx < n; i++ {
@@ -633,10 +635,10 @@ func (s *listService) SearchListMovies(listID int64, userID int64, query string,
 }
 
 var (
-	ErrCommentNotFound    = errors.New("comment_not_found")
-	ErrCommentNotOwned    = errors.New("comment_not_owned")
-	ErrCommentEmpty       = errors.New("comment_empty")
-	ErrCommentTooLong     = errors.New("comment_too_long")
+	ErrCommentNotFound = errors.New("comment_not_found")
+	ErrCommentNotOwned = errors.New("comment_not_owned")
+	ErrCommentEmpty    = errors.New("comment_empty")
+	ErrCommentTooLong  = errors.New("comment_too_long")
 )
 
 func (s *listService) CreateComment(listID, userID, movieID int64, content string) (*models.Comment, error) {
