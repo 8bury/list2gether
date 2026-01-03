@@ -1,0 +1,72 @@
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Vet examines Go source code
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Advanced static analysis
+    - unused        # Check for unused constants, variables, functions
+    - gofmt         # Check formatting
+    - goimports     # Check import formatting
+    - gosec         # Security issues
+    - misspell      # Spelling mistakes
+    - unconvert     # Unnecessary type conversions
+    - unparam       # Unused function parameters
+    - bodyclose     # Check HTTP response body is closed
+    - gocritic      # Comprehensive Go source code linter
+    - gocyclo       # Cyclomatic complexity
+    - godot         # Check comments end in period
+    - errorlint     # Error wrapping issues
+    - exhaustive    # Check exhaustiveness of enum switch
+    - revive        # Fast, configurable, extensible linter
+    - stylecheck    # Style checker
+    - whitespace    # Whitespace issues
+    - wsl           # Whitespace linter
+
+linters-settings:
+  errcheck:
+    check-blank: true
+    check-type-assertions: true
+
+  govet:
+    enable-all: true
+
+  gocyclo:
+    min-complexity: 15
+
+  gosec:
+    excludes:
+      - G404  # Allow non-crypto random for non-security purposes
+
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - "checkPrivateReceivers"
+          - "sayRepetitiveInsteadOfStutters"
+
+  stylecheck:
+    checks: ["all"]
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - gosec
+        - wsl
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
