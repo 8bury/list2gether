@@ -4,7 +4,6 @@ import Header from '@/components/Header'
 import { MovieCard } from '@/components/movie/MovieCard'
 import { ListHeader } from '@/components/list/ListHeader'
 import { SearchModal } from '@/components/list/SearchModal'
-import { LuckySpinModal } from '@/components/list/LuckySpinModal'
 import { SkeletonCard } from '@/components/list/SkeletonCard'
 import { SkeletonHeader } from '@/components/list/SkeletonHeader'
 import { useAuth } from '@/hooks'
@@ -49,7 +48,6 @@ export default function ListPage() {
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [isLuckyOpen, setIsLuckyOpen] = useState(false)
 
   // Filter states
   const [listSearchQuery, setListSearchQuery] = useState('')
@@ -250,11 +248,6 @@ export default function ListPage() {
     return filtered
   }, [items, statusFilter, listSearchQuery])
 
-  // Unwatched items for lucky feature
-  const unwatchedItems = useMemo(
-    () => items.filter((it) => it.status === 'not_watched'),
-    [items]
-  )
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -273,12 +266,10 @@ export default function ListPage() {
               listName={listName}
               onBack={() => navigate('/home')}
               onAddMovie={() => setIsAddOpen(true)}
-              onLuckyClick={() => setIsLuckyOpen(true)}
               searchQuery={listSearchQuery}
               onSearchChange={setListSearchQuery}
               statusFilter={statusFilter}
               onStatusFilterChange={(v) => setStatusFilter(v as MovieStatus | 'all')}
-              hasUnwatchedMovies={unwatchedItems.length > 0}
             />
 
             {error && (
@@ -322,12 +313,6 @@ export default function ListPage() {
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         onSelect={handleAddMovie}
-      />
-
-      <LuckySpinModal
-        open={isLuckyOpen}
-        onOpenChange={setIsLuckyOpen}
-        items={unwatchedItems}
       />
     </div>
   )
