@@ -131,8 +131,16 @@ func (a *AuthController) logout(c *gin.Context) {
 
 func (a *AuthController) me(c *gin.Context) {
 	rawClaims, _ := c.Get("auth_claims")
-	claims := rawClaims.(jwt.MapClaims)
-	sub, _ := claims["sub"].(string)
+	claims, ok := rawClaims.(jwt.MapClaims)
+	if !ok {
+		respondTokenInvalid(c)
+		return
+	}
+	sub, ok := claims["sub"].(string)
+	if !ok {
+		respondTokenInvalid(c)
+		return
+	}
 	id, err := strconv.ParseInt(sub, 10, 64)
 	if err != nil {
 		respondTokenInvalid(c)
@@ -149,8 +157,16 @@ func (a *AuthController) me(c *gin.Context) {
 
 func (a *AuthController) updateProfile(c *gin.Context) {
 	rawClaims, _ := c.Get("auth_claims")
-	claims := rawClaims.(jwt.MapClaims)
-	sub, _ := claims["sub"].(string)
+	claims, ok := rawClaims.(jwt.MapClaims)
+	if !ok {
+		respondTokenInvalid(c)
+		return
+	}
+	sub, ok := claims["sub"].(string)
+	if !ok {
+		respondTokenInvalid(c)
+		return
+	}
 	id, err := strconv.ParseInt(sub, 10, 64)
 	if err != nil {
 		respondTokenInvalid(c)

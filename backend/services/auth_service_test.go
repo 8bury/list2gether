@@ -58,8 +58,8 @@ func TestRegister_UsernameValidation(t *testing.T) {
 		username    string
 		expectedErr string
 	}{
-		{"too short", "ab", "Username must be between 3 and 50 characters"},
-		{"too long", "a123456789012345678901234567890123456789012345678901", "Username must be between 3 and 50 characters"},
+		{"too short", "ab", "username must be between 3 and 50 characters"},
+		{"too long", "a123456789012345678901234567890123456789012345678901", "username must be between 3 and 50 characters"},
 		{"valid", "validuser", ""},
 	}
 
@@ -93,9 +93,9 @@ func TestRegister_EmailValidation(t *testing.T) {
 		email       string
 		expectedErr string
 	}{
-		{"empty email", "", "Invalid email"},
-		{"no @ symbol", "notanemail", "Invalid email"},
-		{"too long", "a" + string(make([]byte, 300)) + "@example.com", "Invalid email"},
+		{"empty email", "", "invalid email"},
+		{"no @ symbol", "notanemail", "invalid email"},
+		{"too long", "a" + string(make([]byte, 300)) + "@example.com", "invalid email"},
 		{"valid", "test@example.com", ""},
 	}
 
@@ -127,7 +127,7 @@ func TestRegister_PasswordValidation(t *testing.T) {
 	_, err := service.Register("testuser", "test@example.com", "short")
 
 	assert.Error(t, err)
-	assert.Equal(t, "Password must be at least 8 characters", err.Error())
+	assert.Equal(t, "password must be at least 8 characters", err.Error())
 }
 
 func TestRegister_DuplicateEmail(t *testing.T) {
@@ -142,7 +142,7 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 	_, err := service.Register("testuser", "test@example.com", "password123")
 
 	assert.Error(t, err)
-	assert.Equal(t, "Email already exists", err.Error())
+	assert.Equal(t, "email already exists", err.Error())
 	userDAO.AssertExpectations(t)
 }
 
@@ -159,7 +159,7 @@ func TestRegister_DuplicateUsername(t *testing.T) {
 	_, err := service.Register("testuser", "test@example.com", "password123")
 
 	assert.Error(t, err)
-	assert.Equal(t, "Username already exists", err.Error())
+	assert.Equal(t, "username already exists", err.Error())
 	userDAO.AssertExpectations(t)
 }
 
@@ -205,7 +205,7 @@ func TestLogin_InvalidEmail(t *testing.T) {
 	_, _, _, _, err := service.Login("wrong@example.com", "password123")
 
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid credentials", err.Error())
+	assert.Equal(t, "invalid credentials", err.Error())
 	userDAO.AssertExpectations(t)
 }
 
@@ -227,7 +227,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 	_, _, _, _, err := service.Login("test@example.com", "wrongpassword")
 
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid credentials", err.Error())
+	assert.Equal(t, "invalid credentials", err.Error())
 	userDAO.AssertExpectations(t)
 }
 
@@ -288,7 +288,7 @@ func TestRefresh_InvalidToken(t *testing.T) {
 	_, _, err := service.Refresh("invalid.token.here")
 
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid or expired refresh token", err.Error())
+	assert.Equal(t, "invalid or expired refresh token", err.Error())
 }
 
 func TestRefresh_RevokedToken(t *testing.T) {
@@ -324,7 +324,7 @@ func TestRefresh_RevokedToken(t *testing.T) {
 	_, _, err := service.Refresh(refreshToken)
 
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid or expired refresh token", err.Error())
+	assert.Equal(t, "invalid or expired refresh token", err.Error())
 	refreshDAO.AssertExpectations(t)
 }
 
@@ -427,7 +427,7 @@ func TestUpdateProfile_InvalidUsername(t *testing.T) {
 	_, err := service.UpdateProfile(1, "ab", "")
 
 	assert.Error(t, err)
-	assert.Equal(t, "Username must be between 3 and 50 characters", err.Error())
+	assert.Equal(t, "username must be between 3 and 50 characters", err.Error())
 	userDAO.AssertExpectations(t)
 }
 
@@ -454,7 +454,7 @@ func TestUpdateProfile_DuplicateUsername(t *testing.T) {
 	_, err := service.UpdateProfile(1, "takenuser", "")
 
 	assert.Error(t, err)
-	assert.Equal(t, "Username already exists", err.Error())
+	assert.Equal(t, "username already exists", err.Error())
 	userDAO.AssertExpectations(t)
 }
 
@@ -475,13 +475,13 @@ func TestUpdateProfile_InvalidAvatarURL(t *testing.T) {
 	// Test non-HTTPS URL.
 	_, err := service.UpdateProfile(1, "testuser", "http://example.com/avatar.png")
 	assert.Error(t, err)
-	assert.Equal(t, "Avatar URL must start with https://", err.Error())
+	assert.Equal(t, "avatar URL must start with https://", err.Error())
 
 	// Test URL too long.
 	longURL := "https://" + string(make([]byte, 500)) + ".com"
 	_, err = service.UpdateProfile(1, "testuser", longURL)
 	assert.Error(t, err)
-	assert.Equal(t, "Avatar URL must be at most 500 characters", err.Error())
+	assert.Equal(t, "avatar URL must be at most 500 characters", err.Error())
 
 	userDAO.AssertExpectations(t)
 }
@@ -705,7 +705,7 @@ func TestRefresh_WrongTokenType(t *testing.T) {
 	_, _, err := service.Refresh(accessToken)
 
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid or expired refresh token", err.Error())
+	assert.Equal(t, "invalid or expired refresh token", err.Error())
 }
 
 func TestRefresh_ExpiredToken(t *testing.T) {
@@ -729,7 +729,7 @@ func TestRefresh_ExpiredToken(t *testing.T) {
 	_, _, err := service.Refresh(refreshToken)
 
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid or expired refresh token", err.Error())
+	assert.Equal(t, "invalid or expired refresh token", err.Error())
 }
 
 func TestRefresh_UserIDMismatch(t *testing.T) {
@@ -766,7 +766,7 @@ func TestRefresh_UserIDMismatch(t *testing.T) {
 	_, _, err := service.Refresh(refreshToken)
 
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid or expired refresh token", err.Error())
+	assert.Equal(t, "invalid or expired refresh token", err.Error())
 	refreshDAO.AssertExpectations(t)
 }
 
@@ -795,6 +795,6 @@ func TestRefresh_TokenNotInDatabase(t *testing.T) {
 	_, _, err := service.Refresh(refreshToken)
 
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid or expired refresh token", err.Error())
+	assert.Equal(t, "invalid or expired refresh token", err.Error())
 	refreshDAO.AssertExpectations(t)
 }
