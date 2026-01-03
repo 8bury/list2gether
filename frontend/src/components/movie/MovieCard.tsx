@@ -58,7 +58,7 @@ function getEntryDisplayName(entry: ListMovieUserEntryDTO) {
   return entry.user?.username || entry.user?.email || `Usuário #${entry.user_id}`
 }
 
-export function MovieCard({ item, listId, currentUserId, currentUserName, currentUserAvatarUrl, onChangeRating, onChangeStatus, onDelete, onOpenOverlay, updatingRating, updatingStatus, deleting }: MovieCardProps) {
+export function MovieCard({ item, listId: _listId, currentUserId: _currentUserId, currentUserName: _currentUserName, currentUserAvatarUrl: _currentUserAvatarUrl, onChangeRating, onChangeStatus, onDelete, onOpenOverlay, updatingRating, updatingStatus, deleting }: MovieCardProps) {
   const media = item.movie
   const title = media.title
   const original = media.original_title && media.original_title !== media.title ? media.original_title : undefined
