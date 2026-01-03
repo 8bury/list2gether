@@ -167,6 +167,24 @@
     "chooseForMe": "Escolher para Mim",
     "noPoster": "Sem poster"
   },
+  "recommendations": {
+    "button": "Recomendações",
+    "title": "Recomendados para Você",
+    "subtitle": "Baseado nas preferências da sua lista",
+    "loading": "Buscando recomendações...",
+    "empty": "Nenhuma recomendação disponível. Adicione mais filmes à sua lista!",
+    "insufficientMovies": "Sua lista precisa de pelo menos 2 filmes para gerar recomendações",
+    "fetchError": "Falha ao carregar recomendações",
+    "tryAgain": "Tentar Novamente",
+    "addToList": "Adicionar à Lista",
+    "addError": "Falha ao adicionar filme",
+    "movieAdded": "Filme adicionado à lista!",
+    "seriesAdded": "Série adicionada à lista!",
+    "alreadyInList": "Já está na lista",
+    "noPoster": "Sem poster",
+    "movie": "Filme",
+    "close": "Fechar"
+  },
   "status": {
     "not_watched": "Não Assistido",
     "watching": "Assistindo",

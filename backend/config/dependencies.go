@@ -12,14 +12,15 @@ import (
 )
 
 var (
-	userDAO         daos.UserDAO
-	refreshTokenDAO daos.RefreshTokenDAO
-	movieListDAO    daos.MovieListDAO
-	movieDAO        daos.MovieDAO
-	authService     services.AuthService
-	listService     services.ListService
-	searchService   services.SearchService
-	authMiddleware  *middleware.AuthMiddleware
+	userDAO               daos.UserDAO
+	refreshTokenDAO       daos.RefreshTokenDAO
+	movieListDAO          daos.MovieListDAO
+	movieDAO              daos.MovieDAO
+	authService           services.AuthService
+	listService           services.ListService
+	searchService         services.SearchService
+	recommendationService services.RecommendationService
+	authMiddleware        *middleware.AuthMiddleware
 )
 
 func InitializeDependencies(router *gin.Engine) {
@@ -41,6 +42,7 @@ func initializeServices() {
 	authService = services.NewAuthService(userDAO, refreshTokenDAO)
 	listService = services.NewListService(movieListDAO, movieDAO, os.Getenv("TMDB_API_TOKEN"))
 	searchService = services.NewSearchService(os.Getenv("TMDB_API_TOKEN"))
+	recommendationService = services.NewRecommendationService(movieListDAO, os.Getenv("TMDB_API_TOKEN"))
 	authMiddleware = middleware.NewAuthMiddleware(authService.JWTSecret())
 }
 
@@ -52,6 +54,6 @@ func initializeControllers(router *gin.Engine) {
 	router.HEAD("/health", healthHandler)
 
 	controllers.NewAuthController(router, authService, authMiddleware)
-	controllers.NewListController(router, listService, authMiddleware)
+	controllers.NewListController(router, listService, recommendationService, authMiddleware)
 	controllers.NewSearchController(router, searchService, authMiddleware)
 }

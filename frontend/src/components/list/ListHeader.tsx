@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, Sparkles } from 'lucide-react'
+import { ArrowLeft, Plus, Sparkles, Lightbulb } from 'lucide-react'
 import { SearchInput } from '@/components/SearchInput'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -9,11 +9,13 @@ interface ListHeaderProps {
   onBack: () => void
   onAddMovie: () => void
   onLuckyClick: () => void
+  onRecommendationsClick: () => void
   searchQuery: string
   onSearchChange: (value: string) => void
   statusFilter: MovieStatus | 'all'
   onStatusFilterChange: (value: MovieStatus | 'all') => void
   hasUnwatchedMovies: boolean
+  movieCount: number
 }
 
 export function ListHeader({
@@ -21,11 +23,13 @@ export function ListHeader({
   onBack,
   onAddMovie,
   onLuckyClick,
+  onRecommendationsClick,
   searchQuery,
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
-  hasUnwatchedMovies
+  hasUnwatchedMovies,
+  movieCount
 }: ListHeaderProps) {
   return (
     <div className="space-y-4 mb-6">
@@ -56,6 +60,17 @@ export function ListHeader({
             >
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">Estou com Sorte</span>
+            </Button>
+          )}
+
+          {movieCount >= 2 && (
+            <Button
+              onClick={onRecommendationsClick}
+              variant="outline"
+              className="gap-2 bg-gradient-to-r from-purple-500/10 to-purple-600/5 border-purple-500/30 hover:from-purple-500/20 hover:to-purple-600/10 text-purple-300 hover:text-purple-200"
+            >
+              <Lightbulb className="w-4 h-4" />
+              <span className="hidden sm:inline">Recomendações</span>
             </Button>
           )}
 

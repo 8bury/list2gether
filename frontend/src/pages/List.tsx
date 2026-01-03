@@ -5,6 +5,7 @@ import { MovieCard } from '@/components/movie/MovieCard'
 import { ListHeader } from '@/components/list/ListHeader'
 import { SearchModal } from '@/components/list/SearchModal'
 import { LuckySpinModal } from '@/components/list/LuckySpinModal'
+import { RecommendationsModal } from '@/components/list/RecommendationsModal'
 import { SkeletonCard } from '@/components/list/SkeletonCard'
 import { SkeletonHeader } from '@/components/list/SkeletonHeader'
 import { useAuth } from '@/hooks'
@@ -50,6 +51,7 @@ export default function ListPage() {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isLuckyOpen, setIsLuckyOpen] = useState(false)
+  const [isRecommendationsOpen, setIsRecommendationsOpen] = useState(false)
 
   // Filter states
   const [listSearchQuery, setListSearchQuery] = useState('')
@@ -274,11 +276,13 @@ export default function ListPage() {
               onBack={() => navigate('/home')}
               onAddMovie={() => setIsAddOpen(true)}
               onLuckyClick={() => setIsLuckyOpen(true)}
+              onRecommendationsClick={() => setIsRecommendationsOpen(true)}
               searchQuery={listSearchQuery}
               onSearchChange={setListSearchQuery}
               statusFilter={statusFilter}
               onStatusFilterChange={(v) => setStatusFilter(v as MovieStatus | 'all')}
               hasUnwatchedMovies={unwatchedItems.length > 0}
+              movieCount={items.length}
             />
 
             {error && (
@@ -328,6 +332,20 @@ export default function ListPage() {
         open={isLuckyOpen}
         onOpenChange={setIsLuckyOpen}
         items={unwatchedItems}
+      />
+
+      <RecommendationsModal
+        open={isRecommendationsOpen}
+        onOpenChange={setIsRecommendationsOpen}
+        listId={parsedId}
+        onMovieAdded={async () => {
+          try {
+            const res = await getListMovies(parsedId)
+            applyItems(res)
+          } catch (err) {
+            console.error('Failed to refresh list:', err)
+          }
+        }}
       />
     </div>
   )
