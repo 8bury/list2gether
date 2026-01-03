@@ -27,9 +27,10 @@ interface PosterItemProps {
   posterUrl: string | null
   title: string
   isCenter: boolean
+  noPosterText: string
 }
 
-const PosterItem = memo(({ posterUrl, title, isCenter }: PosterItemProps) => {
+const PosterItem = memo(({ posterUrl, title, isCenter, noPosterText }: PosterItemProps) => {
   return (
     <div
       className={`flex-shrink-0 w-[120px] p-2 transition-all duration-150 ${
@@ -45,7 +46,7 @@ const PosterItem = memo(({ posterUrl, title, isCenter }: PosterItemProps) => {
         />
       ) : (
         <div className="w-full aspect-[2/3] bg-white/5 rounded-lg grid place-items-center text-[10px] text-neutral-400">
-          Sem poster
+          {noPosterText}
         </div>
       )}
     </div>
@@ -60,7 +61,6 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
   const [selectedMovie, setSelectedMovie] = useState<MovieItem | null>(null)
   const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0)
   const [spinItems, setSpinItems] = useState<MovieItem[]>([])
-  const [winnerPosition, setWinnerPosition] = useState(0)
   const spinContainerRef = useRef<HTMLDivElement | null>(null)
   const animationRef = useRef<number | null>(null)
 
@@ -71,7 +71,6 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
       setSelectedMovie(null)
       setSpinItems([])
       setCurrentDisplayIndex(0)
-      setWinnerPosition(0)
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
         animationRef.current = null
@@ -90,12 +89,14 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
     const winnerIndex = Math.floor(Math.random() * items.length)
     const winner = items[winnerIndex]
 
-    // Build spin array: fill with random shuffled items, then place winner at the end
+    // Build spin array: fill with random shuffled items (excluding winner), then place winner at the end
     const spinArray: MovieItem[] = []
     const itemsToShow = 20 // Number of items to show before winner
 
-    // Shuffle items and fill the array
-    const shuffled = shuffle([...items])
+    // Shuffle items excluding the winner to avoid duplicates
+    const itemsWithoutWinner = items.filter(item => item.movie_id !== winner.movie_id)
+    const shuffled = shuffle([...itemsWithoutWinner])
+
     for (let i = 0; i < itemsToShow; i++) {
       spinArray.push(shuffled[i % shuffled.length])
     }
@@ -107,7 +108,6 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
     const finalPosition = spinArray.length - 1
 
     setSpinItems(spinArray)
-    setWinnerPosition(finalPosition)
     setCurrentDisplayIndex(0)
 
     // Animate using requestAnimationFrame
@@ -154,10 +154,11 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
           posterUrl={posterUrl}
           title={item.movie.title}
           isCenter={isCenter}
+          noPosterText={t('lucky.noPoster')}
         />
       )
     })
-  }, [spinItems, currentDisplayIndex, getPosterUrl])
+  }, [spinItems, currentDisplayIndex, getPosterUrl, t])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -168,7 +169,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
             <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
               <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 3c.83 0 1.5.67 1.5 1.5S12.33 9 11.5 9 10 8.33 10 7.5 10.67 6 11.5 6zM8.5 9C7.67 9 7 8.33 7 7.5S7.67 6 8.5 6 10 6.67 10 7.5 9.33 9 8.5 9zM12 15c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3.5-6c-.83 0-1.5-.67-1.5-1.5S14.67 6 15.5 6s1.5.67 1.5 1.5S16.33 9 15.5 9zm-7 9c-.83 0-1.5-.67-1.5-1.5S7.67 15 8.5 15s1.5.67 1.5 1.5S9.33 18 8.5 18zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
             </svg>
-            {isSpinning ? 'Sorteando...' : 'Estou com Sorte'}
+            {isSpinning ? t('lucky.spinning') : t('lucky.title')}
           </h3>
         </div>
 
@@ -176,13 +177,13 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
         <div className="p-6">
           {items.length === 0 ? (
             <div className="py-12 text-center text-neutral-400">
-              Nenhum filme não assistido disponível
+              {t('lucky.noMovies')}
             </div>
           ) : spinItems.length === 0 ? (
             // Initial state - show spin button
             <div className="py-12 text-center">
               <p className="text-neutral-400 mb-6">
-                Escolha um filme aleatório da sua lista de não assistidos
+                {t('lucky.description')}
               </p>
               <Button
                 onClick={startSpin}
@@ -192,7 +193,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
                 <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
                   <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7.5 3c.83 0 1.5.67 1.5 1.5S12.33 9 11.5 9 10 8.33 10 7.5 10.67 6 11.5 6zM8.5 9C7.67 9 7 8.33 7 7.5S7.67 6 8.5 6 10 6.67 10 7.5 9.33 9 8.5 9zM12 15c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3.5-6c-.83 0-1.5-.67-1.5-1.5S14.67 6 15.5 6s1.5.67 1.5 1.5S16.33 9 15.5 9zm-7 9c-.83 0-1.5-.67-1.5-1.5S7.67 15 8.5 15s1.5.67 1.5 1.5S9.33 18 8.5 18zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                 </svg>
-                Escolher para Mim
+                {t('lucky.chooseForMe')}
               </Button>
             </div>
           ) : (
@@ -231,7 +232,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
                   <div className={`transition-all duration-300 ${!isSpinning && selectedMovie ? 'scale-110' : ''}`}>
                     {!isSpinning && selectedMovie ? (
                       <>
-                        <p className="text-sm text-neutral-400 mb-2">Você vai assistir:</p>
+                        <p className="text-sm text-neutral-400 mb-2">{t('lucky.result')}</p>
                         <h4 className="text-2xl font-bold text-white">
                           {selectedMovie.movie.title}
                         </h4>
@@ -257,7 +258,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
                     className="gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    Sortear Novamente
+                    {t('lucky.spinAgain')}
                   </Button>
                 )}
               </div>

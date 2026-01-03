@@ -158,11 +158,14 @@
     "title": "Estou com sorte",
     "spinning": "Sorteando...",
     "result": "Você vai assistir:",
-    "noMovies": "Nenhum filme não assistido",
+    "noMovies": "Nenhum filme não assistido disponível",
     "noMoviesTooltip": "Nenhum filme não assistido na lista",
     "close": "Fechar",
     "spinAgain": "Sortear novamente",
-    "spinTooltip": "Sortear um filme para assistir"
+    "spinTooltip": "Sortear um filme para assistir",
+    "description": "Escolha um filme aleatório da sua lista de não assistidos",
+    "chooseForMe": "Escolher para Mim",
+    "noPoster": "Sem poster"
   },
   "status": {
     "not_watched": "Não Assistido",
