@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Header from '@/components/Header'
 import { MovieCard } from '@/components/movie/MovieCard'
+import { MovieOverlay } from '@/components/movie/MovieOverlay'
 import { ListHeader } from '@/components/list/ListHeader'
 import { SearchModal } from '@/components/list/SearchModal'
 import { SkeletonCard } from '@/components/list/SkeletonCard'
@@ -48,6 +49,7 @@ export default function ListPage() {
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [overlayMovieId, setOverlayMovieId] = useState<number | null>(null)
 
   // Filter states
   const [listSearchQuery, setListSearchQuery] = useState('')
@@ -297,6 +299,7 @@ export default function ListPage() {
                     onChangeRating={handleChangeRating}
                     onChangeStatus={handleChangeStatus}
                     onDelete={handleDelete}
+                    onOpenOverlay={setOverlayMovieId}
                     updatingRating={updatingRatingId === item.movie_id}
                     updatingStatus={updatingStatusId === item.movie_id}
                     deleting={deletingId === item.movie_id}
@@ -314,6 +317,21 @@ export default function ListPage() {
         onOpenChange={setIsAddOpen}
         onSelect={handleAddMovie}
       />
+
+      {/* Movie Overlay */}
+      {overlayMovieId !== null && (
+        <MovieOverlay
+          isOpen={overlayMovieId !== null}
+          onClose={() => setOverlayMovieId(null)}
+          item={items.find((item) => item.movie_id === overlayMovieId)!}
+          listId={parsedId}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          currentUserAvatarUrl={currentUserAvatarUrl}
+          onChangeRating={handleChangeRating}
+          updatingRating={updatingRatingId === overlayMovieId}
+        />
+      )}
     </div>
   )
 }

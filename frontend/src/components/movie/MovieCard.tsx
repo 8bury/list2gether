@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { ChevronDown, Trash2, Film, Tv, Users, Calendar, Languages, TrendingUp } from 'lucide-react'
+import { ChevronDown, Trash2, Film, Tv, Users, Calendar } from 'lucide-react'
 import { StarRating } from './StarRating'
-import { CommentSection } from './CommentSection'
 import { UserAvatar } from '@/components/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -42,6 +41,7 @@ interface MovieCardProps {
   onChangeRating: (movieId: number, rating: number) => void
   onChangeStatus: (movieId: number, status: MovieStatus) => void
   onDelete: (movieId: number) => void
+  onOpenOverlay: (movieId: number) => void
   updatingRating?: boolean
   updatingStatus?: boolean
   deleting?: boolean
@@ -58,7 +58,7 @@ function getEntryDisplayName(entry: ListMovieUserEntryDTO) {
   return entry.user?.username || entry.user?.email || `Usuário #${entry.user_id}`
 }
 
-export function MovieCard({ item, listId, currentUserId, currentUserName, currentUserAvatarUrl, onChangeRating, onChangeStatus, onDelete, updatingRating, updatingStatus, deleting }: MovieCardProps) {
+export function MovieCard({ item, listId, currentUserId, currentUserName, currentUserAvatarUrl, onChangeRating, onChangeStatus, onDelete, onOpenOverlay, updatingRating, updatingStatus, deleting }: MovieCardProps) {
   const media = item.movie
   const title = media.title
   const original = media.original_title && media.original_title !== media.title ? media.original_title : undefined
@@ -67,15 +67,29 @@ export function MovieCard({ item, listId, currentUserId, currentUserName, curren
   const rating = typeof userRatingValue === 'number' ? userRatingValue : 0
 
   const [statusOpen, setStatusOpen] = useState(false)
-  const [detailsOpen, setDetailsOpen] = useState(false)
   const [ratingsExpanded, setRatingsExpanded] = useState(false)
 
   const ratedEntries = item.user_entries.filter((e) => e.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't open overlay if clicking on interactive elements
+    const target = e.target as HTMLElement
+    if (
+      target.closest('button') ||
+      target.closest('[role="button"]') ||
+      target.closest('input') ||
+      target.closest('textarea')
+    ) {
+      return
+    }
+    onOpenOverlay(item.movie_id)
+  }
+
   return (
     <div
       data-animate
-      className="group rounded-2xl bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 overflow-hidden hover:border-white/20 hover:from-white/10 hover:to-white/[0.05] transition-all duration-300 shadow-xl shadow-black/20 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/30"
+      onClick={handleCardClick}
+      className="group rounded-2xl bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 overflow-hidden hover:border-white/20 hover:from-white/10 hover:to-white/[0.05] transition-all duration-300 shadow-xl shadow-black/20 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/30 cursor-pointer"
     >
       <div className="flex">
         {/* Poster */}
@@ -248,93 +262,6 @@ export function MovieCard({ item, listId, currentUserId, currentUserName, curren
             </div>
           )}
 
-          {/* Details toggle */}
-          <button
-            onClick={() => setDetailsOpen(!detailsOpen)}
-            className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 transition-all text-xs text-neutral-300 hover:text-white group/details"
-          >
-            <span>
-              {detailsOpen ? 'Ocultar detalhes' : 'Ver detalhes'}
-            </span>
-            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", detailsOpen && "rotate-180")} />
-          </button>
-
-          {/* Expanded details */}
-          {detailsOpen && (
-            <div className="space-y-4 border-t border-white/10 pt-4">
-              {/* Overview */}
-              <div>
-                <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">
-                  {media.overview || 'Sem descrição disponível.'}
-                </p>
-              </div>
-
-              {/* Meta info */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                {media.original_lang && (
-                  <div className="flex items-center gap-1.5 text-neutral-400">
-                    <Languages className="w-3.5 h-3.5" />
-                    <span>{media.original_lang.toUpperCase()}</span>
-                  </div>
-                )}
-                {media.popularity != null && (
-                  <div className="flex items-center gap-1.5 text-neutral-400">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span>{Math.round(media.popularity)}</span>
-                  </div>
-                )}
-                {media.media_type === 'tv' && media.seasons_count != null && (
-                  <div className="text-neutral-400">
-                    {media.seasons_count} temporada{media.seasons_count !== 1 ? 's' : ''}
-                  </div>
-                )}
-                {media.media_type === 'tv' && media.episodes_count != null && (
-                  <div className="text-neutral-400">
-                    {media.episodes_count} episódio{media.episodes_count !== 1 ? 's' : ''}
-                  </div>
-                )}
-              </div>
-
-              {/* Added by */}
-              {item.added_by_user && (
-                <div className="flex items-center gap-2 text-xs text-neutral-400">
-                  <span>Adicionado por</span>
-                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-200">
-                    <UserAvatar
-                      avatarUrl={item.added_by_user.avatar_url}
-                      name={item.added_by_user.username || item.added_by_user.email}
-                      size="xs"
-                    />
-                    <span>{item.added_by_user.username || item.added_by_user.email}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Genres */}
-              {media.genres && media.genres.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {media.genres.map((g) => (
-                    <span
-                      key={g.id}
-                      className="px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-neutral-300"
-                    >
-                      {g.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Comments */}
-              <CommentSection
-                listId={listId}
-                movieId={item.movie_id}
-                currentUserId={currentUserId}
-                currentUserName={currentUserName}
-                currentUserAvatarUrl={currentUserAvatarUrl}
-                isOpen={detailsOpen}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>
