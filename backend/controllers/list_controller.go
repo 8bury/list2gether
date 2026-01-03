@@ -20,12 +20,13 @@ import (
 )
 
 type ListController struct {
-	service        services.ListService
-	authMiddleware *middleware.AuthMiddleware
+	service               services.ListService
+	recommendationService services.RecommendationService
+	authMiddleware        *middleware.AuthMiddleware
 }
 
-func NewListController(router *gin.Engine, service services.ListService, authMiddleware *middleware.AuthMiddleware) *ListController {
-	c := &ListController{service: service, authMiddleware: authMiddleware}
+func NewListController(router *gin.Engine, service services.ListService, recommendationService services.RecommendationService, authMiddleware *middleware.AuthMiddleware) *ListController {
+	c := &ListController{service: service, recommendationService: recommendationService, authMiddleware: authMiddleware}
 	group := router.Group("/api/lists")
 	group.POST("", c.authMiddleware.Handler(), c.create)
 	group.GET("", c.authMiddleware.Handler(), c.list)
@@ -37,6 +38,7 @@ func NewListController(router *gin.Engine, service services.ListService, authMid
 	group.DELETE("/:id/movies/:movieId", c.authMiddleware.Handler(), c.removeMovie)
 	group.PATCH("/:id/movies/:movieId", c.authMiddleware.Handler(), c.updateMovie)
 	group.GET("/:id/movies/search", c.authMiddleware.Handler(), c.searchMovies)
+	group.GET("/:id/recommendations", c.authMiddleware.Handler(), c.getRecommendations)
 	// Comment routes
 	group.GET("/:id/movies/:movieId/comments", c.authMiddleware.Handler(), c.listComments)
 	group.POST("/:id/movies/:movieId/comments", c.authMiddleware.Handler(), c.createComment)
@@ -1574,5 +1576,107 @@ func (c *ListController) deleteComment(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Comentário excluído com sucesso",
+	})
+}
+
+func (c *ListController) getRecommendations(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	// Get limit from query params
+	limit := 15
+	if v := ctx.Query("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			if n > 50 {
+				n = 50
+			}
+			limit = n
+		}
+	}
+
+	recommendations, err := c.recommendationService.GetListRecommendations(ctx, listID, userID, limit)
+	if err != nil {
+		switch err {
+		case services.ErrListNotFoundRec:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"error":     "Lista não encontrada",
+				"code":      "NOT_FOUND",
+				"details":   []string{"A lista especificada não existe"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrForbiddenMembershipRec:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"error":     "Acesso negado",
+				"code":      "FORBIDDEN",
+				"details":   []string{"Você não é membro desta lista"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrInsufficientMovies:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":     "Filmes insuficientes",
+				"code":      "INSUFFICIENT_MOVIES",
+				"details":   []string{"A lista deve ter pelo menos 2 filmes para gerar recomendações"},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		default:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"error":     "Falha ao buscar recomendações",
+				"code":      "INTERNAL_ERROR",
+				"details":   []string{err.Error()},
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+	}
+
+	// Build response
+	resp := make([]gin.H, 0, len(recommendations))
+	for _, rec := range recommendations {
+		item := gin.H{
+			"id":         rec.ID,
+			"title":      rec.Title,
+			"media_type": rec.MediaType,
+			"poster_url": rec.PosterURL,
+			"overview":   rec.Overview,
+			"score":      rec.Score,
+			"popularity": rec.Popularity,
+		}
+
+		if len(rec.Genres) > 0 {
+			genres := make([]gin.H, 0, len(rec.Genres))
+			for _, g := range rec.Genres {
+				genres = append(genres, gin.H{"id": g.ID})
+			}
+			item["genres"] = genres
+		}
+
+		resp = append(resp, item)
+	}
+
+	ctx.Header("Cache-Control", "private, max-age=86400") // Cache for 24 hours
+	ctx.JSON(http.StatusOK, gin.H{
+		"recommendations": resp,
+		"count":           len(resp),
+		"generated_at":    time.Now().UTC().Format(time.RFC3339),
 	})
 }

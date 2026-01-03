@@ -153,6 +153,24 @@
     "saving": "Saving…",
     "saved": "Profile updated successfully!"
   },
+  "recommendations": {
+    "button": "Recommendations",
+    "title": "Recommended for You",
+    "subtitle": "Based on your list preferences",
+    "loading": "Finding recommendations...",
+    "empty": "No recommendations available. Add more movies to your list!",
+    "insufficientMovies": "Your list needs at least 2 movies to generate recommendations",
+    "fetchError": "Failed to load recommendations",
+    "tryAgain": "Try Again",
+    "addToList": "Add to List",
+    "addError": "Failed to add movie",
+    "movieAdded": "Movie added to list!",
+    "seriesAdded": "Series added to list!",
+    "alreadyInList": "Already in list",
+    "noPoster": "No poster",
+    "movie": "Movie",
+    "close": "Close"
+  },
   "status": {
     "not_watched": "Not Watched",
     "watching": "Watching",

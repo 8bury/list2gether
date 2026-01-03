@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, Lightbulb } from 'lucide-react'
 import { SearchInput } from '@/components/SearchInput'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -8,20 +8,24 @@ interface ListHeaderProps {
   listName: string | null
   onBack: () => void
   onAddMovie: () => void
+  onRecommendationsClick: () => void
   searchQuery: string
   onSearchChange: (value: string) => void
   statusFilter: MovieStatus | 'all'
   onStatusFilterChange: (value: MovieStatus | 'all') => void
+  movieCount: number
 }
 
 export function ListHeader({
   listName,
   onBack,
   onAddMovie,
+  onRecommendationsClick,
   searchQuery,
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
+  movieCount
 }: ListHeaderProps) {
   return (
     <div className="space-y-4 mb-6">
@@ -44,6 +48,17 @@ export function ListHeader({
         </div>
 
         <div className="flex gap-2 flex-shrink-0">
+          {movieCount >= 2 && (
+            <Button
+              onClick={onRecommendationsClick}
+              variant="outline"
+              className="gap-2 bg-gradient-to-r from-purple-500/10 to-purple-600/5 border-purple-500/30 hover:from-purple-500/20 hover:to-purple-600/10 text-purple-300 hover:text-purple-200"
+            >
+              <Lightbulb className="w-4 h-4" />
+              <span className="hidden sm:inline">Recomendações</span>
+            </Button>
+          )}
+
           <Button
             onClick={onAddMovie}
             className="gap-2"

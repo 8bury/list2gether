@@ -5,6 +5,7 @@ import { MovieCard } from '@/components/movie/MovieCard'
 import { MovieOverlay } from '@/components/movie/MovieOverlay'
 import { ListHeader } from '@/components/list/ListHeader'
 import { SearchModal } from '@/components/list/SearchModal'
+import { RecommendationsModal } from '@/components/list/RecommendationsModal'
 import { SkeletonCard } from '@/components/list/SkeletonCard'
 import { SkeletonHeader } from '@/components/list/SkeletonHeader'
 import { useAuth } from '@/hooks'
@@ -50,6 +51,7 @@ export default function ListPage() {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [overlayMovieId, setOverlayMovieId] = useState<number | null>(null)
+  const [isRecommendationsOpen, setIsRecommendationsOpen] = useState(false)
 
   // Filter states
   const [listSearchQuery, setListSearchQuery] = useState('')
@@ -268,6 +270,8 @@ export default function ListPage() {
               listName={listName}
               onBack={() => navigate('/home')}
               onAddMovie={() => setIsAddOpen(true)}
+              onRecommendationsClick={() => setIsRecommendationsOpen(true)}
+              movieCount={items.length}
               searchQuery={listSearchQuery}
               onSearchChange={setListSearchQuery}
               statusFilter={statusFilter}
@@ -316,6 +320,20 @@ export default function ListPage() {
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         onSelect={handleAddMovie}
+      />
+
+      <RecommendationsModal
+        open={isRecommendationsOpen}
+        onOpenChange={setIsRecommendationsOpen}
+        listId={parsedId}
+        onMovieAdded={async () => {
+          try {
+            const res = await getListMovies(parsedId)
+            applyItems(res)
+          } catch (err) {
+            console.error('Failed to refresh list:', err)
+          }
+        }}
       />
 
       {/* Movie Overlay */}

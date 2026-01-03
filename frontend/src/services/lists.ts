@@ -323,3 +323,32 @@ export async function deleteComment(listId: number, movieId: number, commentId: 
   })
 }
 
+// Recommendations types and functions
+export interface RecommendationDTO {
+  id: number
+  title: string
+  media_type: 'movie' | 'tv'
+  poster_url?: string | null
+  overview?: string | null
+  score: number
+  popularity: number
+  genres?: { id: number }[]
+}
+
+export interface RecommendationsResponseDTO {
+  recommendations: RecommendationDTO[]
+  count: number
+  generated_at: string
+}
+
+export async function getListRecommendations(listId: number, params?: { limit?: number }): Promise<RecommendationsResponseDTO> {
+  const token = localStorage.getItem('access_token')
+  const searchParams = new URLSearchParams()
+  if (params?.limit) searchParams.set('limit', String(params.limit))
+  const query = searchParams.toString()
+  return requestJson<RecommendationsResponseDTO>(`/api/lists/${listId}/recommendations${query ? `?${query}` : ''}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
