@@ -60,6 +60,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
   const [selectedMovie, setSelectedMovie] = useState<MovieItem | null>(null)
   const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0)
   const [spinItems, setSpinItems] = useState<MovieItem[]>([])
+  const [winnerPosition, setWinnerPosition] = useState(0)
   const spinContainerRef = useRef<HTMLDivElement | null>(null)
   const animationRef = useRef<number | null>(null)
 
@@ -70,6 +71,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
       setSelectedMovie(null)
       setSpinItems([])
       setCurrentDisplayIndex(0)
+      setWinnerPosition(0)
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
         animationRef.current = null
@@ -80,63 +82,60 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
   const startSpin = useCallback(() => {
     if (items.length === 0 || isSpinning) return
 
-    // Select a random winner
+    // Reset state
+    setSelectedMovie(null)
+    setIsSpinning(true)
+
+    // Select random winner
     const winnerIndex = Math.floor(Math.random() * items.length)
     const winner = items[winnerIndex]
 
-    // Create array of items for the animation (optimized - fewer items)
-    const minItemsBefore = 15 // Reduced from 25
-    const itemsAfterWinner = 5 // Reduced from 10
-    let spinArray: MovieItem[] = []
+    // Build spin array: fill with random shuffled items, then place winner at the end
+    const spinArray: MovieItem[] = []
+    const itemsToShow = 20 // Number of items to show before winner
 
-    // Build the spin array more efficiently
-    const shuffled = shuffle(items)
-    while (spinArray.length < minItemsBefore) {
-      spinArray = spinArray.concat(shuffled.slice(0, Math.min(shuffled.length, minItemsBefore - spinArray.length)))
+    // Shuffle items and fill the array
+    const shuffled = shuffle([...items])
+    for (let i = 0; i < itemsToShow; i++) {
+      spinArray.push(shuffled[i % shuffled.length])
     }
 
-    // Add the winner at a specific position
-    const winnerPosition = spinArray.length
+    // Add the winner at the end
     spinArray.push(winner)
 
-    // Add more items after the winner
-    spinArray = spinArray.concat(shuffled.slice(0, itemsAfterWinner))
+    // Position where winner will be centered
+    const finalPosition = spinArray.length - 1
 
     setSpinItems(spinArray)
-    setSelectedMovie(null)
+    setWinnerPosition(finalPosition)
     setCurrentDisplayIndex(0)
-    setIsSpinning(true)
 
-    // Animation with gradual slowdown - using requestAnimationFrame for better performance
-    const totalDuration = 3000 // ms (reduced from 3500)
+    // Animate using requestAnimationFrame
+    const duration = 3000 // 3 seconds
     const startTime = performance.now()
-    let currentIndex = 0
 
-    const animateNames = () => {
+    const animate = () => {
       const elapsed = performance.now() - startTime
-      const progress = Math.min(elapsed / totalDuration, 1)
+      const progress = Math.min(elapsed / duration, 1)
 
       if (progress >= 1) {
-        // Animation complete - show winner
-        setCurrentDisplayIndex(winnerPosition)
+        // Animation complete
+        setCurrentDisplayIndex(finalPosition)
         setSelectedMovie(winner)
         setIsSpinning(false)
+        animationRef.current = null
         return
       }
 
-      // Quadratic easing out
-      const easedProgress = 1 - Math.pow(1 - progress, 2)
-      const targetIndex = Math.min(Math.floor(easedProgress * winnerPosition), winnerPosition)
+      // Cubic ease-out for smooth deceleration
+      const eased = 1 - Math.pow(1 - progress, 3)
+      const currentIndex = Math.floor(eased * finalPosition)
 
-      if (targetIndex !== currentIndex) {
-        currentIndex = targetIndex
-        setCurrentDisplayIndex(currentIndex)
-      }
-
-      animationRef.current = window.requestAnimationFrame(animateNames)
+      setCurrentDisplayIndex(currentIndex)
+      animationRef.current = requestAnimationFrame(animate)
     }
 
-    animationRef.current = window.requestAnimationFrame(animateNames)
+    animationRef.current = requestAnimationFrame(animate)
   }, [items, isSpinning])
 
   const getPosterUrl = useCallback((item: MovieItem) => {
@@ -218,7 +217,7 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
                     className="flex transition-transform ease-out will-change-transform"
                     style={{
                       transform: `translateX(calc(50% - ${currentDisplayIndex * 120 + 60}px))`,
-                      transitionDuration: isSpinning ? '150ms' : '500ms',
+                      transitionDuration: isSpinning ? '100ms' : '500ms',
                     }}
                   >
                     {renderedPosters}
