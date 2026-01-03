@@ -20,14 +20,14 @@ type RecommendationService interface {
 }
 
 type RecommendationItem struct {
-	ID         int64            `json:"id"`
-	Title      string           `json:"title"`
-	MediaType  string           `json:"media_type"`
-	PosterURL  *string          `json:"poster_url"`
-	Overview   *string          `json:"overview"`
-	Score      float64          `json:"score"`
-	Popularity float64          `json:"popularity"`
-	Genres     []models.Genre   `json:"genres"`
+	ID         int64          `json:"id"`
+	Title      string         `json:"title"`
+	MediaType  string         `json:"media_type"`
+	PosterURL  *string        `json:"poster_url"`
+	Overview   *string        `json:"overview"`
+	Score      float64        `json:"score"`
+	Popularity float64        `json:"popularity"`
+	Genres     []models.Genre `json:"genres"`
 }
 
 type recommendationService struct {
@@ -51,9 +51,9 @@ func NewRecommendationService(lists daos.MovieListDAO, tmdbToken string) Recomme
 }
 
 var (
-	ErrListNotFoundRec      = errors.New("list not found")
+	ErrListNotFoundRec        = errors.New("list not found")
 	ErrForbiddenMembershipRec = errors.New("forbidden: not a member of this list")
-	ErrInsufficientMovies   = errors.New("list must have at least 2 movies for recommendations")
+	ErrInsufficientMovies     = errors.New("list must have at least 2 movies for recommendations")
 )
 
 // GetListRecommendations generates movie recommendations based on the list's content
@@ -186,14 +186,14 @@ type tmdbRecommendationsResponse struct {
 }
 
 type tmdbRecommendationResult struct {
-	ID           int64    `json:"id"`
-	Title        string   `json:"title"`
-	Name         string   `json:"name"`
-	Overview     string   `json:"overview"`
-	PosterPath   *string  `json:"poster_path"`
-	Popularity   float64  `json:"popularity"`
-	GenreIDs     []int64  `json:"genre_ids"`
-	MediaType    string   `json:"media_type"`
+	ID         int64   `json:"id"`
+	Title      string  `json:"title"`
+	Name       string  `json:"name"`
+	Overview   string  `json:"overview"`
+	PosterPath *string `json:"poster_path"`
+	Popularity float64 `json:"popularity"`
+	GenreIDs   []int64 `json:"genre_ids"`
+	MediaType  string  `json:"media_type"`
 }
 
 // fetchRecommendationsFromTMDB calls TMDB API concurrently for seed movies
