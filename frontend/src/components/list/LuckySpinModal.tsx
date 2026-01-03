@@ -116,21 +116,21 @@ export function LuckySpinModal({ open, onOpenChange, items }: LuckySpinModalProp
       const elapsed = performance.now() - startTime
       const progress = Math.min(elapsed / totalDuration, 1)
 
-      // Quadratic easing out
-      const easedProgress = 1 - Math.pow(1 - progress, 2)
-      const targetIndex = Math.floor(easedProgress * winnerPosition)
-
-      if (targetIndex > currentIndex && currentIndex < winnerPosition) {
-        currentIndex = targetIndex
-        setCurrentDisplayIndex(currentIndex)
-      }
-
-      if (currentIndex >= winnerPosition || progress >= 1) {
-        // Reached the winner - stop
+      if (progress >= 1) {
+        // Animation complete - show winner
         setCurrentDisplayIndex(winnerPosition)
         setSelectedMovie(winner)
         setIsSpinning(false)
         return
+      }
+
+      // Quadratic easing out
+      const easedProgress = 1 - Math.pow(1 - progress, 2)
+      const targetIndex = Math.min(Math.floor(easedProgress * winnerPosition), winnerPosition)
+
+      if (targetIndex !== currentIndex) {
+        currentIndex = targetIndex
+        setCurrentDisplayIndex(currentIndex)
       }
 
       animationRef.current = window.requestAnimationFrame(animateNames)
