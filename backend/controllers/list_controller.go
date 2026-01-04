@@ -679,8 +679,8 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 
 	// Validate rating if provided
 	if ratingProvided && req.Rating != nil {
-		if *req.Rating < 1 || *req.Rating > 10 {
-			respondValidationError(ctx, []string{"Rating deve estar entre 1 e 10"})
+		if *req.Rating < 0 || *req.Rating > 10 {
+			respondValidationError(ctx, []string{"Rating deve estar entre 0 e 10"})
 			return
 		}
 	}
