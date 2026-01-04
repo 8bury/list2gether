@@ -28,11 +28,19 @@ export function StarRating({ rating, onChange, readonly = false, size = 'md', di
 
     const rect = starsRef.current.getBoundingClientRect()
     const clickX = e.clientX - rect.left
+    const relativeX = clickX / rect.width
+
+    // Zero zone: clicking on the leftmost 8% sets rating to 0 (no rating)
+    const ZERO_ZONE_THRESHOLD = 0.08
+    if (relativeX < ZERO_ZONE_THRESHOLD) {
+      onChange(0)
+      return
+    }
 
     // Calculate which half-star was clicked (0-9 index)
     // Each star is 1/5th of the width, divided into 2 halves
-    const starIndex = Math.floor((clickX / rect.width) * 5)
-    const starX = (clickX / rect.width) * 5 - starIndex
+    const starIndex = Math.floor(relativeX * 5)
+    const starX = relativeX * 5 - starIndex
 
     // Determine if left half (0.5) or right half (1.0) was clicked
     const halfStar = starX < 0.5 ? 0.5 : 1.0
@@ -62,7 +70,7 @@ export function StarRating({ rating, onChange, readonly = false, size = 'md', di
           !readonly && !disabled && 'cursor-pointer select-none group',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
-        title={readonly ? undefined : 'Clique para avaliar'}
+        title={readonly ? undefined : 'Clique para avaliar (início = sem avaliação)'}
       >
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="relative transition-transform group-hover:scale-110">
