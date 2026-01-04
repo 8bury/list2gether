@@ -52,6 +52,10 @@ func connectDatabase() *gorm.DB {
 		fmt.Println("Warning: failed to backfill legacy list movie user data:", err)
 	}
 
+	if err := updateRatingConstraint(db); err != nil {
+		fmt.Println("Warning: failed to update rating constraint:", err)
+	}
+
 	fmt.Println("Database migration completed successfully")
 
 	return db
@@ -147,6 +151,61 @@ func backfillLegacyListMovieUserData(db *gorm.DB) error {
 		}
 	}
 
+	return nil
+}
+
+func updateRatingConstraint(db *gorm.DB) error {
+	// Check if the old constraint exists
+	var constraintExists bool
+	checkQuery := `
+		SELECT COUNT(*) > 0
+		FROM information_schema.TABLE_CONSTRAINTS tc
+		JOIN information_schema.CHECK_CONSTRAINTS cc ON tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+		WHERE tc.TABLE_SCHEMA = DATABASE()
+		AND tc.TABLE_NAME = 'list_movie_user_data'
+		AND cc.CHECK_CLAUSE LIKE '%BETWEEN 1 AND 10%'
+	`
+	if err := db.Raw(checkQuery).Scan(&constraintExists).Error; err != nil {
+		return fmt.Errorf("failed to check constraint: %w", err)
+	}
+
+	if !constraintExists {
+		// Constraint already updated or doesn't exist
+		return nil
+	}
+
+	// Get the constraint name
+	var constraintName string
+	getNameQuery := `
+		SELECT tc.CONSTRAINT_NAME
+		FROM information_schema.TABLE_CONSTRAINTS tc
+		JOIN information_schema.CHECK_CONSTRAINTS cc ON tc.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+		WHERE tc.TABLE_SCHEMA = DATABASE()
+		AND tc.TABLE_NAME = 'list_movie_user_data'
+		AND cc.CHECK_CLAUSE LIKE '%BETWEEN 1 AND 10%'
+		LIMIT 1
+	`
+	if err := db.Raw(getNameQuery).Scan(&constraintName).Error; err != nil {
+		return fmt.Errorf("failed to get constraint name: %w", err)
+	}
+
+	if constraintName == "" {
+		return nil
+	}
+
+	// Drop the old constraint
+	dropQuery := fmt.Sprintf("ALTER TABLE list_movie_user_data DROP CHECK %s", constraintName)
+	if err := db.Exec(dropQuery).Error; err != nil {
+		return fmt.Errorf("failed to drop old constraint: %w", err)
+	}
+
+	// Add the new constraint
+	addQuery := "ALTER TABLE list_movie_user_data ADD CONSTRAINT list_movie_user_data_chk_rating CHECK (rating BETWEEN 0 AND 10)"
+	if err := db.Exec(addQuery).Error; err != nil {
+		return fmt.Errorf("failed to add new constraint: %w", err)
+	}
+
+	fmt.Println("Successfully updated rating constraint to allow 0-10 range")
 	return nil
 }
 
