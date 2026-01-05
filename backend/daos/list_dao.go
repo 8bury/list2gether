@@ -310,8 +310,8 @@ func (d *movieListDAO) UpsertMovieUserData(listID, movieID, userID int64, rating
 	if ratingProvided {
 		if rating != nil {
 			r := *rating
-			if r < 0 || r > 10 {
-				return nil, errors.New("rating must be between 0 and 10")
+			if r < 1 || r > 10 {
+				return nil, errors.New("rating must be between 1 and 10")
 			}
 			cleanRating = &r
 		} else {

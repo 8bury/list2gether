@@ -144,6 +144,9 @@ export default function ListPage() {
     setUpdatingRatingId(movieId)
     const previousItems = items
 
+    // Convert 0 to null (delete rating)
+    const ratingValue = value === 0 ? null : value
+
     try {
       // Optimistic update
       setItems((prev) =>
@@ -158,13 +161,13 @@ export default function ListPage() {
           }
           return {
             ...it,
-            rating: value,
-            your_entry: { ...yourEntry, rating: value },
+            rating: ratingValue,
+            your_entry: { ...yourEntry, rating: ratingValue },
           }
         })
       )
 
-      await updateListMovie(parsedId, movieId, { rating: value })
+      await updateListMovie(parsedId, movieId, { rating: ratingValue })
       const res = await getListMovies(parsedId)
       applyItems(res)
     } catch (err) {
