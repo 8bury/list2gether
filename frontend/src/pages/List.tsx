@@ -167,6 +167,17 @@ export default function ListPage() {
       await updateListMovie(parsedId, movieId, { rating: value })
       const res = await getListMovies(parsedId)
       applyItems(res)
+
+      // Após adicionar nota, perguntar se quer marcar como assistido
+      const currentItem = res.find(item => item.movie_id === movieId)
+      if (currentItem && currentItem.status !== 'watched') {
+        const shouldMarkWatched = window.confirm(
+          'Deseja marcar este filme como assistido?'
+        )
+        if (shouldMarkWatched) {
+          await handleChangeStatus(movieId, 'watched')
+        }
+      }
     } catch (err) {
       setItems(previousItems)
       const message = (err as any)?.payload?.error || (err as Error).message
