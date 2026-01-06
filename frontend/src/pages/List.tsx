@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import Header from '@/components/Header'
 import { MovieCard } from '@/components/movie/MovieCard'
 import { MovieOverlay } from '@/components/movie/MovieOverlay'
@@ -171,12 +172,19 @@ export default function ListPage() {
       // Após adicionar nota, perguntar se quer marcar como assistido
       const currentItem = res.find(item => item.movie_id === movieId)
       if (currentItem && currentItem.status !== 'watched') {
-        const shouldMarkWatched = window.confirm(
-          'Deseja marcar este filme como assistido?'
-        )
-        if (shouldMarkWatched) {
-          await handleChangeStatus(movieId, 'watched')
-        }
+        toast('🎬 Filme avaliado!', {
+          description: 'Deseja marcar este filme como assistido?',
+          action: {
+            label: '✓ Sim, marcar',
+            onClick: async () => {
+              await handleChangeStatus(movieId, 'watched')
+            },
+          },
+          cancel: {
+            label: 'Não',
+          },
+          duration: 5000,
+        })
       }
     } catch (err) {
       setItems(previousItems)
