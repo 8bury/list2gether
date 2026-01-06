@@ -264,6 +264,10 @@ type tmdbTVResponse struct {
 	} `json:"genres"`
 }
 
+type tmdbExternalIDsResponse struct {
+	ImdbID *string `json:"imdb_id"`
+}
+
 func (s *listService) AddMediaToList(ctx context.Context, listID int64, userID int64, mediaID int64, mediaType string) (*models.ListMovie, *models.Movie, error) {
 	if mediaType != "movie" && mediaType != "tv" {
 		return nil, nil, ErrInvalidMediaType
@@ -290,6 +294,17 @@ func (s *listService) AddMediaToList(ctx context.Context, listID int64, userID i
 	var movie *models.Movie
 	if existingMovie != nil {
 		movie = existingMovie
+		// If movie exists but has no IMDB ID, fetch and update it
+		if movie.ImdbID == nil {
+			if imdbID, _ := s.fetchIMDBID(ctx, mediaID, mediaType); imdbID != nil {
+				movie.ImdbID = imdbID
+				// Update the movie in the database with the IMDB ID
+				if updateErr := s.movies.UpdateImdbID(movie.ID, imdbID); updateErr != nil {
+					// Log error but don't fail the operation
+					fmt.Println("Warning: failed to update IMDB ID for movie", movie.ID, ":", updateErr)
+				}
+			}
+		}
 	} else {
 		var fetchErr error
 		movie, fetchErr = s.fetchAndStoreFromTMDB(ctx, mediaID, mediaType)
@@ -313,6 +328,36 @@ func (s *listService) AddMediaToList(ctx context.Context, listID int64, userID i
 		return nil, nil, err
 	}
 	return lm, movie, nil
+}
+
+func (s *listService) fetchIMDBID(ctx context.Context, id int64, mediaType string) (*string, error) {
+	var url string
+	if mediaType == "movie" {
+		url = fmt.Sprintf("https://api.themoviedb.org/3/movie/%d/external_ids", id)
+	} else {
+		url = fmt.Sprintf("https://api.themoviedb.org/3/tv/%d/external_ids", id)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if s.tmdbToken != "" {
+		req.Header.Set("Authorization", "Bearer "+s.tmdbToken)
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil
+	}
+	var externalIDs tmdbExternalIDsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&externalIDs); err != nil {
+		return nil, nil
+	}
+	return externalIDs.ImdbID, nil
 }
 
 func (s *listService) fetchAndStoreFromTMDB(ctx context.Context, id int64, mediaType string) (*models.Movie, error) {
@@ -345,6 +390,8 @@ func (s *listService) fetchAndStoreFromTMDB(ctx context.Context, id int64, media
 		return nil, ErrTMDBUnavailable
 	}
 
+	imdbID, _ := s.fetchIMDBID(ctx, id, mediaType)
+
 	if mediaType == "movie" {
 		var m tmdbMovieResponse
 		if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
@@ -366,6 +413,7 @@ func (s *listService) fetchAndStoreFromTMDB(ctx context.Context, id int64, media
 			ReleaseDate:   release,
 			PosterPath:    m.PosterPath,
 			Popularity:    m.Popularity,
+			ImdbID:        imdbID,
 		}
 		genres := make([]models.Genre, 0, len(m.Genres))
 		for _, g := range m.Genres {
@@ -400,6 +448,7 @@ func (s *listService) fetchAndStoreFromTMDB(ctx context.Context, id int64, media
 		SeasonsCount:  tv.NumberOfSeasons,
 		EpisodesCount: tv.NumberOfEpisodes,
 		SeriesStatus:  tv.Status,
+		ImdbID:        imdbID,
 	}
 	genres := make([]models.Genre, 0, len(tv.Genres))
 	for _, g := range tv.Genres {

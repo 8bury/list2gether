@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Film, Calendar, Languages, TrendingUp, Tv } from 'lucide-react'
+import { X, Film, Calendar, Languages, TrendingUp, Tv, ExternalLink } from 'lucide-react'
 import { StarRating } from './StarRating'
 import { CommentSection } from './CommentSection'
 import { UserAvatar } from '@/components/UserAvatar'
@@ -31,6 +31,7 @@ interface MovieOverlayProps {
       overview?: string | null
       original_lang?: string | null
       popularity?: number | null
+      imdb_id?: string | null
       seasons_count?: number | null
       episodes_count?: number | null
       series_status?: string | null
@@ -160,6 +161,21 @@ export function MovieOverlay({
                         {media.media_type === 'movie' ? <Film className="w-3 h-3" /> : <Tv className="w-3 h-3" />}
                         {media.media_type === 'movie' ? 'Filme' : 'Série'}
                       </span>
+                      {media.imdb_id && (
+                        <a
+                          href={`https://www.imdb.com/title/${media.imdb_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(
+                            "inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border font-medium transition-colors",
+                            "bg-yellow-500/10 border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/20 hover:border-yellow-500/50"
+                          )}
+                          title="Ver no IMDB"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          IMDB
+                        </a>
+                      )}
                     </div>
                     {original && (
                       <p className="text-sm text-neutral-400 italic mb-3">
