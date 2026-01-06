@@ -294,6 +294,17 @@ func (s *listService) AddMediaToList(ctx context.Context, listID int64, userID i
 	var movie *models.Movie
 	if existingMovie != nil {
 		movie = existingMovie
+		// If movie exists but has no IMDB ID, fetch and update it
+		if movie.ImdbID == nil {
+			if imdbID, _ := s.fetchIMDBID(ctx, mediaID, mediaType); imdbID != nil {
+				movie.ImdbID = imdbID
+				// Update the movie in the database with the IMDB ID
+				if updateErr := s.movies.UpdateImdbID(movie.ID, imdbID); updateErr != nil {
+					// Log error but don't fail the operation
+					fmt.Println("Warning: failed to update IMDB ID for movie", movie.ID, ":", updateErr)
+				}
+			}
+		}
 	} else {
 		var fetchErr error
 		movie, fetchErr = s.fetchAndStoreFromTMDB(ctx, mediaID, mediaType)

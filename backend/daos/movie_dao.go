@@ -10,6 +10,7 @@ type MovieDAO interface {
 	FindByIDAndType(id int64, mediaType string) (*models.Movie, error)
 	FindByID(id int64) (*models.Movie, error)
 	CreateMovieWithGenres(movie *models.Movie, genres []models.Genre) error
+	UpdateImdbID(id int64, imdbID *string) error
 }
 
 type movieDAO struct {
@@ -54,4 +55,8 @@ func (d *movieDAO) CreateMovieWithGenres(movie *models.Movie, genres []models.Ge
 		}
 		return nil
 	})
+}
+
+func (d *movieDAO) UpdateImdbID(id int64, imdbID *string) error {
+	return d.db.Model(&models.Movie{}).Where("id = ?", id).Update("imdb_id", imdbID).Error
 }
