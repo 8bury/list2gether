@@ -13,6 +13,7 @@ type Movie struct {
 	ReleaseDate   *time.Time `gorm:"type:date;column:release_date" json:"release_date"`
 	PosterPath    *string    `gorm:"type:text;column:poster_path" json:"poster_path"`
 	Popularity    *float64   `gorm:"type:numeric;column:popularity" json:"popularity"`
+	ImdbID        *string    `gorm:"size:20;column:imdb_id" json:"imdb_id"`
 
 	MediaType     string  `gorm:"type:enum('movie','tv');not null;default:'movie';column:media_type" json:"media_type"`
 	SeasonsCount  *int    `gorm:"column:seasons_count" json:"seasons_count"`

@@ -115,6 +115,7 @@ export interface MovieDTO {
   release_date?: string | null
   poster_path?: string | null
   popularity?: number | null
+  imdb_id?: string | null
   media_type: 'movie' | 'tv'
   seasons_count?: number | null
   episodes_count?: number | null
