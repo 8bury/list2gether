@@ -182,6 +182,7 @@ export default function ListPage() {
           },
           cancel: {
             label: 'Não',
+            onClick: () => {}, // Apenas fecha o toast
           },
           duration: 5000,
         })
