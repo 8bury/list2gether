@@ -24,6 +24,9 @@ export function StarRating({ rating, onChange, readonly = false, size = 'md', di
   }
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Stop event from bubbling up to parent elements (like MovieCard)
+    e.stopPropagation()
+
     if (readonly || disabled || !onChange || !starsRef.current) return
 
     const rect = starsRef.current.getBoundingClientRect()
