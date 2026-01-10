@@ -126,6 +126,7 @@ export interface MovieDTO {
 export interface ListMovieUserEntryDTO {
   user_id: number
   rating?: number | null
+  notes?: string | null
   created_at: string
   updated_at: string
   user?: {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { ChevronDown, Trash2, Film, Tv, Users, Calendar } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { ChevronDown, Trash2, Film, Tv, Users, Calendar, MessageSquare } from 'lucide-react'
 import { StarRating } from './StarRating'
-import { UserAvatar } from '@/components/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ListMovieUserEntryDTO, MovieStatus } from '@/services/lists'
@@ -34,10 +34,6 @@ interface MovieCardProps {
       genres?: Array<{ id: number; name: string }> | null
     }
   }
-  listId: number
-  currentUserId: number | null
-  currentUserName: string | null
-  currentUserAvatarUrl: string | null
   onChangeRating: (movieId: number, rating: number) => void
   onChangeStatus: (movieId: number, status: MovieStatus) => void
   onDelete: (movieId: number) => void
@@ -47,18 +43,19 @@ interface MovieCardProps {
   deleting?: boolean
 }
 
-const statusConfig: Record<MovieStatus, { label: string; color: string; gradient: string }> = {
-  not_watched: { label: 'Não Assistido', color: 'text-neutral-300', gradient: 'from-neutral-500/20 to-neutral-600/10' },
-  watching: { label: 'Assistindo', color: 'text-sky-300', gradient: 'from-sky-500/20 to-sky-600/10' },
-  watched: { label: 'Assistido', color: 'text-emerald-300', gradient: 'from-emerald-500/20 to-emerald-600/10' },
-  dropped: { label: 'Abandonado', color: 'text-rose-300', gradient: 'from-rose-500/20 to-rose-600/10' },
+const statusConfig: Record<MovieStatus, { gradient: string; color: string }> = {
+  not_watched: { color: 'text-neutral-300', gradient: 'from-neutral-500/20 to-neutral-600/10' },
+  watching: { color: 'text-sky-300', gradient: 'from-sky-500/20 to-sky-600/10' },
+  watched: { color: 'text-emerald-300', gradient: 'from-emerald-500/20 to-emerald-600/10' },
+  dropped: { color: 'text-rose-300', gradient: 'from-rose-500/20 to-rose-600/10' },
 }
 
-function getEntryDisplayName(entry: ListMovieUserEntryDTO) {
-  return entry.user?.username || entry.user?.email || `Usuário #${entry.user_id}`
+function getPluralSuffix(count: number): 'one' | 'other' {
+  return count === 1 ? 'one' : 'other'
 }
 
-export function MovieCard({ item, listId: _listId, currentUserId: _currentUserId, currentUserName: _currentUserName, currentUserAvatarUrl: _currentUserAvatarUrl, onChangeRating, onChangeStatus, onDelete, onOpenOverlay, updatingRating, updatingStatus, deleting }: MovieCardProps) {
+export function MovieCard({ item, onChangeRating, onChangeStatus, onDelete, onOpenOverlay, updatingRating, updatingStatus, deleting }: MovieCardProps) {
+  const { t } = useTranslation()
   const media = item.movie
   const title = media.title
   const original = media.original_title && media.original_title !== media.title ? media.original_title : undefined
@@ -67,9 +64,9 @@ export function MovieCard({ item, listId: _listId, currentUserId: _currentUserId
   const rating = typeof userRatingValue === 'number' ? userRatingValue : 0
 
   const [statusOpen, setStatusOpen] = useState(false)
-  const [ratingsExpanded, setRatingsExpanded] = useState(false)
 
-  const ratedEntries = item.user_entries.filter((e) => e.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+  const ratingsCount = item.user_entries.filter((e) => e.rating != null).length
+  const notesCount = item.user_entries.filter((e) => e.notes && e.notes.trim() !== '').length
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't open overlay if clicking on interactive elements
@@ -125,7 +122,7 @@ export function MovieCard({ item, listId: _listId, currentUserId: _currentUserId
                   "bg-white/5 border-white/10 text-neutral-300"
                 )}>
                   {media.media_type === 'movie' ? <Film className="w-3 h-3" /> : <Tv className="w-3 h-3" />}
-                  {media.media_type === 'movie' ? 'Filme' : 'Série'}
+                  {t(`movieCard.mediaType.${media.media_type}`)}
                 </span>
 
                 {/* Status selector */}
@@ -141,7 +138,7 @@ export function MovieCard({ item, listId: _listId, currentUserId: _currentUserId
                       updatingStatus && "opacity-50 cursor-not-allowed"
                     )}
                   >
-                    {statusConfig[item.status].label}
+                    {t(`status.${item.status}`)}
                     <ChevronDown className={cn("w-3 h-3 transition-transform", statusOpen && "rotate-180")} />
                   </button>
 
@@ -166,7 +163,7 @@ export function MovieCard({ item, listId: _listId, currentUserId: _currentUserId
                               "w-2 h-2 rounded-full",
                               `bg-gradient-to-r ${statusConfig[s].gradient}`
                             )} />
-                            {statusConfig[s].label}
+                            {t(`status.${s}`)}
                           </button>
                         ))}
                       </div>
@@ -198,14 +195,14 @@ export function MovieCard({ item, listId: _listId, currentUserId: _currentUserId
               onClick={() => onDelete(item.movie_id)}
               disabled={!!deleting}
               className="border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 h-9 w-9"
-              title="Remover"
+              title={t('movieCard.remove')}
             >
               <Trash2 className="w-4 h-4" />
             </Button>
 
             {(updatingRating || deleting) && (
               <span className="text-xs text-neutral-500">
-                {updatingRating ? 'Salvando…' : 'Removendo…'}
+                {updatingRating ? t('movieCard.saving') : t('movieCard.removing')}
               </span>
             )}
           </div>
@@ -218,46 +215,20 @@ export function MovieCard({ item, listId: _listId, currentUserId: _currentUserId
             </div>
           )}
 
-          {/* User ratings section */}
-          {ratedEntries.length > 0 && (
-            <div className="border-t border-white/10 pt-3">
-              <button
-                onClick={() => setRatingsExpanded(!ratingsExpanded)}
-                className="flex items-center justify-between w-full text-xs text-neutral-400 hover:text-neutral-300 transition-colors group/ratings"
-              >
+          {/* Stats indicators */}
+          {(ratingsCount > 0 || notesCount > 0) && (
+            <div className="flex items-center gap-3 text-xs text-neutral-400">
+              {ratingsCount > 0 && (
                 <span className="flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5" />
-                  {ratedEntries.length} {ratedEntries.length !== 1 ? 'avaliações' : 'avaliação'}
+                  {ratingsCount} {t(`movieCard.ratings_${getPluralSuffix(ratingsCount)}`)}
                 </span>
-                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", ratingsExpanded && "rotate-180")} />
-              </button>
-
-              {ratingsExpanded && (
-                <div className="mt-3 space-y-2">
-                  {ratedEntries.map((entry) => (
-                    <div
-                      key={entry.user_id}
-                      className={cn(
-                        "flex items-center justify-between px-3 py-2 rounded-lg border transition-colors",
-                        item.your_entry && entry.user_id === item.your_entry.user_id
-                          ? 'bg-sky-500/10 border-sky-500/30'
-                          : 'bg-white/5 border-white/10 hover:bg-white/10'
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <UserAvatar
-                          avatarUrl={entry.user?.avatar_url}
-                          name={getEntryDisplayName(entry)}
-                          size="xs"
-                        />
-                        <span className="text-xs text-neutral-200">{getEntryDisplayName(entry)}</span>
-                      </div>
-                      <span className="text-sm font-semibold bg-gradient-to-br from-amber-200 to-amber-400 bg-clip-text text-transparent">
-                        {entry.rating}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              )}
+              {notesCount > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  {notesCount} {t(`movieCard.comments_${getPluralSuffix(notesCount)}`)}
+                </span>
               )}
             </div>
           )}

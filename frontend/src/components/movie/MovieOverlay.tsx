@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { X, Film, Calendar, Languages, TrendingUp, Tv } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { X, Film, Calendar, Languages, TrendingUp, Tv, Users } from 'lucide-react'
 import { StarRating } from './StarRating'
 import { CommentSection } from './CommentSection'
 import { UserAvatar } from '@/components/UserAvatar'
@@ -45,11 +46,19 @@ interface MovieOverlayProps {
   updatingRating?: boolean
 }
 
-const statusConfig: Record<MovieStatus, { label: string; color: string }> = {
-  not_watched: { label: 'Não Assistido', color: 'text-neutral-300' },
-  watching: { label: 'Assistindo', color: 'text-sky-300' },
-  watched: { label: 'Assistido', color: 'text-emerald-300' },
-  dropped: { label: 'Abandonado', color: 'text-rose-300' },
+const statusConfig: Record<MovieStatus, { color: string }> = {
+  not_watched: { color: 'text-neutral-300' },
+  watching: { color: 'text-sky-300' },
+  watched: { color: 'text-emerald-300' },
+  dropped: { color: 'text-rose-300' },
+}
+
+function getEntryDisplayName(entry: ListMovieUserEntryDTO): string {
+  return entry.user?.username || entry.user?.email || `User #${entry.user_id}`
+}
+
+function getDisplayName(user: { username: string; email: string }): string {
+  return user.username || user.email
 }
 
 export function MovieOverlay({
@@ -63,6 +72,7 @@ export function MovieOverlay({
   onChangeRating,
   updatingRating,
 }: MovieOverlayProps) {
+  const { t } = useTranslation()
   const [isClosing, setIsClosing] = useState(false)
 
   const media = item.movie
@@ -71,6 +81,8 @@ export function MovieOverlay({
   const posterUrl = media.poster_url || (media.poster_path ? `https://image.tmdb.org/t/p/w500${media.poster_path}` : null)
   const userRatingValue = item.your_entry?.rating ?? item.rating ?? null
   const rating = typeof userRatingValue === 'number' ? userRatingValue : 0
+
+  const ratedEntries = item.user_entries.filter((e) => e.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
 
   const handleClose = () => {
     setIsClosing(true)
@@ -158,7 +170,7 @@ export function MovieOverlay({
                         "bg-white/5 border-white/10 text-neutral-300"
                       )}>
                         {media.media_type === 'movie' ? <Film className="w-3 h-3" /> : <Tv className="w-3 h-3" />}
-                        {media.media_type === 'movie' ? 'Filme' : 'Série'}
+                        {t(`movieCard.mediaType.${media.media_type}`)}
                       </span>
                     </div>
                     {original && (
@@ -170,7 +182,7 @@ export function MovieOverlay({
                     {/* Status badge */}
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
                       <span className={cn("text-sm font-medium", statusConfig[item.status].color)}>
-                        {statusConfig[item.status].label}
+                        {t(`status.${item.status}`)}
                       </span>
                     </div>
                   </div>
@@ -185,7 +197,7 @@ export function MovieOverlay({
 
                   {/* Rating */}
                   <div className="space-y-2">
-                    <p className="text-sm text-neutral-400">Sua avaliação:</p>
+                    <p className="text-sm text-neutral-400">{t('movieOverlay.yourRating')}</p>
                     <StarRating
                       rating={rating}
                       onChange={(r) => onChangeRating(item.movie_id, r)}
@@ -193,7 +205,7 @@ export function MovieOverlay({
                       disabled={!!updatingRating}
                     />
                     {updatingRating && (
-                      <span className="text-xs text-neutral-500">Salvando…</span>
+                      <span className="text-xs text-neutral-500">{t('movieCard.saving')}</span>
                     )}
                   </div>
                 </div>
@@ -206,7 +218,7 @@ export function MovieOverlay({
             {/* Overview */}
             {media.overview && (
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Sinopse</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">{t('movieOverlay.synopsis')}</h3>
                 <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">
                   {media.overview}
                 </p>
@@ -219,7 +231,7 @@ export function MovieOverlay({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-neutral-500 text-xs">
                     <Languages className="w-3.5 h-3.5" />
-                    <span>Idioma</span>
+                    <span>{t('movieOverlay.language')}</span>
                   </div>
                   <p className="text-sm text-neutral-200 font-medium">{media.original_lang.toUpperCase()}</p>
                 </div>
@@ -228,7 +240,7 @@ export function MovieOverlay({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-neutral-500 text-xs">
                     <TrendingUp className="w-3.5 h-3.5" />
-                    <span>Popularidade</span>
+                    <span>{t('movieOverlay.popularity')}</span>
                   </div>
                   <p className="text-sm text-neutral-200 font-medium">{Math.round(media.popularity)}</p>
                 </div>
@@ -237,7 +249,7 @@ export function MovieOverlay({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-neutral-500 text-xs">
                     <Tv className="w-3.5 h-3.5" />
-                    <span>Temporadas</span>
+                    <span>{t('movieOverlay.seasons')}</span>
                   </div>
                   <p className="text-sm text-neutral-200 font-medium">
                     {media.seasons_count}
@@ -248,7 +260,7 @@ export function MovieOverlay({
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-neutral-500 text-xs">
                     <Film className="w-3.5 h-3.5" />
-                    <span>Episódios</span>
+                    <span>{t('movieOverlay.episodes')}</span>
                   </div>
                   <p className="text-sm text-neutral-200 font-medium">
                     {media.episodes_count}
@@ -260,7 +272,7 @@ export function MovieOverlay({
             {/* Genres */}
             {media.genres && media.genres.length > 0 && (
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3">Gêneros</h3>
+                <h3 className="text-lg font-semibold text-white mb-3">{t('movieOverlay.genres')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {media.genres.map((g) => (
                     <span
@@ -277,23 +289,62 @@ export function MovieOverlay({
             {/* Added by */}
             {item.added_by_user && (
               <div>
-                <p className="text-sm text-neutral-400 mb-2">Adicionado por</p>
+                <p className="text-sm text-neutral-400 mb-2">{t('movieOverlay.addedBy')}</p>
                 <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
                   <UserAvatar
                     avatarUrl={item.added_by_user.avatar_url}
-                    name={item.added_by_user.username || item.added_by_user.email}
+                    name={getDisplayName(item.added_by_user)}
                     size="sm"
                   />
                   <span className="text-sm text-neutral-200">
-                    {item.added_by_user.username || item.added_by_user.email}
+                    {getDisplayName(item.added_by_user)}
                   </span>
+                </div>
+              </div>
+            )}
+
+            {/* Member ratings section */}
+            {ratedEntries.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  {t('movieOverlay.memberRatings')}
+                </h3>
+                <div className="space-y-2">
+                  {ratedEntries.map((entry) => {
+                    const displayName = getEntryDisplayName(entry)
+                    const isCurrentUser = entry.user_id === item.your_entry?.user_id
+                    return (
+                      <div
+                        key={entry.user_id}
+                        className={cn(
+                          "flex items-center justify-between px-4 py-3 rounded-lg border transition-colors",
+                          isCurrentUser
+                            ? 'bg-sky-500/10 border-sky-500/30'
+                            : 'bg-white/5 border-white/10'
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <UserAvatar
+                            avatarUrl={entry.user?.avatar_url}
+                            name={displayName}
+                            size="sm"
+                          />
+                          <span className="text-sm text-neutral-200">{displayName}</span>
+                        </div>
+                        <span className="text-base font-semibold bg-gradient-to-br from-amber-200 to-amber-400 bg-clip-text text-transparent">
+                          {entry.rating}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
 
             {/* Comments section */}
             <div>
-              <h3 className="text-lg font-semibold text-white mb-3">Comentários</h3>
+              <h3 className="text-lg font-semibold text-white mb-3">{t('comments.title')}</h3>
               <CommentSection
                 listId={listId}
                 movieId={item.movie_id}
