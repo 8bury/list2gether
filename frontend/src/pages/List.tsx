@@ -319,10 +319,6 @@ export default function ListPage() {
                   <MovieCard
                     key={item.movie_id}
                     item={item}
-                    listId={parsedId}
-                    currentUserId={currentUserId}
-                    currentUserName={currentUserName}
-                    currentUserAvatarUrl={currentUserAvatarUrl}
                     onChangeRating={handleChangeRating}
                     onChangeStatus={handleChangeStatus}
                     onDelete={handleDelete}

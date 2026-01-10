@@ -176,6 +176,30 @@
     "watching": "Watching",
     "watched": "Watched",
     "dropped": "Dropped"
+  },
+  "movieCard": {
+    "ratings_one": "rating",
+    "ratings_other": "ratings",
+    "comments_one": "comment",
+    "comments_other": "comments",
+    "remove": "Remove",
+    "saving": "Saving…",
+    "removing": "Removing…",
+    "mediaType": {
+      "movie": "Movie",
+      "tv": "Series"
+    }
+  },
+  "movieOverlay": {
+    "yourRating": "Your rating:",
+    "synopsis": "Synopsis",
+    "language": "Language",
+    "popularity": "Popularity",
+    "seasons": "Seasons",
+    "episodes": "Episodes",
+    "genres": "Genres",
+    "addedBy": "Added by",
+    "memberRatings": "Member Ratings"
   }
 }
 

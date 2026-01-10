@@ -176,6 +176,30 @@
     "watching": "Assistindo",
     "watched": "Assistido",
     "dropped": "Abandonado"
+  },
+  "movieCard": {
+    "ratings_one": "avaliação",
+    "ratings_other": "avaliações",
+    "comments_one": "comentário",
+    "comments_other": "comentários",
+    "remove": "Remover",
+    "saving": "Salvando…",
+    "removing": "Removendo…",
+    "mediaType": {
+      "movie": "Filme",
+      "tv": "Série"
+    }
+  },
+  "movieOverlay": {
+    "yourRating": "Sua avaliação:",
+    "synopsis": "Sinopse",
+    "language": "Idioma",
+    "popularity": "Popularidade",
+    "seasons": "Temporadas",
+    "episodes": "Episódios",
+    "genres": "Gêneros",
+    "addedBy": "Adicionado por",
+    "memberRatings": "Avaliações dos membros"
   }
 }
 
