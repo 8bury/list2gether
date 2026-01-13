@@ -28,6 +28,7 @@ type ListService interface {
 	UpdateMovie(listID int64, userID int64, movieID int64, status *models.MovieStatus, rating *int, ratingProvided bool) (*models.ListMovie, *models.Movie, *models.MovieStatus, *models.ListMovieUserData, *models.ListMovieUserData, *float64, error)
 	ListMovies(listID int64, userID int64, status *models.MovieStatus) ([]models.ListMovie, error)
 	SearchListMovies(listID int64, userID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
+	ReorderMovies(listID int64, userID int64, orderMap map[int64]int) error
 	// Comment methods
 	CreateComment(listID, userID, movieID int64, content string) (*models.Comment, error)
 	GetComments(listID, userID, movieID int64, limit, offset int) ([]models.Comment, int64, error)
@@ -632,6 +633,28 @@ func (s *listService) SearchListMovies(listID int64, userID int64, query string,
 		return nil, 0, findErr
 	}
 	return items, total, nil
+}
+
+func (s *listService) ReorderMovies(listID int64, userID int64, orderMap map[int64]int) error {
+	if _, err := s.lists.FindByID(listID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrListNotFound
+		}
+		return err
+	}
+
+	membership, err := s.lists.FindMembership(listID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrForbiddenMembership
+		}
+		return err
+	}
+	if membership.Role != models.RoleOwner && membership.Role != models.RoleParticipant {
+		return ErrForbiddenMembership
+	}
+
+	return s.lists.UpdateMovieOrders(listID, orderMap)
 }
 
 var (

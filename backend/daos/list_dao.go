@@ -34,6 +34,7 @@ type MovieListDAO interface {
 	GetMovieAverageRating(listID, movieID int64) (*float64, error)
 	FindListMoviesWithMovie(listID int64, status *models.MovieStatus) ([]models.ListMovie, error)
 	SearchListMoviesWithMovie(listID int64, query string, limit int, offset int) ([]models.ListMovie, int64, error)
+	UpdateMovieOrders(listID int64, orderMap map[int64]int) error
 	RemoveMember(listID, userID int64) error
 	// Comment methods
 	CreateComment(listID, movieID, userID int64, content string) (*models.Comment, error)
@@ -380,7 +381,7 @@ func (d *movieListDAO) FindListMoviesWithMovie(listID int64, status *models.Movi
 	if status != nil {
 		q = q.Where("status = ?", string(*status))
 	}
-	if err := q.Order("added_at DESC").Find(&listMovies).Error; err != nil {
+	if err := q.Order("CASE WHEN display_order IS NULL THEN 1 ELSE 0 END, display_order ASC, added_at DESC").Find(&listMovies).Error; err != nil {
 		return nil, err
 	}
 	return listMovies, nil
@@ -423,7 +424,7 @@ func (d *movieListDAO) SearchListMoviesWithMovie(listID int64, query string, lim
 		Joins("JOIN movies ON movies.id = list_movies.movie_id").
 		Where("list_movies.list_id = ?", listID).
 		Where("movies.title LIKE ? OR movies.original_title LIKE ?", like, like).
-		Order("list_movies.added_at DESC")
+		Order("CASE WHEN list_movies.display_order IS NULL THEN 1 ELSE 0 END, list_movies.display_order ASC, list_movies.added_at DESC")
 	if limit > 0 {
 		fetchQ = fetchQ.Limit(limit)
 	}
@@ -434,6 +435,19 @@ func (d *movieListDAO) SearchListMoviesWithMovie(listID int64, query string, lim
 		return nil, 0, err
 	}
 	return listMovies, total, nil
+}
+
+func (d *movieListDAO) UpdateMovieOrders(listID int64, orderMap map[int64]int) error {
+	return d.db.Transaction(func(tx *gorm.DB) error {
+		for movieID, order := range orderMap {
+			if err := tx.Model(&models.ListMovie{}).
+				Where("list_id = ? AND movie_id = ?", listID, movieID).
+				Update("display_order", order).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (d *movieListDAO) RemoveMember(listID, userID int64) error {

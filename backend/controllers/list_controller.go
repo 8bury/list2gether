@@ -37,6 +37,7 @@ func NewListController(router *gin.Engine, service services.ListService, recomme
 	group.GET("/:id/movies", c.authMiddleware.Handler(), c.listMovies)
 	group.DELETE("/:id/movies/:movieId", c.authMiddleware.Handler(), c.removeMovie)
 	group.PATCH("/:id/movies/:movieId", c.authMiddleware.Handler(), c.updateMovie)
+	group.PATCH("/:id/movies/reorder", c.authMiddleware.Handler(), c.reorderMovies)
 	group.GET("/:id/movies/search", c.authMiddleware.Handler(), c.searchMovies)
 	group.GET("/:id/recommendations", c.authMiddleware.Handler(), c.getRecommendations)
 	// Comment routes
@@ -72,6 +73,13 @@ type createCommentRequest struct {
 
 type updateCommentRequest struct {
 	Content string `json:"content"`
+}
+
+type reorderMoviesRequest struct {
+	MovieOrders []struct {
+		MovieID      int64 `json:"movie_id"`
+		DisplayOrder int   `json:"display_order"`
+	} `json:"movie_orders"`
 }
 
 func (c *ListController) list(ctx *gin.Context) {
@@ -795,6 +803,76 @@ func (c *ListController) updateMovie(ctx *gin.Context) {
 	})
 }
 
+func (c *ListController) reorderMovies(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	listID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil || listID <= 0 {
+		respondValidationError(ctx, []string{"Invalid list id"})
+		return
+	}
+
+	var req reorderMoviesRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		respondValidationError(ctx, []string{"Invalid request body"})
+		return
+	}
+
+	if len(req.MovieOrders) == 0 {
+		respondValidationError(ctx, []string{"movie_orders array cannot be empty"})
+		return
+	}
+
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+
+	// Convert to map for service layer
+	orderMap := make(map[int64]int, len(req.MovieOrders))
+	for _, item := range req.MovieOrders {
+		orderMap[item.MovieID] = item.DisplayOrder
+	}
+
+	if err := c.service.ReorderMovies(listID, userID, orderMap); err != nil {
+		switch err {
+		case services.ErrListNotFound:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"success":   false,
+				"error":     "Lista não encontrada",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		case services.ErrForbiddenMembership:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusForbidden, gin.H{
+				"success":   false,
+				"error":     "Você não tem permissão para reordenar filmes desta lista",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		default:
+			ctx.Header("Cache-Control", "no-store")
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"success":   false,
+				"error":     "Failed to reorder movies",
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+			})
+			return
+		}
+	}
+
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Ordem dos filmes atualizada com sucesso",
+	})
+}
+
 func (c *ListController) listMovies(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	listID, err := strconv.ParseInt(idParam, 10, 64)
@@ -973,6 +1051,7 @@ func (c *ListController) listMovies(ctx *gin.Context) {
 			"added_at":       lm.AddedAt,
 			"watched_at":     lm.WatchedAt,
 			"updated_at":     lm.UpdatedAt,
+			"display_order":  lm.DisplayOrder,
 			"rating":         ratingCompat,
 			"notes":          notesCompat,
 			"average_rating": averageRating,
@@ -1182,6 +1261,7 @@ func (c *ListController) searchMovies(ctx *gin.Context) {
 			"added_at":       lm.AddedAt,
 			"watched_at":     lm.WatchedAt,
 			"updated_at":     lm.UpdatedAt,
+			"display_order":  lm.DisplayOrder,
 			"rating":         ratingCompat,
 			"average_rating": averageRating,
 			"your_entry":     yourEntryPayload,

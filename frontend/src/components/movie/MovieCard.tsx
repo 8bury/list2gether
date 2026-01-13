@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, Trash2, Film, Tv, Users, Calendar, MessageSquare } from 'lucide-react'
+import { ChevronDown, Trash2, Film, Tv, Users, Calendar, MessageSquare, GripVertical } from 'lucide-react'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { StarRating } from './StarRating'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -65,17 +67,34 @@ export function MovieCard({ item, onChangeRating, onChangeStatus, onDelete, onOp
 
   const [statusOpen, setStatusOpen] = useState(false)
 
+  // Sortable setup
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.movie_id })
+
   const ratingsCount = item.user_entries.filter((e) => e.rating != null).length
   const notesCount = item.user_entries.filter((e) => e.notes && e.notes.trim() !== '').length
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
   const handleCardClick = (e: React.MouseEvent) => {
-    // Don't open overlay if clicking on interactive elements
+    // Don't open overlay if clicking on interactive elements or drag handle
     const target = e.target as HTMLElement
     if (
       target.closest('button') ||
       target.closest('[role="button"]') ||
       target.closest('input') ||
-      target.closest('textarea')
+      target.closest('textarea') ||
+      target.closest('[data-drag-handle]')
     ) {
       return
     }
@@ -84,11 +103,23 @@ export function MovieCard({ item, onChangeRating, onChangeStatus, onDelete, onOp
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       data-animate
       onClick={handleCardClick}
       className="group rounded-2xl bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 overflow-hidden hover:border-white/20 hover:from-white/10 hover:to-white/[0.05] transition-all duration-300 shadow-xl shadow-black/20 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/30 cursor-pointer"
     >
       <div className="flex">
+        {/* Drag Handle */}
+        <div
+          data-drag-handle
+          {...attributes}
+          {...listeners}
+          className="flex items-center justify-center px-2 cursor-grab active:cursor-grabbing hover:bg-white/5 transition-colors"
+        >
+          <GripVertical className="w-5 h-5 text-neutral-500 hover:text-neutral-300 transition-colors" />
+        </div>
+
         {/* Poster */}
         <div className="relative w-32 sm:w-36 flex-shrink-0">
           {posterUrl ? (
