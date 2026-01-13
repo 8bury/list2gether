@@ -9,8 +9,8 @@ import (
 )
 
 type WatchProviderDAO interface {
-	GetCachedProviders(movieID int64, region string) (*models.WatchProvider, error)
-	UpsertProviders(movieID int64, region string, data interface{}) error
+	GetCachedProviders(movieID int64, mediaType string, region string) (*models.WatchProvider, error)
+	UpsertProviders(movieID int64, mediaType string, region string, data interface{}) error
 	IsCacheExpired(provider *models.WatchProvider) bool
 }
 
@@ -24,16 +24,16 @@ func NewWatchProviderDAO(db *gorm.DB) WatchProviderDAO {
 
 const cacheExpirationDays = 14
 
-func (dao *watchProviderDAO) GetCachedProviders(movieID int64, region string) (*models.WatchProvider, error) {
+func (dao *watchProviderDAO) GetCachedProviders(movieID int64, mediaType string, region string) (*models.WatchProvider, error) {
 	var provider models.WatchProvider
-	err := dao.db.Where("movie_id = ? AND region = ?", movieID, region).First(&provider).Error
+	err := dao.db.Where("movie_id = ? AND media_type = ? AND region = ?", movieID, mediaType, region).First(&provider).Error
 	if err != nil {
 		return nil, err
 	}
 	return &provider, nil
 }
 
-func (dao *watchProviderDAO) UpsertProviders(movieID int64, region string, data interface{}) error {
+func (dao *watchProviderDAO) UpsertProviders(movieID int64, mediaType string, region string, data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -42,6 +42,7 @@ func (dao *watchProviderDAO) UpsertProviders(movieID int64, region string, data 
 	now := time.Now()
 	provider := models.WatchProvider{
 		MovieID:   movieID,
+		MediaType: mediaType,
 		Region:    region,
 		Data:      string(jsonData),
 		FetchedAt: now,
@@ -50,7 +51,7 @@ func (dao *watchProviderDAO) UpsertProviders(movieID int64, region string, data 
 
 	// Try to update existing record first
 	result := dao.db.Model(&models.WatchProvider{}).
-		Where("movie_id = ? AND region = ?", movieID, region).
+		Where("movie_id = ? AND media_type = ? AND region = ?", movieID, mediaType, region).
 		Updates(map[string]interface{}{
 			"data":       provider.Data,
 			"fetched_at": provider.FetchedAt,

@@ -6,8 +6,9 @@ import (
 
 type WatchProvider struct {
 	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	MovieID    int64     `gorm:"not null;index:idx_movie_region" json:"movie_id"`
-	Region     string    `gorm:"type:char(2);not null;index:idx_movie_region" json:"region"`
+	MovieID    int64     `gorm:"not null;index:idx_movie_region_type" json:"movie_id"`
+	MediaType  string    `gorm:"type:enum('movie','tv');not null;default:'movie';index:idx_movie_region_type" json:"media_type"`
+	Region     string    `gorm:"type:char(2);not null;index:idx_movie_region_type" json:"region"`
 	Data       string    `gorm:"type:json;not null" json:"data"`
 	FetchedAt  time.Time `gorm:"not null" json:"fetched_at"`
 	CreatedAt  time.Time `gorm:"not null" json:"created_at"`

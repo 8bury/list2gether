@@ -877,9 +877,9 @@ func (c *ListController) reorderMovies(ctx *gin.Context) {
 }
 
 // getWatchProvidersForMovie busca watch providers do cache ou da API do TMDB
-func (c *ListController) getWatchProvidersForMovie(ctx *gin.Context, movieID int64, region string) map[string]interface{} {
+func (c *ListController) getWatchProvidersForMovie(ctx *gin.Context, movieID int64, mediaType string, region string) map[string]interface{} {
 	// Tentar buscar do cache primeiro
-	cached, err := c.watchProviderDAO.GetCachedProviders(movieID, region)
+	cached, err := c.watchProviderDAO.GetCachedProviders(movieID, mediaType, region)
 
 	// Se encontrou no cache e não expirou, retornar os dados do cache
 	if err == nil && !c.watchProviderDAO.IsCacheExpired(cached) {
@@ -890,7 +890,7 @@ func (c *ListController) getWatchProvidersForMovie(ctx *gin.Context, movieID int
 	}
 
 	// Cache não existe ou expirou, buscar da API do TMDB
-	response, apiErr := c.watchProviderService.GetMovieWatchProviders(ctx, movieID, region)
+	response, apiErr := c.watchProviderService.GetWatchProviders(ctx, movieID, mediaType, region)
 	if apiErr != nil {
 		// Se houver erro na API mas temos cache (mesmo expirado), usar o cache
 		if cached != nil {
@@ -954,7 +954,7 @@ func (c *ListController) getWatchProvidersForMovie(ctx *gin.Context, movieID int
 
 	// Salvar no cache (não bloqueia se falhar)
 	go func() {
-		_ = c.watchProviderDAO.UpsertProviders(movieID, region, data)
+		_ = c.watchProviderDAO.UpsertProviders(movieID, mediaType, region, data)
 	}()
 
 	return data
@@ -1163,7 +1163,11 @@ func (c *ListController) listMovies(ctx *gin.Context) {
 			defer wg.Done()
 			movieData := movieItem["movie"].(gin.H)
 			movieID := movieData["id"].(int64)
-			providers := c.getWatchProvidersForMovie(ctx, movieID, "BR")
+			mediaType, _ := movieData["media_type"].(string)
+			if mediaType == "" {
+				mediaType = "movie" // default to movie if not specified
+			}
+			providers := c.getWatchProvidersForMovie(ctx, movieID, mediaType, "BR")
 			results <- watchProviderResult{index: idx, data: providers}
 		}(i, item)
 	}
