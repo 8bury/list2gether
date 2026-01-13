@@ -1,3 +1,6 @@
 .env
 .cursorrules
 *.md
+
+# Backend build artifacts
+backend/list2gether-backend

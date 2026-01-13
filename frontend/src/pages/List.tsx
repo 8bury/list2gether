@@ -1,6 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import Header from '@/components/Header'
 import { MovieCard } from '@/components/movie/MovieCard'
 import { MovieOverlay } from '@/components/movie/MovieOverlay'
@@ -16,6 +31,7 @@ import {
   updateListMovie,
   deleteListMovie,
   getUserLists,
+  reorderMovies,
   type ListMovieItemDTO,
   type ListMovieUserEntryDTO,
   type MovieStatus,
@@ -66,6 +82,14 @@ export default function ListPage() {
   const currentUserId = user?.id ?? null
   const currentUserName = user?.username || user?.email || null
   const currentUserAvatarUrl = user?.avatar_url || null
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   const normalizeItem = useCallback(
     (item: ListMovieItemDTO): ListMovieItem => {
@@ -254,6 +278,37 @@ export default function ListPage() {
     }
   }
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) return
+
+    const oldIndex = items.findIndex((item) => item.movie_id === active.id)
+    const newIndex = items.findIndex((item) => item.movie_id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // Optimistically update the UI
+    const reorderedItems = arrayMove(items, oldIndex, newIndex)
+    setItems(reorderedItems)
+
+    // Create the order map based on new positions
+    const movieOrders = reorderedItems.map((item, index) => ({
+      movie_id: item.movie_id,
+      display_order: index,
+    }))
+
+    try {
+      await reorderMovies(parsedId, { movie_orders: movieOrders })
+    } catch (err) {
+      // Revert on error
+      setItems(items)
+      const message = (err as any)?.payload?.error || (err as Error).message
+      toast.error(message || 'Falha ao reordenar filmes')
+      if ((err as any)?.status === 401) clearAuth()
+    }
+  }
+
   // Filtered items
   const effectiveItems = useMemo(() => {
     let filtered = items
@@ -314,21 +369,32 @@ export default function ListPage() {
                   : 'Nenhum resultado encontrado'}
               </div>
             ) : (
-              <div className="space-y-4">
-                {effectiveItems.map((item) => (
-                  <MovieCard
-                    key={item.movie_id}
-                    item={item}
-                    onChangeRating={handleChangeRating}
-                    onChangeStatus={handleChangeStatus}
-                    onDelete={handleDelete}
-                    onOpenOverlay={setOverlayMovieId}
-                    updatingRating={updatingRatingId === item.movie_id}
-                    updatingStatus={updatingStatusId === item.movie_id}
-                    deleting={deletingId === item.movie_id}
-                  />
-                ))}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={effectiveItems.map((item) => item.movie_id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-4">
+                    {effectiveItems.map((item) => (
+                      <MovieCard
+                        key={item.movie_id}
+                        item={item}
+                        onChangeRating={handleChangeRating}
+                        onChangeStatus={handleChangeStatus}
+                        onDelete={handleDelete}
+                        onOpenOverlay={setOverlayMovieId}
+                        updatingRating={updatingRatingId === item.movie_id}
+                        updatingStatus={updatingStatusId === item.movie_id}
+                        deleting={deletingId === item.movie_id}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
           </>
         )}

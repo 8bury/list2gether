@@ -154,6 +154,7 @@ export interface ListMovieItemDTO {
   added_at: string
   watched_at?: string | null
   updated_at: string
+  display_order?: number | null
   rating?: number | null
   average_rating?: number | null
   your_entry?: ListMovieUserEntryDTO | null
@@ -229,6 +230,22 @@ export async function deleteListMovie(listId: number, movieId: number): Promise<
   await requestJson<void>(`/api/lists/${listId}/movies/${movieId}` , {
     method: 'DELETE',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export interface ReorderMoviesBodyDTO {
+  movie_orders: Array<{
+    movie_id: number
+    display_order: number
+  }>
+}
+
+export async function reorderMovies(listId: number, body: ReorderMoviesBodyDTO): Promise<void> {
+  const token = localStorage.getItem('access_token')
+  await requestJson<void>(`/api/lists/${listId}/movies/reorder`, {
+    method: 'PATCH',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body,
   })
 }
 
