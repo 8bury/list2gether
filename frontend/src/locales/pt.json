@@ -199,7 +199,12 @@
     "episodes": "Episódios",
     "genres": "Gêneros",
     "addedBy": "Adicionado por",
-    "memberRatings": "Avaliações dos membros"
+    "memberRatings": "Avaliações dos membros",
+    "whereToWatch": "Onde assistir",
+    "streaming": "Streaming",
+    "rent": "Aluguel",
+    "buy": "Comprar",
+    "watchProvidersAttribution": "Dados fornecidos por JustWatch"
   }
 }
 

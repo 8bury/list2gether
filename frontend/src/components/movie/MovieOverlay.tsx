@@ -36,6 +36,27 @@ interface MovieOverlayProps {
       episodes_count?: number | null
       series_status?: string | null
       genres?: Array<{ id: number; name: string }> | null
+      watch_providers?: {
+        link?: string
+        flatrate?: Array<{
+          logo_path: string
+          provider_id: number
+          provider_name: string
+          display_priority: number
+        }>
+        rent?: Array<{
+          logo_path: string
+          provider_id: number
+          provider_name: string
+          display_priority: number
+        }>
+        buy?: Array<{
+          logo_path: string
+          provider_id: number
+          provider_name: string
+          display_priority: number
+        }>
+      } | null
     }
   }
   listId: number
@@ -282,6 +303,95 @@ export function MovieOverlay({
                       {g.name}
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Watch Providers */}
+            {media.watch_providers && (media.watch_providers.flatrate || media.watch_providers.rent || media.watch_providers.buy) && (
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-3">{t('movieOverlay.whereToWatch')}</h3>
+                <div className="space-y-4">
+                  {media.watch_providers.flatrate && media.watch_providers.flatrate.length > 0 && (
+                    <div>
+                      <p className="text-sm text-neutral-400 mb-2">{t('movieOverlay.streaming')}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {media.watch_providers.flatrate.map((provider) => (
+                          <div
+                            key={provider.provider_id}
+                            className="flex flex-col items-center gap-1 group"
+                            title={provider.provider_name}
+                          >
+                            <div className="w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-white shadow-sm group-hover:scale-110 transition-transform">
+                              <img
+                                src={`https://image.tmdb.org/t/p/original${provider.logo_path}`}
+                                alt={provider.provider_name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <span className="text-xs text-neutral-400 text-center max-w-[60px] truncate">
+                              {provider.provider_name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {media.watch_providers.rent && media.watch_providers.rent.length > 0 && (
+                    <div>
+                      <p className="text-sm text-neutral-400 mb-2">{t('movieOverlay.rent')}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {media.watch_providers.rent.map((provider) => (
+                          <div
+                            key={provider.provider_id}
+                            className="flex flex-col items-center gap-1 group"
+                            title={provider.provider_name}
+                          >
+                            <div className="w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-white shadow-sm group-hover:scale-110 transition-transform">
+                              <img
+                                src={`https://image.tmdb.org/t/p/original${provider.logo_path}`}
+                                alt={provider.provider_name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <span className="text-xs text-neutral-400 text-center max-w-[60px] truncate">
+                              {provider.provider_name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {media.watch_providers.buy && media.watch_providers.buy.length > 0 && (
+                    <div>
+                      <p className="text-sm text-neutral-400 mb-2">{t('movieOverlay.buy')}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {media.watch_providers.buy.map((provider) => (
+                          <div
+                            key={provider.provider_id}
+                            className="flex flex-col items-center gap-1 group"
+                            title={provider.provider_name}
+                          >
+                            <div className="w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-white shadow-sm group-hover:scale-110 transition-transform">
+                              <img
+                                src={`https://image.tmdb.org/t/p/original${provider.logo_path}`}
+                                alt={provider.provider_name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <span className="text-xs text-neutral-400 text-center max-w-[60px] truncate">
+                              {provider.provider_name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {media.watch_providers.link && (
+                    <p className="text-xs text-neutral-500">
+                      {t('movieOverlay.watchProvidersAttribution')}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

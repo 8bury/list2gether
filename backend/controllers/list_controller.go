@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/8bury/list2gether/daos"
 	"github.com/8bury/list2gether/middleware"
 	"github.com/8bury/list2gether/models"
 	"github.com/8bury/list2gether/services"
@@ -22,11 +23,13 @@ import (
 type ListController struct {
 	service               services.ListService
 	recommendationService services.RecommendationService
+	watchProviderService  services.WatchProviderService
+	watchProviderDAO      daos.WatchProviderDAO
 	authMiddleware        *middleware.AuthMiddleware
 }
 
-func NewListController(router *gin.Engine, service services.ListService, recommendationService services.RecommendationService, authMiddleware *middleware.AuthMiddleware) *ListController {
-	c := &ListController{service: service, recommendationService: recommendationService, authMiddleware: authMiddleware}
+func NewListController(router *gin.Engine, service services.ListService, recommendationService services.RecommendationService, watchProviderService services.WatchProviderService, watchProviderDAO daos.WatchProviderDAO, authMiddleware *middleware.AuthMiddleware) *ListController {
+	c := &ListController{service: service, recommendationService: recommendationService, watchProviderService: watchProviderService, watchProviderDAO: watchProviderDAO, authMiddleware: authMiddleware}
 	group := router.Group("/api/lists")
 	group.POST("", c.authMiddleware.Handler(), c.create)
 	group.GET("", c.authMiddleware.Handler(), c.list)
@@ -873,6 +876,90 @@ func (c *ListController) reorderMovies(ctx *gin.Context) {
 	})
 }
 
+// getWatchProvidersForMovie busca watch providers do cache ou da API do TMDB
+func (c *ListController) getWatchProvidersForMovie(ctx *gin.Context, movieID int64, region string) map[string]interface{} {
+	// Tentar buscar do cache primeiro
+	cached, err := c.watchProviderDAO.GetCachedProviders(movieID, region)
+
+	// Se encontrou no cache e não expirou, retornar os dados do cache
+	if err == nil && !c.watchProviderDAO.IsCacheExpired(cached) {
+		var data map[string]interface{}
+		if jsonErr := json.Unmarshal([]byte(cached.Data), &data); jsonErr == nil {
+			return data
+		}
+	}
+
+	// Cache não existe ou expirou, buscar da API do TMDB
+	response, apiErr := c.watchProviderService.GetMovieWatchProviders(ctx, movieID, region)
+	if apiErr != nil {
+		// Se houver erro na API mas temos cache (mesmo expirado), usar o cache
+		if cached != nil {
+			var data map[string]interface{}
+			if jsonErr := json.Unmarshal([]byte(cached.Data), &data); jsonErr == nil {
+				return data
+			}
+		}
+		return nil
+	}
+
+	// Extrair dados da região específica
+	regionData, exists := response.Results[region]
+	if !exists {
+		return nil
+	}
+
+	// Converter para map para salvar e retornar
+	data := map[string]interface{}{
+		"link": regionData.Link,
+	}
+
+	if len(regionData.Flatrate) > 0 {
+		flatrate := make([]map[string]interface{}, len(regionData.Flatrate))
+		for i, p := range regionData.Flatrate {
+			flatrate[i] = map[string]interface{}{
+				"logo_path":        p.LogoPath,
+				"provider_id":      p.ProviderID,
+				"provider_name":    p.ProviderName,
+				"display_priority": p.DisplayPriority,
+			}
+		}
+		data["flatrate"] = flatrate
+	}
+
+	if len(regionData.Rent) > 0 {
+		rent := make([]map[string]interface{}, len(regionData.Rent))
+		for i, p := range regionData.Rent {
+			rent[i] = map[string]interface{}{
+				"logo_path":        p.LogoPath,
+				"provider_id":      p.ProviderID,
+				"provider_name":    p.ProviderName,
+				"display_priority": p.DisplayPriority,
+			}
+		}
+		data["rent"] = rent
+	}
+
+	if len(regionData.Buy) > 0 {
+		buy := make([]map[string]interface{}, len(regionData.Buy))
+		for i, p := range regionData.Buy {
+			buy[i] = map[string]interface{}{
+				"logo_path":        p.LogoPath,
+				"provider_id":      p.ProviderID,
+				"provider_name":    p.ProviderName,
+				"display_priority": p.DisplayPriority,
+			}
+		}
+		data["buy"] = buy
+	}
+
+	// Salvar no cache (não bloqueia se falhar)
+	go func() {
+		_ = c.watchProviderDAO.UpsertProviders(movieID, region, data)
+	}()
+
+	return data
+}
+
 func (c *ListController) listMovies(ctx *gin.Context) {
 	idParam := ctx.Param("id")
 	listID, err := strconv.ParseInt(idParam, 10, 64)
@@ -1060,6 +1147,39 @@ func (c *ListController) listMovies(ctx *gin.Context) {
 			"movie":          m,
 		}
 		resp = append(resp, item)
+	}
+
+	// Buscar watch providers para todos os filmes em paralelo
+	var wg sync.WaitGroup
+	type watchProviderResult struct {
+		index int
+		data  map[string]interface{}
+	}
+	results := make(chan watchProviderResult, len(resp))
+
+	for i, item := range resp {
+		wg.Add(1)
+		go func(idx int, movieItem gin.H) {
+			defer wg.Done()
+			movieData := movieItem["movie"].(gin.H)
+			movieID := movieData["id"].(int64)
+			providers := c.getWatchProvidersForMovie(ctx, movieID, "BR")
+			results <- watchProviderResult{index: idx, data: providers}
+		}(i, item)
+	}
+
+	// Fechar canal quando todas as goroutines terminarem
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Coletar resultados e adicionar aos filmes
+	for result := range results {
+		if result.data != nil {
+			movieData := resp[result.index]["movie"].(gin.H)
+			movieData["watch_providers"] = result.data
+		}
 	}
 
 	ctx.Header("Cache-Control", "no-store")

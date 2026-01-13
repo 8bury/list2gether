@@ -16,10 +16,12 @@ var (
 	refreshTokenDAO       daos.RefreshTokenDAO
 	movieListDAO          daos.MovieListDAO
 	movieDAO              daos.MovieDAO
+	watchProviderDAO      daos.WatchProviderDAO
 	authService           services.AuthService
 	listService           services.ListService
 	searchService         services.SearchService
 	recommendationService services.RecommendationService
+	watchProviderService  services.WatchProviderService
 	authMiddleware        *middleware.AuthMiddleware
 )
 
@@ -36,6 +38,7 @@ func initializeDaos(db *gorm.DB) {
 	refreshTokenDAO = daos.NewRefreshTokenDAO(db)
 	movieListDAO = daos.NewMovieListDAO(db)
 	movieDAO = daos.NewMovieDAO(db)
+	watchProviderDAO = daos.NewWatchProviderDAO(db)
 }
 
 func initializeServices() {
@@ -43,6 +46,7 @@ func initializeServices() {
 	listService = services.NewListService(movieListDAO, movieDAO, os.Getenv("TMDB_API_TOKEN"))
 	searchService = services.NewSearchService(os.Getenv("TMDB_API_TOKEN"))
 	recommendationService = services.NewRecommendationService(movieListDAO, os.Getenv("TMDB_API_TOKEN"))
+	watchProviderService = services.NewWatchProviderService(os.Getenv("TMDB_API_TOKEN"))
 	authMiddleware = middleware.NewAuthMiddleware(authService.JWTSecret())
 }
 
@@ -54,6 +58,6 @@ func initializeControllers(router *gin.Engine) {
 	router.HEAD("/health", healthHandler)
 
 	controllers.NewAuthController(router, authService, authMiddleware)
-	controllers.NewListController(router, listService, recommendationService, authMiddleware)
+	controllers.NewListController(router, listService, recommendationService, watchProviderService, watchProviderDAO, authMiddleware)
 	controllers.NewSearchController(router, searchService, authMiddleware)
 }
