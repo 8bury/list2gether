@@ -240,8 +240,29 @@ func (d *movieListDAO) ListMovieExists(listID, movieID int64) (bool, error) {
 }
 
 func (d *movieListDAO) AddMovieToList(listID, movieID int64, addedBy *int64) (*models.ListMovie, error) {
-	rec := &models.ListMovie{ListID: listID, MovieID: movieID, AddedBy: addedBy}
-	if err := d.db.Create(rec).Error; err != nil {
+	var rec *models.ListMovie
+	err := d.db.Transaction(func(tx *gorm.DB) error {
+		// Increment display_order of all existing movies in the list
+		if err := tx.Model(&models.ListMovie{}).
+			Where("list_id = ?", listID).
+			Update("display_order", gorm.Expr("COALESCE(display_order, 0) + 1")).Error; err != nil {
+			return err
+		}
+
+		// Add new movie with display_order = 0 (top of the list)
+		displayOrder := 0
+		rec = &models.ListMovie{
+			ListID:       listID,
+			MovieID:      movieID,
+			AddedBy:      addedBy,
+			DisplayOrder: &displayOrder,
+		}
+		if err := tx.Create(rec).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 	return rec, nil
@@ -381,7 +402,7 @@ func (d *movieListDAO) FindListMoviesWithMovie(listID int64, status *models.Movi
 	if status != nil {
 		q = q.Where("status = ?", string(*status))
 	}
-	if err := q.Order("CASE WHEN display_order IS NULL THEN 1 ELSE 0 END, display_order ASC, added_at DESC").Find(&listMovies).Error; err != nil {
+	if err := q.Order("display_order ASC, added_at DESC").Find(&listMovies).Error; err != nil {
 		return nil, err
 	}
 	return listMovies, nil
@@ -424,7 +445,7 @@ func (d *movieListDAO) SearchListMoviesWithMovie(listID int64, query string, lim
 		Joins("JOIN movies ON movies.id = list_movies.movie_id").
 		Where("list_movies.list_id = ?", listID).
 		Where("movies.title LIKE ? OR movies.original_title LIKE ?", like, like).
-		Order("CASE WHEN list_movies.display_order IS NULL THEN 1 ELSE 0 END, list_movies.display_order ASC, list_movies.added_at DESC")
+		Order("list_movies.display_order ASC, list_movies.added_at DESC")
 	if limit > 0 {
 		fetchQ = fetchQ.Limit(limit)
 	}
