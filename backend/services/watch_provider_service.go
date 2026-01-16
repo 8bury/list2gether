@@ -9,7 +9,7 @@ import (
 )
 
 type WatchProviderService interface {
-	GetMovieWatchProviders(ctx context.Context, movieID int64, region string) (*WatchProviderResponse, error)
+	GetWatchProviders(ctx context.Context, mediaID int64, mediaType string, region string) (*WatchProviderResponse, error)
 }
 
 type watchProviderService struct {
@@ -46,8 +46,14 @@ type WatchProviderProvider struct {
 	DisplayPriority int    `json:"display_priority"`
 }
 
-func (s *watchProviderService) GetMovieWatchProviders(ctx context.Context, movieID int64, region string) (*WatchProviderResponse, error) {
-	endpoint := fmt.Sprintf("https://api.themoviedb.org/3/movie/%d/watch/providers", movieID)
+func (s *watchProviderService) GetWatchProviders(ctx context.Context, mediaID int64, mediaType string, region string) (*WatchProviderResponse, error) {
+	// Use the correct endpoint based on media type (movie or tv)
+	var endpoint string
+	if mediaType == "tv" {
+		endpoint = fmt.Sprintf("https://api.themoviedb.org/3/tv/%d/watch/providers", mediaID)
+	} else {
+		endpoint = fmt.Sprintf("https://api.themoviedb.org/3/movie/%d/watch/providers", mediaID)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
