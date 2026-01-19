@@ -28,10 +28,8 @@ export default function Header() {
     setIsLoggingOut(true)
     try {
       const refreshToken = localStorage.getItem('refresh_token')
-      const accessToken = localStorage.getItem('access_token')
-      if (refreshToken && accessToken) {
-        await logoutApi(refreshToken)
-      }
+      await logoutApi(refreshToken)
+
     } catch {
       // ignore
     } finally {

@@ -180,7 +180,7 @@ func TestLogin_Success(t *testing.T) {
 
 	service := NewAuthService(userDAO, refreshDAO)
 
-	resultUser, accessToken, refreshToken, expiresIn, err := service.Login("test@example.com", "password123")
+	resultUser, accessToken, refreshToken, expiresIn, accessExp, err := service.Login("test@example.com", "password123")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resultUser)
@@ -189,6 +189,7 @@ func TestLogin_Success(t *testing.T) {
 	assert.NotEmpty(t, accessToken)
 	assert.NotEmpty(t, refreshToken)
 	assert.Greater(t, expiresIn, int64(0))
+	assert.Greater(t, accessExp, int64(0))
 
 	userDAO.AssertExpectations(t)
 	refreshDAO.AssertExpectations(t)
@@ -202,7 +203,7 @@ func TestLogin_InvalidEmail(t *testing.T) {
 
 	service := NewAuthService(userDAO, refreshDAO)
 
-	_, _, _, _, err := service.Login("wrong@example.com", "password123")
+	_, _, _, _, _, err := service.Login("wrong@example.com", "password123")
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid credentials", err.Error())
@@ -224,7 +225,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 
 	service := NewAuthService(userDAO, refreshDAO)
 
-	_, _, _, _, err := service.Login("test@example.com", "wrongpassword")
+	_, _, _, _, _, err := service.Login("test@example.com", "wrongpassword")
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid credentials", err.Error())
@@ -256,6 +257,7 @@ func TestRefresh_Success(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		TokenHash: tokenHash,
+		FamilyID:  "family-id",
 		ExpiresAt: exp,
 		IsRevoked: false,
 	}
@@ -266,14 +268,18 @@ func TestRefresh_Success(t *testing.T) {
 		Email:    "test@example.com",
 	}
 
-	refreshDAO.On("FindByHash", tokenHash).Return(refreshTokenModel, nil)
+	refreshDAO.On("FindByHashForUpdate", tokenHash).Return(refreshTokenModel, nil)
+	refreshDAO.On("ReplaceToken", tokenHash, mock.Anything, mock.Anything).Return(nil)
+	refreshDAO.On("Create", mock.AnythingOfType("*models.RefreshToken")).Return(nil)
 	userDAO.On("FindByID", int64(1)).Return(user, nil)
 
-	accessToken, expiresIn, err := service.Refresh(refreshToken)
+	accessToken, newRefreshToken, expiresIn, accessExp, err := service.Refresh(refreshToken)
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, accessToken)
+	assert.NotEmpty(t, newRefreshToken)
 	assert.Greater(t, expiresIn, int64(0))
+	assert.Greater(t, accessExp, int64(0))
 
 	refreshDAO.AssertExpectations(t)
 	userDAO.AssertExpectations(t)
@@ -285,7 +291,7 @@ func TestRefresh_InvalidToken(t *testing.T) {
 
 	service := NewAuthService(userDAO, refreshDAO)
 
-	_, _, err := service.Refresh("invalid.token.here")
+	_, _, _, _, err := service.Refresh("invalid.token.here")
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid or expired refresh token", err.Error())
@@ -315,13 +321,15 @@ func TestRefresh_RevokedToken(t *testing.T) {
 		ID:        1,
 		UserID:    1,
 		TokenHash: tokenHash,
+		FamilyID:  "family-id",
 		ExpiresAt: exp,
 		IsRevoked: true,
 	}
 
-	refreshDAO.On("FindByHash", tokenHash).Return(refreshTokenModel, nil)
+	refreshDAO.On("FindByHashForUpdate", tokenHash).Return(refreshTokenModel, nil)
+	refreshDAO.On("RevokeFamily", "family-id").Return(nil)
 
-	_, _, err := service.Refresh(refreshToken)
+	_, _, _, _, err := service.Refresh(refreshToken)
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid or expired refresh token", err.Error())
@@ -702,7 +710,7 @@ func TestRefresh_WrongTokenType(t *testing.T) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	accessToken, _ := token.SignedString(secret)
 
-	_, _, err := service.Refresh(accessToken)
+	_, _, _, _, err := service.Refresh(accessToken)
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid or expired refresh token", err.Error())
@@ -726,7 +734,7 @@ func TestRefresh_ExpiredToken(t *testing.T) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	refreshToken, _ := token.SignedString(secret)
 
-	_, _, err := service.Refresh(refreshToken)
+	_, _, _, _, err := service.Refresh(refreshToken)
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid or expired refresh token", err.Error())
@@ -757,13 +765,14 @@ func TestRefresh_UserIDMismatch(t *testing.T) {
 		ID:        1,
 		UserID:    999,
 		TokenHash: tokenHash,
+		FamilyID:  "family-id",
 		ExpiresAt: exp,
 		IsRevoked: false,
 	}
 
-	refreshDAO.On("FindByHash", tokenHash).Return(refreshTokenModel, nil)
+	refreshDAO.On("FindByHashForUpdate", tokenHash).Return(refreshTokenModel, nil)
 
-	_, _, err := service.Refresh(refreshToken)
+	_, _, _, _, err := service.Refresh(refreshToken)
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid or expired refresh token", err.Error())
@@ -790,9 +799,9 @@ func TestRefresh_TokenNotInDatabase(t *testing.T) {
 	hashed := sha256.Sum256([]byte(refreshToken))
 	tokenHash := hex.EncodeToString(hashed[:])
 
-	refreshDAO.On("FindByHash", tokenHash).Return(nil, errors.New("not found"))
+	refreshDAO.On("FindByHashForUpdate", tokenHash).Return(nil, errors.New("not found"))
 
-	_, _, err := service.Refresh(refreshToken)
+	_, _, _, _, err := service.Refresh(refreshToken)
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid or expired refresh token", err.Error())

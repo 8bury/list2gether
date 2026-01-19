@@ -1,6 +1,8 @@
 package mocks
 
 import (
+	"time"
+
 	"github.com/8bury/list2gether/models"
 	"github.com/stretchr/testify/mock"
 )
@@ -23,6 +25,27 @@ func (m *MockRefreshTokenDAO) FindByHash(hash string) (*models.RefreshToken, err
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.RefreshToken), args.Error(1)
+}
+
+// FindByHashForUpdate mocks the FindByHashForUpdate method.
+func (m *MockRefreshTokenDAO) FindByHashForUpdate(hash string) (*models.RefreshToken, error) {
+	args := m.Called(hash)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.RefreshToken), args.Error(1)
+}
+
+// ReplaceToken mocks the ReplaceToken method.
+func (m *MockRefreshTokenDAO) ReplaceToken(oldHash string, newHash string, now time.Time) error {
+	args := m.Called(oldHash, newHash, now)
+	return args.Error(0)
+}
+
+// RevokeFamily mocks the RevokeFamily method.
+func (m *MockRefreshTokenDAO) RevokeFamily(familyID string) error {
+	args := m.Called(familyID)
+	return args.Error(0)
 }
 
 // RevokeByHash mocks the RevokeByHash method.

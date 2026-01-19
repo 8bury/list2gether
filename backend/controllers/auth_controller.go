@@ -22,7 +22,8 @@ func NewAuthController(router *gin.Engine, service services.AuthService, authMid
 	group.POST("/register", c.register)
 	group.POST("/login", c.login)
 	group.POST("/refresh", c.refresh)
-	group.POST("/logout", c.authMiddleware.Handler(), c.logout)
+	group.POST("/logout", c.logout)
+
 	group.GET("/me", c.authMiddleware.Handler(), c.me)
 	group.PUT("/profile", c.authMiddleware.Handler(), c.updateProfile)
 	return c
@@ -76,7 +77,7 @@ func (a *AuthController) login(c *gin.Context) {
 		respondValidationError(c, []string{"Invalid request body"})
 		return
 	}
-	user, accessToken, refreshToken, expiresIn, err := a.service.Login(req.Email, req.Password)
+	user, accessToken, refreshToken, expiresIn, accessExp, err := a.service.Login(req.Email, req.Password)
 	if err != nil {
 		c.Header("Cache-Control", "no-store")
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -89,11 +90,12 @@ func (a *AuthController) login(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{
-		"message":       "Login successful",
-		"user":          user,
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-		"expires_in":    expiresIn,
+		"message":                 "Login successful",
+		"user":                    user,
+		"access_token":            accessToken,
+		"refresh_token":           refreshToken,
+		"expires_in":              expiresIn,
+		"access_token_expires_at": accessExp,
 	})
 }
 
@@ -103,15 +105,17 @@ func (a *AuthController) refresh(c *gin.Context) {
 		respondTokenInvalid(c)
 		return
 	}
-	accessToken, expiresIn, err := a.service.Refresh(req.RefreshToken)
+	accessToken, newRefreshToken, expiresIn, accessExp, err := a.service.Refresh(req.RefreshToken)
 	if err != nil {
 		respondTokenInvalid(c)
 		return
 	}
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{
-		"access_token": accessToken,
-		"expires_in":   expiresIn,
+		"access_token":            accessToken,
+		"refresh_token":           newRefreshToken,
+		"expires_in":              expiresIn,
+		"access_token_expires_at": accessExp,
 	})
 }
 

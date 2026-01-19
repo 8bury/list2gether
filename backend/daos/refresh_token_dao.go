@@ -5,11 +5,15 @@ import (
 
 	"github.com/8bury/list2gether/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type RefreshTokenDAO interface {
 	Create(token *models.RefreshToken) error
 	FindByHash(hash string) (*models.RefreshToken, error)
+	FindByHashForUpdate(hash string) (*models.RefreshToken, error)
+	ReplaceToken(oldHash string, newHash string, now time.Time) error
+	RevokeFamily(familyID string) error
 	RevokeByHash(hash string) error
 	RevokeAllByUserID(userID int64) error
 }
@@ -33,6 +37,38 @@ func (d *refreshTokenDAO) FindByHash(hash string) (*models.RefreshToken, error) 
 		return nil, err
 	}
 	return &rt, nil
+}
+
+func (d *refreshTokenDAO) FindByHashForUpdate(hash string) (*models.RefreshToken, error) {
+	var rt models.RefreshToken
+	err := d.db.Clauses(clause.Locking{Strength: "UPDATE"}).Where("token_hash = ?", hash).First(&rt).Error
+	if err != nil {
+		return nil, err
+	}
+	return &rt, nil
+}
+
+func (d *refreshTokenDAO) ReplaceToken(oldHash string, newHash string, now time.Time) error {
+	tx := d.db.Model(&models.RefreshToken{}).
+		Where("token_hash = ? AND is_revoked = ? AND replaced_by_hash IS NULL", oldHash, false).
+		Updates(map[string]interface{}{
+			"is_revoked":       true,
+			"replaced_by_hash": newHash,
+			"last_used_at":     now.UTC(),
+		})
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (d *refreshTokenDAO) RevokeFamily(familyID string) error {
+	return d.db.Model(&models.RefreshToken{}).
+		Where("family_id = ? AND is_revoked = ?", familyID, false).
+		Update("is_revoked", true).Error
 }
 
 func (d *refreshTokenDAO) RevokeByHash(hash string) error {

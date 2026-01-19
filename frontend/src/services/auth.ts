@@ -14,7 +14,9 @@ export interface LoginResponseDTO {
   access_token: string
   refresh_token: string
   expires_in: number
+  access_token_expires_at: number
 }
+
 
 export interface RegisterBodyDTO {
   username: string
@@ -41,14 +43,39 @@ export async function register(body: RegisterBodyDTO): Promise<RegisterResponseD
   })
 }
 
-export async function logout(refreshToken: string): Promise<{ message?: string }> {
-  const accessToken = localStorage.getItem('access_token')
-  return requestJson<{ message?: string }>('/auth/logout', {
+export interface RefreshResponseDTO {
+  access_token: string
+  refresh_token: string
+  expires_in: number
+  access_token_expires_at: number
+}
+
+export async function refresh(refreshToken: string): Promise<RefreshResponseDTO> {
+  return requestJson<RefreshResponseDTO>('/auth/refresh', {
     method: 'POST',
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     body: { refresh_token: refreshToken },
   })
 }
+
+export async function logout(refreshToken: string | null): Promise<{ message?: string } | void> {
+  if (!refreshToken) {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user')
+    return
+  }
+  try {
+    return await requestJson<{ message?: string }>('/auth/logout', {
+      method: 'POST',
+      body: { refresh_token: refreshToken },
+    })
+  } finally {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user')
+  }
+}
+
 
 export interface UpdateProfileBodyDTO {
   username: string
