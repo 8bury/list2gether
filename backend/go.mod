@@ -1,10 +1,10 @@
 module github.com/8bury/list2gether
 
-go 1.24.1
+go 1.24.11
 
 require github.com/gin-gonic/gin v1.10.1
 
-require github.com/golang-jwt/jwt/v5 v5.2.1
+require github.com/golang-jwt/jwt/v5 v5.2.2
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
