@@ -26,7 +26,7 @@ func NewWatchProviderService(tmdbToken string) WatchProviderService {
 
 // WatchProviderResponse representa a resposta completa do TMDB
 type WatchProviderResponse struct {
-	ID      int64                           `json:"id"`
+	ID      int64                          `json:"id"`
 	Results map[string]WatchProviderRegion `json:"results"`
 }
 
