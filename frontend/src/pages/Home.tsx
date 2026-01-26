@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useAuth } from '@/hooks'
 import { getUserLists, createList, joinList, deleteList, leaveList, type UserListDTO } from '@/services/lists'
+import type { ApiException } from '@/services/api'
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -45,9 +46,10 @@ export default function HomePage() {
         const res = await getUserLists()
         setLists(res.lists)
       } catch (err) {
-        const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao carregar listas'
+        const apiErr = err as ApiException
+        const message = apiErr.payload?.error || apiErr.message || 'Falha ao carregar listas'
         setError(message)
-        if ((err as any)?.status === 401) {
+        if (apiErr.status === 401) {
           clearAuth()
         }
       } finally {
@@ -74,9 +76,10 @@ export default function HomePage() {
       setLists((prev) => prev.filter((l) => l.id !== confirmDelete.id))
       setConfirmDelete(null)
     } catch (err) {
-      const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao excluir lista'
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message || 'Falha ao excluir lista'
       setError(message)
-      if ((err as any)?.status === 401) {
+      if (apiErr.status === 401) {
         clearAuth()
       }
     } finally {
@@ -92,9 +95,10 @@ export default function HomePage() {
       setLists((prev) => prev.filter((l) => l.id !== confirmLeave.id))
       setConfirmLeave(null)
     } catch (err) {
-      const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao sair da lista'
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message || 'Falha ao sair da lista'
       setError(message)
-      if ((err as any)?.status === 401) {
+      if (apiErr.status === 401) {
         clearAuth()
       }
     } finally {
@@ -125,9 +129,10 @@ export default function HomePage() {
        const res = await getUserLists()
        setLists(res.lists)
      } catch (err) {
-       const message = (err as any)?.payload?.error || (err as Error).message
+       const apiErr = err as ApiException
+       const message = apiErr.payload?.error || apiErr.message
        setError(message)
-       if ((err as any)?.status === 401) {
+       if (apiErr.status === 401) {
          clearAuth()
        }
      } finally {
@@ -144,9 +149,10 @@ export default function HomePage() {
        setPopoverOpen(false)
        navigate(`/list/${res.list.id}`)
      } catch (err) {
-       const message = (err as any)?.payload?.error || (err as Error).message
+       const apiErr = err as ApiException
+       const message = apiErr.payload?.error || apiErr.message
        setError(message)
-       if ((err as any)?.status === 401) {
+       if (apiErr.status === 401) {
          clearAuth()
        }
      } finally {

@@ -37,6 +37,7 @@ import {
   type MovieStatus,
 } from '@/services/lists'
 import type { SearchResultDTO } from '@/services/search'
+import type { ApiException } from '@/services/api'
 
 type ListMovieItem = ListMovieItemDTO & {
   user_entries: ListMovieUserEntryDTO[]
@@ -135,9 +136,10 @@ export default function ListPage() {
         const currentList = listsRes.lists.find((l) => l.id === parsedId)
         setListName(currentList?.name || null)
       } catch (err) {
-        const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao carregar'
+        const apiErr = err as ApiException
+        const message = apiErr.payload?.error || apiErr.message || 'Falha ao carregar'
         setError(message)
-        if ((err as any)?.status === 401) {
+        if (apiErr.status === 401) {
           clearAuth()
         }
       } finally {
@@ -216,9 +218,10 @@ export default function ListPage() {
       }
     } catch (err) {
       setItems(previousItems)
-      const message = (err as any)?.payload?.error || (err as Error).message
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message
       setError(message)
-      if ((err as any)?.status === 401) clearAuth()
+      if (apiErr.status === 401) clearAuth()
     } finally {
       setUpdatingRatingId(null)
     }
@@ -240,9 +243,10 @@ export default function ListPage() {
       applyItems(res)
     } catch (err) {
       setItems(previousItems)
-      const message = (err as any)?.payload?.error || (err as Error).message
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message
       setError(message)
-      if ((err as any)?.status === 401) clearAuth()
+      if (apiErr.status === 401) clearAuth()
     } finally {
       setUpdatingStatusId(null)
     }
@@ -256,9 +260,10 @@ export default function ListPage() {
       await deleteListMovie(parsedId, movieId)
       setItems((prev) => prev.filter((it) => it.movie_id !== movieId))
     } catch (err) {
-      const message = (err as any)?.payload?.error || (err as Error).message
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message
       setError(message)
-      if ((err as any)?.status === 401) clearAuth()
+      if (apiErr.status === 401) clearAuth()
     } finally {
       setDeletingId(null)
     }
@@ -272,9 +277,10 @@ export default function ListPage() {
       const res = await getListMovies(parsedId)
       applyItems(res)
     } catch (err) {
-      const message = (err as any)?.payload?.error || (err as Error).message
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message
       setError(message)
-      if ((err as any)?.status === 401) clearAuth()
+      if (apiErr.status === 401) clearAuth()
     }
   }
 
@@ -303,9 +309,10 @@ export default function ListPage() {
     } catch (err) {
       // Revert on error
       setItems(items)
-      const message = (err as any)?.payload?.error || (err as Error).message
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message
       toast.error(message || 'Falha ao reordenar filmes')
-      if ((err as any)?.status === 401) clearAuth()
+      if (apiErr.status === 401) clearAuth()
     }
   }
 

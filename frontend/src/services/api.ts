@@ -5,6 +5,11 @@ export interface ApiError {
   timestamp?: string
 }
 
+export interface ApiException extends Error {
+  payload?: ApiError
+  status?: number
+}
+
 export type JsonRequestOptions = Omit<RequestInit, 'body'> & { body?: unknown }
 
 const getApiBaseUrl = (): string => {

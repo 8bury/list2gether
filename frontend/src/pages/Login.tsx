@@ -6,6 +6,7 @@ import { login } from '@/services/auth'
 import postersImg from '@/assets/poster_background.png'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import type { ApiException } from '@/services/api'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -26,7 +27,8 @@ export default function LoginPage() {
       localStorage.setItem('user', JSON.stringify(res.user))
       navigate('/home')
     } catch (err) {
-      const message = (err as any)?.payload?.error || (err as Error).message || 'Falha no login'
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message || 'Falha no login'
       setError(message)
     } finally {
       setIsSubmitting(false)

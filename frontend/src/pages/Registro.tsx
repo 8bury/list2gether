@@ -6,6 +6,7 @@ import { register } from '@/services/auth'
 import postersImg from '@/assets/poster_background.png'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import type { ApiException } from '@/services/api'
 
 export default function RegistroPage() {
   const navigate = useNavigate()
@@ -33,7 +34,8 @@ export default function RegistroPage() {
       const res = await register({ username: username.trim(), email: email.trim(), password })
       setSuccess(res.message || t('auth.registerSuccess'))
     } catch (err) {
-      const message = (err as any)?.payload?.error || (err as Error).message || 'Falha no registro'
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message || 'Falha no registro'
       setError(message)
     } finally {
       setIsSubmitting(false)

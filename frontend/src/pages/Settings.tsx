@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks'
 import { updateProfile } from '@/services/auth'
+import type { ApiException } from '@/services/api'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -49,13 +50,14 @@ export default function SettingsPage() {
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
-      const message = (err as any)?.payload?.details?.[0] ||
-                      (err as any)?.payload?.error ||
-                      (err as Error).message ||
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.details?.[0] ||
+                      apiErr.payload?.error ||
+                      apiErr.message ||
                       'Failed to update profile'
       setError(message)
 
-      if ((err as any)?.status === 401) {
+      if (apiErr.status === 401) {
         clearAuth()
       }
     } finally {

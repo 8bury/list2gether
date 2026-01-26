@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { searchMedia, type SearchResultDTO } from '@/services/search'
 import { cn } from '@/lib/utils'
+import type { ApiException } from '@/services/api'
 
 interface SearchModalProps {
   open: boolean
@@ -64,8 +65,9 @@ export function SearchModal({ open, onOpenChange, onSelect }: SearchModalProps) 
           setActiveIndex(0)
         }
       } catch (err) {
-        if ((err as any)?.name === 'AbortError') return
-        const message = (err as any)?.payload?.error || (err as Error).message || 'Falha na pesquisa'
+        const apiErr = err as ApiException
+        if (apiErr.name === 'AbortError') return
+        const message = apiErr.payload?.error || apiErr.message || 'Falha na pesquisa'
         setError(message)
       } finally {
         if (lastQueryRef.current === q) {
@@ -96,7 +98,8 @@ export function SearchModal({ open, onOpenChange, onSelect }: SearchModalProps) 
       await onSelect(result)
       onOpenChange(false)
     } catch (err) {
-      const message = (err as any)?.payload?.error || (err as Error).message || 'Falha ao adicionar'
+      const apiErr = err as ApiException
+      const message = apiErr.payload?.error || apiErr.message || 'Falha ao adicionar'
       setError(message)
     } finally {
       setAdding(false)
