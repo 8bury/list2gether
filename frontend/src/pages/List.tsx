@@ -150,21 +150,8 @@ export default function ListPage() {
     loadData()
   }, [parsedId, requireAuth, clearAuth, applyItems])
 
-  // Animation on mount
-  useEffect(() => {
-    if (loading) return
-    const elements = document.querySelectorAll('[data-animate]')
-    elements.forEach((el, i) => {
-      const htmlEl = el as HTMLElement
-      htmlEl.style.opacity = '0'
-      htmlEl.style.transform = 'translateY(20px)'
-      setTimeout(() => {
-        htmlEl.style.transition = 'all 0.4s ease-out'
-        htmlEl.style.opacity = '1'
-        htmlEl.style.transform = 'translateY(0)'
-      }, i * 50)
-    })
-  }, [loading])
+  // Animation is now handled via CSS classes in MovieCard to avoid
+  // conflicts with focus states and dnd-kit transforms on tablets
 
   const handleChangeRating = async (movieId: number, value: number) => {
     if (!parsedId || Number.isNaN(parsedId) || currentUserId == null) return
