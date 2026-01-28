@@ -105,9 +105,8 @@ export function MovieCard({ item, onChangeRating, onChangeStatus, onDelete, onOp
     <div
       ref={setNodeRef}
       style={style}
-      data-animate
       onClick={handleCardClick}
-      className="group rounded-2xl bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 overflow-hidden hover:border-white/20 hover:from-white/10 hover:to-white/[0.05] transition-all duration-300 shadow-xl shadow-black/20 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/30 cursor-pointer"
+      className="group animate-card-in rounded-2xl bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/10 overflow-hidden hover:border-white/20 hover:from-white/10 hover:to-white/[0.05] transition-[border-color,box-shadow] duration-300 shadow-xl shadow-black/20 hover:shadow-2xl hover:shadow-black/30 cursor-pointer"
     >
       <div className="flex">
         {/* Drag Handle */}
