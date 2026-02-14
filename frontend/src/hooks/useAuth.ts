@@ -1,47 +1,56 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { UserDTO } from '@/services/auth'
+import { AUTH_CHANGED_EVENT, clearStoredAuth } from '@/services/auth_storage'
 
 export function useAuth() {
   const navigate = useNavigate()
 
-  const [user, setUser] = useState<UserDTO | null>(() => {
+  const getStoredUser = (): UserDTO | null => {
     try {
       const stored = localStorage.getItem('user')
       return stored ? JSON.parse(stored) : null
     } catch {
       return null
     }
-  })
+  }
 
-  const [token, setToken] = useState<string | null>(() => 
-    localStorage.getItem('access_token')
-  )
+  const getStoredToken = (): string | null => localStorage.getItem('access_token')
+
+  const [user, setUser] = useState<UserDTO | null>(getStoredUser)
+
+  const [token, setToken] = useState<string | null>(getStoredToken)
 
   const isAuthenticated = !!token
 
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'user') {
-        try {
-          setUser(e.newValue ? JSON.parse(e.newValue) : null)
-        } catch {
-          setUser(null)
-        }
-      }
-      if (e.key === 'access_token') {
-        setToken(e.newValue)
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+  const syncFromStorage = useCallback(() => {
+    setUser(getStoredUser())
+    setToken(getStoredToken())
   }, [])
 
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key === null ||
+        e.key === 'user' ||
+        e.key === 'access_token' ||
+        e.key === 'refresh_token'
+      ) {
+        syncFromStorage()
+      }
+    }
+    const handleAuthChanged = () => syncFromStorage()
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener(AUTH_CHANGED_EVENT, handleAuthChanged)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener(AUTH_CHANGED_EVENT, handleAuthChanged)
+    }
+  }, [syncFromStorage])
+
   const clearAuth = useCallback(() => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('user')
+    clearStoredAuth()
     setToken(null)
     setUser(null)
     navigate('/login')

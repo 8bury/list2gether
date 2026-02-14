@@ -1,3 +1,5 @@
+import { clearStoredAuth, notifyAuthChanged } from './auth_storage'
+
 export interface ApiError {
   error: string
   code?: string
@@ -23,6 +25,13 @@ const getApiBaseUrl = (): string => {
 export const apiBaseUrl = getApiBaseUrl()
 
 let refreshingAccessTokenPromise: Promise<string> | null = null
+
+function createApiException(message: string, payload?: ApiError, status?: number): ApiException {
+  const error = new Error(message) as ApiException
+  error.payload = payload
+  error.status = status
+  return error
+}
 
 async function refreshAccessToken(): Promise<string> {
   if (refreshingAccessTokenPromise) {
@@ -60,6 +69,7 @@ async function refreshAccessToken(): Promise<string> {
     if (data.refresh_token) {
       localStorage.setItem('refresh_token', data.refresh_token)
     }
+    notifyAuthChanged()
     return newToken
   })()
 
@@ -104,50 +114,49 @@ export async function requestJson<T>(path: string, options: JsonRequestOptions =
       (errorPayload?.code === 'TOKEN_INVALID')
 
     if (shouldAttemptRefresh) {
+      let newToken = ''
       try {
-        const newToken = await refreshAccessToken()
-        const newHeaders: HeadersInit = {
-          ...headers,
-          Authorization: `Bearer ${newToken}`,
-        }
-        response = await doFetch(newHeaders)
-        const retryContentType = response.headers.get('content-type') || ''
-        const retryIsJson = retryContentType.includes('application/json')
-        if (!response.ok) {
-          let retryPayload: ApiError | undefined
-          if (retryIsJson) {
-            try {
-              retryPayload = (await response.json()) as ApiError
-            } catch {}
-          }
-          const retryMessage = retryPayload?.error || `Request failed with status ${response.status}`
-          const retryError = new Error(retryMessage) as Error & { payload?: ApiError; status?: number }
-          retryError.payload = retryPayload
-          retryError.status = response.status
-          throw retryError
-        }
-        if (retryIsJson) {
-          return (await response.json()) as T
-        }
-        // @ts-expect-error
-        return undefined
+        newToken = await refreshAccessToken()
       } catch {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
-        const message = errorPayload?.error || `Request failed with status ${response.status}`
-        const error = new Error(message) as Error & { payload?: ApiError; status?: number }
-        error.payload = errorPayload
-        error.status = response.status
-        throw error
+        clearStoredAuth()
+        const message = errorPayload?.error || 'Failed to refresh token'
+        throw createApiException(message, errorPayload, response.status)
       }
+
+      const newHeaders: HeadersInit = {
+        ...headers,
+        Authorization: `Bearer ${newToken}`,
+      }
+      response = await doFetch(newHeaders)
+      const retryContentType = response.headers.get('content-type') || ''
+      const retryIsJson = retryContentType.includes('application/json')
+      if (!response.ok) {
+        let retryPayload: ApiError | undefined
+        if (retryIsJson) {
+          try {
+            retryPayload = (await response.json()) as ApiError
+          } catch {}
+        }
+
+        const retryIsAuthFailure =
+          response.status === 401 ||
+          (response.status === 403 && retryPayload?.code?.startsWith('TOKEN_') === true)
+        if (retryIsAuthFailure) {
+          clearStoredAuth()
+        }
+
+        const retryMessage = retryPayload?.error || `Request failed with status ${response.status}`
+        throw createApiException(retryMessage, retryPayload, response.status)
+      }
+      if (retryIsJson) {
+        return (await response.json()) as T
+      }
+      // @ts-expect-error
+      return undefined
     }
 
     const message = errorPayload?.error || `Request failed with status ${response.status}`
-    const error = new Error(message) as Error & { payload?: ApiError; status?: number }
-    error.payload = errorPayload
-    error.status = response.status
-    throw error
+    throw createApiException(message, errorPayload, response.status)
   }
 
   if (isJson) {

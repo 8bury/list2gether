@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { getListRecommendations, type RecommendationDTO, addListMovie } from '@/services/lists'
+import type { ApiException } from '@/services/api'
 
 interface RecommendationsModalProps {
   open: boolean
@@ -47,8 +48,13 @@ export function RecommendationsModal({ open, onOpenChange, listId, onMovieAdded 
       setRecommendations(response.recommendations)
     } catch (err: unknown) {
       console.error('Failed to fetch recommendations:', err)
-      const errorObj = err as { error?: string; details?: string[] }
-      if (errorObj.error && errorObj.error.includes('insuficientes')) {
+      const apiErr = err as ApiException
+      const backendMessage = `${apiErr.payload?.error || apiErr.message || ''}`.toLowerCase()
+      const hasInsufficientMoviesError =
+        backendMessage.includes('insuficient') ||
+        backendMessage.includes('at least 2')
+
+      if (hasInsufficientMoviesError) {
         setError(t('recommendations.insufficientMovies'))
       } else {
         setError(t('recommendations.fetchError'))

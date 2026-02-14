@@ -78,3 +78,28 @@ npm run dev
 ```
 
 The frontend will run on `http://localhost:5173`.
+
+## Local Scripts (Windows)
+
+To simplify local setup and tests, use:
+
+```powershell
+.\scripts\local.cmd help
+```
+
+Main commands:
+
+```powershell
+.\scripts\local.cmd setup
+.\scripts\local.cmd backend-ci
+.\scripts\local.cmd frontend-ci
+.\scripts\local.cmd ci
+.\scripts\local.cmd dev
+```
+
+Notes:
+- `setup` installs backend and frontend dependencies.
+- `backend-ci` runs backend tests with race detector and coverage.
+- `frontend-ci` runs frontend lint and production build.
+- `ci` runs both backend and frontend checks.
+- `dev` opens backend and frontend in separate PowerShell windows.

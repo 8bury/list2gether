@@ -1,4 +1,5 @@
 import { requestJson } from './api'
+import { clearStoredAuth } from './auth_storage'
 
 export interface UserDTO {
   id: number
@@ -59,9 +60,7 @@ export async function refresh(refreshToken: string): Promise<RefreshResponseDTO>
 
 export async function logout(refreshToken: string | null): Promise<{ message?: string } | void> {
   if (!refreshToken) {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('user')
+    clearStoredAuth()
     return
   }
   try {
@@ -70,9 +69,7 @@ export async function logout(refreshToken: string | null): Promise<{ message?: s
       body: { refresh_token: refreshToken },
     })
   } finally {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('user')
+    clearStoredAuth()
   }
 }
 

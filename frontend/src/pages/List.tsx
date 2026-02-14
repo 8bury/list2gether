@@ -122,7 +122,13 @@ export default function ListPage() {
   // Load list data
   useEffect(() => {
     if (!requireAuth()) return
-    if (!parsedId || Number.isNaN(parsedId)) return
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      setItems([])
+      setListName(null)
+      setError('Lista inválida')
+      setLoading(false)
+      return
+    }
 
     const loadData = async () => {
       setLoading(true)

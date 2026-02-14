@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks'
 import { updateProfile } from '@/services/auth'
+import { setStoredUser } from '@/services/auth_storage'
 import type { ApiException } from '@/services/api'
 
 export default function SettingsPage() {
@@ -44,7 +45,7 @@ export default function SettingsPage() {
       })
 
       // Update localStorage with new user data
-      localStorage.setItem('user', JSON.stringify(res.user))
+      setStoredUser(res.user)
       setSuccess(true)
 
       // Clear success message after 3 seconds

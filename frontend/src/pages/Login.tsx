@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { login } from '@/services/auth'
+import { setStoredAuth } from '@/services/auth_storage'
 import postersImg from '@/assets/poster_background.png'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,9 +23,7 @@ export default function LoginPage() {
     setIsSubmitting(true)
     try {
       const res = await login(email.trim(), password)
-      localStorage.setItem('access_token', res.access_token)
-      localStorage.setItem('refresh_token', res.refresh_token)
-      localStorage.setItem('user', JSON.stringify(res.user))
+      setStoredAuth(res.access_token, res.refresh_token, res.user)
       navigate('/home')
     } catch (err) {
       const apiErr = err as ApiException
