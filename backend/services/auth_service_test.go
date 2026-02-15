@@ -17,6 +17,21 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestMain(m *testing.M) {
+	originalSecret, hadOriginalSecret := os.LookupEnv("JWT_SECRET")
+	_ = os.Setenv("JWT_SECRET", "test-jwt-secret")
+
+	code := m.Run()
+
+	if hadOriginalSecret {
+		_ = os.Setenv("JWT_SECRET", originalSecret)
+	} else {
+		_ = os.Unsetenv("JWT_SECRET")
+	}
+
+	os.Exit(code)
+}
+
 func TestNewAuthService(t *testing.T) {
 	userDAO := &mocks.MockUserDAO{}
 	refreshDAO := &mocks.MockRefreshTokenDAO{}
