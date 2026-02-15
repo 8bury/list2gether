@@ -37,7 +37,11 @@ type authService struct {
 }
 
 func NewAuthService(users daos.UserDAO, refreshTokens daos.RefreshTokenDAO) AuthService {
-	secret := []byte(getEnv("JWT_SECRET", "changeme_insecure_secret"))
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		panic("JWT_SECRET environment variable is required")
+	}
+	secret := []byte(jwtSecret)
 	accessDur := parseDurationWithDays(getEnv("JWT_ACCESS_EXPIRE", "1h"))
 	refreshDur := parseDurationWithDays(getEnv("JWT_REFRESH_EXPIRE", "720h"))
 	bcryptCost := parseInt(getEnv("BCRYPT_ROUNDS", "12"), 12)

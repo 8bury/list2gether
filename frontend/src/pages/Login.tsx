@@ -24,7 +24,13 @@ export default function LoginPage() {
     try {
       const res = await login(email.trim(), password)
       setStoredAuth(res.access_token, res.refresh_token, res.user)
-      navigate('/home')
+      const pendingCode = sessionStorage.getItem('pending_invite_code')
+      if (pendingCode) {
+        sessionStorage.removeItem('pending_invite_code')
+        navigate(`/join/${pendingCode}`)
+      } else {
+        navigate('/home')
+      }
     } catch (err) {
       const apiErr = err as ApiException
       const message = apiErr.payload?.error || apiErr.message || 'Falha no login'

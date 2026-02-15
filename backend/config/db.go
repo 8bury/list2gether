@@ -26,7 +26,7 @@ func connectDatabase() *gorm.DB {
 	dsn = ensureDSNParam(dsn, "parseTime", "true")
 	dsn = ensureDSNParam(dsn, "loc", "UTC")
 
-	fmt.Print("Connecting to database with DSN: ", dsn, "\n")
+	fmt.Println("Connecting to database...")
 
 	db, err := gorm.Open(mysql.Open(dsn))
 	if err != nil {

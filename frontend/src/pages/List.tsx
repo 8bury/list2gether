@@ -58,7 +58,7 @@ const computeAverageRating = (entries: ListMovieUserEntryDTO[]): number | null =
 export default function ListPage() {
   const navigate = useNavigate()
   const { listId } = useParams<{ listId: string }>()
-  const { user, requireAuth, clearAuth } = useAuth()
+  const { user, clearAuth } = useAuth()
   const parsedId = useMemo(() => Number(listId), [listId])
 
   const [items, setItems] = useState<ListMovieItem[]>([])
@@ -121,7 +121,6 @@ export default function ListPage() {
 
   // Load list data
   useEffect(() => {
-    if (!requireAuth()) return
     if (!Number.isInteger(parsedId) || parsedId <= 0) {
       setItems([])
       setListName(null)
@@ -154,7 +153,47 @@ export default function ListPage() {
     }
 
     loadData()
-  }, [parsedId, requireAuth, clearAuth, applyItems])
+  }, [parsedId, clearAuth, applyItems])
+
+  // Poll for collaborative updates every 30s while tab is visible
+  useEffect(() => {
+    if (!parsedId || loading) return
+
+    let timer: ReturnType<typeof setInterval> | null = null
+
+    const poll = async () => {
+      try {
+        const moviesRes = await getListMovies(parsedId)
+        applyItems(moviesRes)
+      } catch {
+        // silent — don't disrupt UI on background poll failure
+      }
+    }
+
+    const start = () => {
+      if (!timer) timer = setInterval(poll, 30_000)
+    }
+    const stop = () => {
+      if (timer) { clearInterval(timer); timer = null }
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        poll()
+        start()
+      } else {
+        stop()
+      }
+    }
+
+    if (document.visibilityState === 'visible') start()
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [parsedId, loading, applyItems])
 
   // Animation is now handled via CSS classes in MovieCard to avoid
   // conflicts with focus states and dnd-kit transforms on tablets

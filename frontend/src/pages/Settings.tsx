@@ -14,7 +14,7 @@ import type { ApiException } from '@/services/api'
 export default function SettingsPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const { user, requireAuth, clearAuth } = useAuth()
+  const { user, clearAuth } = useAuth()
 
   const [username, setUsername] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
@@ -23,13 +23,11 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
-    if (!requireAuth()) return
-
     if (user) {
       setUsername(user.username)
       setAvatarUrl(user.avatar_url || '')
     }
-  }, [user, requireAuth])
+  }, [user])
 
   const handleSave = async () => {
     if (saving) return

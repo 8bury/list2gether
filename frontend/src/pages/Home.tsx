@@ -14,7 +14,7 @@ import type { ApiException } from '@/services/api'
 export default function HomePage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const { requireAuth, clearAuth } = useAuth()
+  const { clearAuth } = useAuth()
 
   const [lists, setLists] = useState<UserListDTO[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,8 +37,6 @@ export default function HomePage() {
   const [leaving, setLeaving] = useState(false)
 
   useEffect(() => {
-    if (!requireAuth()) return
-
     ;(async () => {
       setLoading(true)
       setError(null)
@@ -56,11 +54,11 @@ export default function HomePage() {
         setLoading(false)
       }
     })()
-  }, [requireAuth, clearAuth])
+  }, [clearAuth])
 
   const handleCopy = async (list: UserListDTO) => {
     try {
-      await navigator.clipboard.writeText(list.invite_code)
+      await navigator.clipboard.writeText(window.location.origin + '/join/' + list.invite_code)
       setCopiedId(list.id)
       window.setTimeout(() => setCopiedId(null), 1500)
     } catch {
