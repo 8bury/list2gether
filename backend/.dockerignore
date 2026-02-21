@@ -1,0 +1,7 @@
+.git
+.env
+*.md
+Makefile
+coverage.out
+coverage.html
+list2gether
