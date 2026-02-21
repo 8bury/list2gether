@@ -30,7 +30,7 @@ func connectDatabase() *gorm.DB {
 
 	db, err := gorm.Open(mysql.Open(dsn))
 	if err != nil {
-		panic("failed to connect to database")
+		panic("failed to connect to database: " + err.Error())
 	}
 
 	err = db.AutoMigrate(
