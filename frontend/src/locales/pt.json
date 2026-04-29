@@ -100,7 +100,20 @@
     "leaveList": "Sair da lista",
     "confirmLeaveTitle": "Sair da lista?",
     "confirmLeaveText": "Tem certeza de que deseja sair da lista \"{{name}}\"? Suas avaliações e notas serão removidas.",
-    "leaving": "Saindo…"
+    "leaving": "Saindo…",
+    "lastActivity": "há {{time}}",
+    "justNow": "agora mesmo"
+  },
+  "home": {
+    "watchedThisMonth": "filmes assistidos este mês",
+    "recentActivity": "Atividade recente",
+    "noActivity": "Nenhuma atividade ainda",
+    "activity": {
+      "movie_added": "adicionou {{movie}} em {{list}}",
+      "movie_watched": "{{movie}} foi assistido em {{list}}",
+      "comment": "comentou em {{movie}} em {{list}}",
+      "member_joined": "entrou na lista {{list}}"
+    }
   },
    "auth": {
      "email": "Email",

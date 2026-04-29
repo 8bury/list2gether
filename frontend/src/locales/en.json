@@ -100,7 +100,20 @@
     "leaveList": "Leave list",
     "confirmLeaveTitle": "Leave list?",
     "confirmLeaveText": "Are you sure you want to leave the list \"{{name}}\"? Your ratings and notes will be removed.",
-    "leaving": "Leaving…"
+    "leaving": "Leaving…",
+    "lastActivity": "{{time}} ago",
+    "justNow": "just now"
+  },
+  "home": {
+    "watchedThisMonth": "movies watched this month",
+    "recentActivity": "Recent activity",
+    "noActivity": "No activity yet",
+    "activity": {
+      "movie_added": "added {{movie}} to {{list}}",
+      "movie_watched": "{{movie}} was watched in {{list}}",
+      "comment": "commented on {{movie}} in {{list}}",
+      "member_joined": "joined list {{list}}"
+    }
   },
    "auth": {
      "email": "Email",

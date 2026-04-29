@@ -10,6 +10,27 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// MemberPreview is a lightweight user struct returned in batch list enrichment.
+type MemberPreview struct {
+	UserID    int64   `json:"user_id"`
+	Username  string  `json:"username"`
+	AvatarURL *string `json:"avatar_url"`
+}
+
+// ActivityItem represents one event in the user's home-page activity feed.
+type ActivityItem struct {
+	Type            string    `json:"type"`
+	Timestamp       time.Time `json:"timestamp"`
+	ListID          int64     `json:"list_id"`
+	ListName        string    `json:"list_name"`
+	MovieID         *int64    `json:"movie_id,omitempty"`
+	MovieTitle      *string   `json:"movie_title,omitempty"`
+	MoviePosterPath *string   `json:"movie_poster_path,omitempty"`
+	UserID          *int64    `json:"user_id,omitempty"`
+	Username        *string   `json:"username,omitempty"`
+	AvatarURL       *string   `json:"avatar_url,omitempty"`
+}
+
 type MovieListDAO interface {
 	InviteCodeExists(code string) (bool, error)
 	CreateWithOwner(list *models.MovieList, ownerUserID int64) error
@@ -42,6 +63,12 @@ type MovieListDAO interface {
 	FindCommentByID(commentID int64) (*models.Comment, error)
 	UpdateComment(commentID int64, content string) (*models.Comment, error)
 	DeleteComment(commentID int64) error
+	// Home enrichment methods
+	FetchPostersBatch(listIDs []int64) (map[int64][]string, error)
+	FetchMembersBatch(listIDs []int64) (map[int64][]MemberPreview, error)
+	FetchLastActivityBatch(listIDs []int64) (map[int64]time.Time, error)
+	CountWatchedThisMonth(userID int64) (int64, error)
+	FetchRecentActivity(userID int64, limit int) ([]ActivityItem, error)
 }
 
 type movieListDAO struct {
@@ -559,4 +586,187 @@ func (d *movieListDAO) UpdateComment(commentID int64, content string) (*models.C
 
 func (d *movieListDAO) DeleteComment(commentID int64) error {
 	return d.db.Delete(&models.Comment{}, commentID).Error
+}
+
+func (d *movieListDAO) FetchPostersBatch(listIDs []int64) (map[int64][]string, error) {
+	result := make(map[int64][]string)
+	if len(listIDs) == 0 {
+		return result, nil
+	}
+	type posterRow struct {
+		ListID     int64  `gorm:"column:list_id"`
+		PosterPath string `gorm:"column:poster_path"`
+	}
+	var rows []posterRow
+	if err := d.db.Table("list_movies lm").
+		Select("lm.list_id AS list_id, m.poster_path AS poster_path").
+		Joins("JOIN movies m ON m.id = lm.movie_id").
+		Where("lm.list_id IN ? AND m.poster_path IS NOT NULL AND m.poster_path != ''", listIDs).
+		Order("lm.list_id, lm.display_order ASC, lm.added_at DESC").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		if len(result[r.ListID]) < 4 {
+			result[r.ListID] = append(result[r.ListID], r.PosterPath)
+		}
+	}
+	return result, nil
+}
+
+func (d *movieListDAO) FetchMembersBatch(listIDs []int64) (map[int64][]MemberPreview, error) {
+	result := make(map[int64][]MemberPreview)
+	if len(listIDs) == 0 {
+		return result, nil
+	}
+	type memberRow struct {
+		ListID    int64   `gorm:"column:list_id"`
+		UserID    int64   `gorm:"column:user_id"`
+		Username  string  `gorm:"column:username"`
+		AvatarURL *string `gorm:"column:avatar_url"`
+	}
+	var rows []memberRow
+	if err := d.db.Table("list_members lm").
+		Select("lm.list_id AS list_id, u.id AS user_id, u.username AS username, u.avatar_url AS avatar_url").
+		Joins("JOIN users u ON u.id = lm.user_id").
+		Where("lm.list_id IN ?", listIDs).
+		Order("lm.list_id, lm.added_at ASC").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		if len(result[r.ListID]) < 5 {
+			result[r.ListID] = append(result[r.ListID], MemberPreview{
+				UserID:    r.UserID,
+				Username:  r.Username,
+				AvatarURL: r.AvatarURL,
+			})
+		}
+	}
+	return result, nil
+}
+
+func (d *movieListDAO) FetchLastActivityBatch(listIDs []int64) (map[int64]time.Time, error) {
+	result := make(map[int64]time.Time)
+	if len(listIDs) == 0 {
+		return result, nil
+	}
+	type activityTimeRow struct {
+		ListID      int64      `gorm:"column:list_id"`
+		LastAdded   *time.Time `gorm:"column:last_added"`
+		LastWatched *time.Time `gorm:"column:last_watched"`
+	}
+	var rows []activityTimeRow
+	if err := d.db.Table("list_movies").
+		Select("list_id, MAX(added_at) AS last_added, MAX(watched_at) AS last_watched").
+		Where("list_id IN ?", listIDs).
+		Group("list_id").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		var t time.Time
+		if r.LastAdded != nil && r.LastAdded.After(t) {
+			t = *r.LastAdded
+		}
+		if r.LastWatched != nil && r.LastWatched.After(t) {
+			t = *r.LastWatched
+		}
+		if !t.IsZero() {
+			result[r.ListID] = t
+		}
+	}
+	return result, nil
+}
+
+func (d *movieListDAO) CountWatchedThisMonth(userID int64) (int64, error) {
+	now := time.Now()
+	firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	var count int64
+	if err := d.db.Table("list_movies lm").
+		Joins("JOIN list_members mem ON mem.list_id = lm.list_id AND mem.user_id = ?", userID).
+		Where("lm.status = ? AND lm.watched_at >= ?", string(models.StatusWatched), firstOfMonth).
+		Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (d *movieListDAO) FetchRecentActivity(userID int64, limit int) ([]ActivityItem, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	sql := `
+		(SELECT 'movie_added' AS activity_type, lm.added_at AS ts, lm.list_id, ml.name AS list_name,
+		        lm.movie_id, m.title AS movie_title, m.poster_path AS movie_poster_path,
+		        u.id AS actor_user_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url
+		 FROM list_movies lm
+		 JOIN movie_lists ml ON ml.id = lm.list_id AND ml.deleted_at IS NULL
+		 JOIN movies m ON m.id = lm.movie_id
+		 LEFT JOIN users u ON u.id = lm.added_by
+		 WHERE EXISTS (SELECT 1 FROM list_members me WHERE me.list_id = lm.list_id AND me.user_id = ?))
+		UNION ALL
+		(SELECT 'movie_watched' AS activity_type, lm.watched_at AS ts, lm.list_id, ml.name AS list_name,
+		        lm.movie_id, m.title AS movie_title, m.poster_path AS movie_poster_path,
+		        NULL AS actor_user_id, NULL AS actor_username, NULL AS actor_avatar_url
+		 FROM list_movies lm
+		 JOIN movie_lists ml ON ml.id = lm.list_id AND ml.deleted_at IS NULL
+		 JOIN movies m ON m.id = lm.movie_id
+		 WHERE lm.watched_at IS NOT NULL AND lm.status = 'watched'
+		   AND EXISTS (SELECT 1 FROM list_members me WHERE me.list_id = lm.list_id AND me.user_id = ?))
+		UNION ALL
+		(SELECT 'comment' AS activity_type, c.created_at AS ts, c.list_id, ml.name AS list_name,
+		        c.movie_id, m.title AS movie_title, m.poster_path AS movie_poster_path,
+		        u.id AS actor_user_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url
+		 FROM comments c
+		 JOIN movie_lists ml ON ml.id = c.list_id AND ml.deleted_at IS NULL
+		 JOIN movies m ON m.id = c.movie_id
+		 JOIN users u ON u.id = c.user_id
+		 WHERE EXISTS (SELECT 1 FROM list_members me WHERE me.list_id = c.list_id AND me.user_id = ?))
+		UNION ALL
+		(SELECT 'member_joined' AS activity_type, lm.added_at AS ts, lm.list_id, ml.name AS list_name,
+		        NULL AS movie_id, NULL AS movie_title, NULL AS movie_poster_path,
+		        u.id AS actor_user_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url
+		 FROM list_members lm
+		 JOIN movie_lists ml ON ml.id = lm.list_id AND ml.deleted_at IS NULL
+		 JOIN users u ON u.id = lm.user_id
+		 WHERE EXISTS (SELECT 1 FROM list_members me WHERE me.list_id = lm.list_id AND me.user_id = ?))
+		ORDER BY ts DESC
+		LIMIT ?
+	`
+	type activityRow struct {
+		ActivityType    string     `gorm:"column:activity_type"`
+		Ts              time.Time  `gorm:"column:ts"`
+		ListID          int64      `gorm:"column:list_id"`
+		ListName        string     `gorm:"column:list_name"`
+		MovieID         *int64     `gorm:"column:movie_id"`
+		MovieTitle      *string    `gorm:"column:movie_title"`
+		MoviePosterPath *string    `gorm:"column:movie_poster_path"`
+		ActorUserID     *int64     `gorm:"column:actor_user_id"`
+		ActorUsername   *string    `gorm:"column:actor_username"`
+		ActorAvatarURL  *string    `gorm:"column:actor_avatar_url"`
+	}
+	var rows []activityRow
+	if err := d.db.Raw(sql, userID, userID, userID, userID, limit).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	items := make([]ActivityItem, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, ActivityItem{
+			Type:            r.ActivityType,
+			Timestamp:       r.Ts,
+			ListID:          r.ListID,
+			ListName:        r.ListName,
+			MovieID:         r.MovieID,
+			MovieTitle:      r.MovieTitle,
+			MoviePosterPath: r.MoviePosterPath,
+			UserID:          r.ActorUserID,
+			Username:        r.ActorUsername,
+			AvatarURL:       r.ActorAvatarURL,
+		})
+	}
+	return items, nil
 }
