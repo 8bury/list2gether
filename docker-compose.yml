@@ -1,0 +1,58 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-list2gether}
+      MYSQL_USER: ${MYSQL_USER:-list2gether}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-list2gether}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    image: golang:1.24-alpine
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_DSN: ${MYSQL_USER:-list2gether}:${MYSQL_PASSWORD:-list2gether}@tcp(db:3306)/${MYSQL_DATABASE:-list2gether}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      JWT_ACCESS_EXPIRE: ${JWT_ACCESS_EXPIRE:-1h}
+      JWT_REFRESH_EXPIRE: ${JWT_REFRESH_EXPIRE:-720h}
+      TMDB_API_TOKEN: ${TMDB_API_TOKEN:-}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:${FRONTEND_PORT:-5173}}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - ./backend:/app
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+    command: sh -c "go mod download && go run ."
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:${BACKEND_PORT:-8080}}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+
+volumes:
+  mysql_data:
+  go_mod_cache:
+  go_build_cache:
+  frontend_node_modules:
