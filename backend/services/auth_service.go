@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,12 +21,23 @@ import (
 type AuthService interface {
 	Register(username string, email string, password string) (*models.User, error)
 	Login(email string, password string) (*models.User, string, string, int64, int64, error)
+	LoginWithGoogle(profile GoogleProfile) (*models.User, string, string, int64, int64, error)
 	Refresh(refreshToken string) (string, string, int64, int64, error)
 	Logout(refreshToken string) error
 	FindUserByID(id int64) (*models.User, error)
 	UpdateProfile(userID int64, username string, avatarURL string) (*models.User, error)
 	JWTSecret() []byte
 }
+
+type GoogleProfile struct {
+	Subject       string
+	Email         string
+	EmailVerified bool
+	Name          string
+	Picture       string
+}
+
+var ErrGoogleLoginRequired = errors.New("this account was created with Google; please sign in with Google")
 
 type authService struct {
 	users            daos.UserDAO
@@ -71,6 +83,9 @@ func (s *authService) Register(username string, email string, password string) (
 	}
 
 	if existing, _ := s.users.FindByEmail(strings.ToLower(email)); existing != nil {
+		if existing.Password == "" && existing.GoogleID != nil {
+			return nil, ErrGoogleLoginRequired
+		}
 		return nil, errors.New("email already exists")
 	}
 	if existing, _ := s.users.FindByUsername(username); existing != nil {
@@ -102,6 +117,65 @@ func (s *authService) Login(email string, password string) (*models.User, string
 		return nil, "", "", 0, 0, errors.New("invalid credentials")
 	}
 
+	return s.issueLoginTokens(user)
+}
+
+func (s *authService) LoginWithGoogle(profile GoogleProfile) (*models.User, string, string, int64, int64, error) {
+	if strings.TrimSpace(profile.Subject) == "" {
+		return nil, "", "", 0, 0, errors.New("missing Google subject")
+	}
+	if !profile.EmailVerified {
+		return nil, "", "", 0, 0, errors.New("Google email is not verified")
+	}
+	email := strings.ToLower(strings.TrimSpace(profile.Email))
+	if err := validateEmail(email); err != nil {
+		return nil, "", "", 0, 0, err
+	}
+
+	if user, err := s.users.FindByGoogleID(profile.Subject); err == nil && user != nil {
+		return s.issueLoginTokens(user)
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, "", "", 0, 0, err
+	}
+
+	googleID := profile.Subject
+	user, err := s.users.FindByEmail(email)
+	if err == nil && user != nil {
+		user.GoogleID = &googleID
+		if user.AvatarURL == nil && strings.TrimSpace(profile.Picture) != "" {
+			picture := strings.TrimSpace(profile.Picture)
+			if validateAvatarURL(picture) == nil {
+				user.AvatarURL = &picture
+			}
+		}
+		if err := s.users.Update(user); err != nil {
+			return nil, "", "", 0, 0, err
+		}
+		return s.issueLoginTokens(user)
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, "", "", 0, 0, err
+	}
+
+	username, err := s.generateGoogleUsername(email, profile.Name)
+	if err != nil {
+		return nil, "", "", 0, 0, err
+	}
+	newUser := &models.User{
+		Username: username,
+		Email:    email,
+		Password: "",
+		GoogleID: &googleID,
+	}
+	if picture := strings.TrimSpace(profile.Picture); picture != "" && validateAvatarURL(picture) == nil {
+		newUser.AvatarURL = &picture
+	}
+	if err := s.users.Create(newUser); err != nil {
+		return nil, "", "", 0, 0, err
+	}
+	return s.issueLoginTokens(newUser)
+}
+
+func (s *authService) issueLoginTokens(user *models.User) (*models.User, string, string, int64, int64, error) {
 	accessToken, accessExp, err := s.generateAccessToken(user)
 	if err != nil {
 		return nil, "", "", 0, 0, err
@@ -129,6 +203,42 @@ func (s *authService) Login(email string, password string) (*models.User, string
 
 	user.Password = ""
 	return user, accessToken, refreshToken, accessExp - time.Now().UTC().Unix(), accessExp, nil
+}
+
+func (s *authService) generateGoogleUsername(email string, name string) (string, error) {
+	baseSource := strings.TrimSpace(name)
+	if baseSource == "" {
+		baseSource = strings.Split(email, "@")[0]
+	}
+	base := sanitizeUsernameBase(baseSource)
+	if len(base) < 3 {
+		base = "user" + base
+	}
+	if len(base) > 42 {
+		base = base[:42]
+	}
+	for i := 0; i < 100; i++ {
+		candidate := base
+		if i > 0 {
+			candidate = base + strconv.Itoa(i)
+			if len(candidate) > 50 {
+				suffix := strconv.Itoa(i)
+				candidate = base[:50-len(suffix)] + suffix
+			}
+		}
+		if existing, _ := s.users.FindByUsername(candidate); existing == nil {
+			return candidate, nil
+		}
+	}
+	token, err := generateTokenID(4)
+	if err != nil {
+		return "", err
+	}
+	candidate := base
+	if len(candidate) > 41 {
+		candidate = candidate[:41]
+	}
+	return candidate + "_" + token, nil
 }
 
 func (s *authService) Refresh(refreshToken string) (string, string, int64, int64, error) {
@@ -354,6 +464,18 @@ func validateEmail(e string) error {
 		return errors.New("invalid email")
 	}
 	return nil
+}
+
+var usernameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+
+func sanitizeUsernameBase(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = usernameSanitizer.ReplaceAllString(s, "_")
+	s = strings.Trim(s, "_")
+	if s == "" {
+		return "user"
+	}
+	return s
 }
 
 func validateAvatarURL(url string) error {

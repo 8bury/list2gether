@@ -108,6 +108,12 @@
      "username": "Username",
      "signIn": "Sign in",
      "signingIn": "Signing in…",
+     "continueWithGoogle": "Continue with Google",
+     "or": "Or",
+     "finishingGoogleLogin": "Finishing Google sign-in…",
+     "googleCallbackFailed": "Google sign-in failed",
+     "googleCallbackError": "Could not complete Google sign-in.",
+     "googleLoginRequired": "This account was created with Google. Sign in using Continue with Google.",
      "register": "Create account",
      "creating": "Creating…",
      "registerSuccess": "Registration complete. You can now log in.",
@@ -208,5 +214,3 @@
     "watchProvidersAttribution": "Data provided by JustWatch"
   }
 }
-
-

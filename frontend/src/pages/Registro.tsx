@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { register } from '@/services/auth'
+import { register, startGoogleLogin } from '@/services/auth'
 import postersImg from '@/assets/poster_background.png'
+import googleLogo from '@/assets/google-logo.svg'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { ApiException } from '@/services/api'
@@ -35,7 +36,9 @@ export default function RegistroPage() {
       setSuccess(res.message || t('auth.registerSuccess'))
     } catch (err) {
       const apiErr = err as ApiException
-      const message = apiErr.payload?.error || apiErr.message || 'Falha no registro'
+      const message = apiErr.payload?.code === 'GOOGLE_LOGIN_REQUIRED'
+        ? t('auth.googleLoginRequired')
+        : apiErr.payload?.error || apiErr.message || 'Falha no registro'
       setError(message)
     } finally {
       setIsSubmitting(false)
@@ -68,7 +71,22 @@ export default function RegistroPage() {
             <div className="mt-4 rounded-lg border border-green-800 bg-green-950/60 px-3 py-2 text-green-200">{success}</div>
           )}
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <Button
+            className="mt-6 w-full border-white/20 bg-white text-neutral-950 hover:bg-white/90"
+            type="button"
+            onClick={startGoogleLogin}
+          >
+            <img src={googleLogo} alt="" className="mr-2 h-5 w-5" aria-hidden="true" />
+            {t('auth.continueWithGoogle')}
+          </Button>
+
+          <div className="mt-5 flex items-center gap-3 text-xs uppercase text-gray-400">
+            <div className="h-px flex-1 bg-white/10" />
+            {t('auth.or')}
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             <label className="block text-sm text-gray-300">
               {t('auth.username')}
               <Input

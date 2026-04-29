@@ -24,6 +24,7 @@ A collaborative movie list web app for couples and friends to track movies they 
 - **Backend**: Go 1.24 + Gin framework
 - **Database**: MySQL + GORM ORM
 - **Authentication**: JWT with refresh token rotation
+- **OAuth**: Google OAuth web-server flow
 - **Drag & Drop**: @dnd-kit library
 - **External APIs**: TMDB (movies, TV shows, watch providers)
 
@@ -53,6 +54,9 @@ Services:
 The compose setup mounts `./backend` and `./frontend` into their containers, so local source edits are picked up by the development servers. The backend runs `go run .`; restart the backend container after Go code changes if needed. Frontend changes are handled by Vite HMR.
 
 Set `TMDB_API_TOKEN` in `.env` to enable movie search, watch providers, and recommendations.
+To enable Google sign-in locally, create a Google OAuth web client with redirect URI
+`http://localhost:8080/auth/google/callback`, then set `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET` in `.env`.
 
 Useful commands:
 
@@ -78,6 +82,9 @@ DB_DSN=user:password@tcp(localhost:3306)/database_name
 JWT_SECRET=your_secret_key
 TMDB_API_TOKEN=your_tmdb_api_key
 FRONTEND_ORIGIN=http://localhost:5173
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URL=http://localhost:8080/auth/google/callback
 PORT=8080
 ```
 

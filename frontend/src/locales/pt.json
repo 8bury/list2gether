@@ -108,6 +108,12 @@
      "username": "Usuário",
      "signIn": "Entrar",
      "signingIn": "Entrando…",
+     "continueWithGoogle": "Continuar com Google",
+     "or": "Ou",
+     "finishingGoogleLogin": "Finalizando login com Google…",
+     "googleCallbackFailed": "Falha no login com Google",
+     "googleCallbackError": "Não foi possível concluir o login com Google.",
+     "googleLoginRequired": "Essa conta foi criada com Google. Entre usando o botão Continuar com Google.",
      "register": "Criar conta",
      "creating": "Criando…",
      "registerSuccess": "Registro concluído. Você já pode fazer login.",
@@ -208,5 +214,3 @@
     "watchProvidersAttribution": "Dados fornecidos por JustWatch"
   }
 }
-
-

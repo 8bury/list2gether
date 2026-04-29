@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/Login'
 import RegistroPage from './pages/Registro'
+import GoogleOAuthCallbackPage from './pages/GoogleOAuthCallback'
 import HomePage from './pages/Home'
 import ListPage from './pages/List'
 import SettingsPage from './pages/Settings'
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/list/:listId" element={<ProtectedRoute><ListPage /></ProtectedRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegistroPage />} />
+        <Route path="/oauth/google/callback" element={<GoogleOAuthCallbackPage />} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/join/:code" element={<ProtectedRoute><JoinPage /></ProtectedRoute>} />
       </Routes>
