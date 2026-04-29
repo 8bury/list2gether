@@ -161,6 +161,28 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 	userDAO.AssertExpectations(t)
 }
 
+func TestRegister_GoogleOnlyEmailRequiresGoogleLogin(t *testing.T) {
+	userDAO := &mocks.MockUserDAO{}
+	refreshDAO := &mocks.MockRefreshTokenDAO{}
+
+	googleID := "google-subject"
+	existingUser := &models.User{
+		ID:       1,
+		Email:    "test@example.com",
+		Password: "",
+		GoogleID: &googleID,
+	}
+	userDAO.On("FindByEmail", "test@example.com").Return(existingUser, nil)
+
+	service := NewAuthService(userDAO, refreshDAO)
+
+	_, err := service.Register("testuser", "test@example.com", "password123")
+
+	assert.ErrorIs(t, err, ErrGoogleLoginRequired)
+	assert.Equal(t, "this account was created with Google; please sign in with Google", err.Error())
+	userDAO.AssertExpectations(t)
+}
+
 func TestRegister_DuplicateUsername(t *testing.T) {
 	userDAO := &mocks.MockUserDAO{}
 	refreshDAO := &mocks.MockRefreshTokenDAO{}
@@ -245,6 +267,141 @@ func TestLogin_InvalidPassword(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "invalid credentials", err.Error())
 	userDAO.AssertExpectations(t)
+}
+
+func TestLoginWithGoogle_CreatesNewUser(t *testing.T) {
+	userDAO := &mocks.MockUserDAO{}
+	refreshDAO := &mocks.MockRefreshTokenDAO{}
+
+	userDAO.On("FindByGoogleID", "google-subject").Return(nil, gorm.ErrRecordNotFound)
+	userDAO.On("FindByEmail", "new@example.com").Return(nil, gorm.ErrRecordNotFound)
+	userDAO.On("FindByUsername", "new_user").Return(nil, gorm.ErrRecordNotFound)
+	userDAO.On("Create", mock.MatchedBy(func(user *models.User) bool {
+		if user.ID == 0 {
+			user.ID = 1
+		}
+		return user.Username == "new_user" &&
+			user.Email == "new@example.com" &&
+			user.Password == "" &&
+			user.GoogleID != nil &&
+			*user.GoogleID == "google-subject"
+	})).Return(nil)
+	refreshDAO.On("Create", mock.AnythingOfType("*models.RefreshToken")).Return(nil)
+
+	service := NewAuthService(userDAO, refreshDAO)
+
+	user, accessToken, refreshToken, expiresIn, accessExp, err := service.LoginWithGoogle(GoogleProfile{
+		Subject:       "google-subject",
+		Email:         "new@example.com",
+		EmailVerified: true,
+		Name:          "New User",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "new_user", user.Username)
+	assert.Empty(t, user.Password)
+	assert.NotEmpty(t, accessToken)
+	assert.NotEmpty(t, refreshToken)
+	assert.Greater(t, expiresIn, int64(0))
+	assert.Greater(t, accessExp, int64(0))
+	userDAO.AssertExpectations(t)
+	refreshDAO.AssertExpectations(t)
+}
+
+func TestLoginWithGoogle_LinksExistingEmail(t *testing.T) {
+	userDAO := &mocks.MockUserDAO{}
+	refreshDAO := &mocks.MockRefreshTokenDAO{}
+
+	existing := &models.User{ID: 1, Username: "existing", Email: "existing@example.com"}
+	userDAO.On("FindByGoogleID", "google-subject").Return(nil, gorm.ErrRecordNotFound)
+	userDAO.On("FindByEmail", "existing@example.com").Return(existing, nil)
+	userDAO.On("Update", mock.MatchedBy(func(user *models.User) bool {
+		return user.ID == 1 && user.GoogleID != nil && *user.GoogleID == "google-subject"
+	})).Return(nil)
+	refreshDAO.On("Create", mock.AnythingOfType("*models.RefreshToken")).Return(nil)
+
+	service := NewAuthService(userDAO, refreshDAO)
+
+	user, _, _, _, _, err := service.LoginWithGoogle(GoogleProfile{
+		Subject:       "google-subject",
+		Email:         "existing@example.com",
+		EmailVerified: true,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "existing", user.Username)
+	assert.Empty(t, user.Password)
+	userDAO.AssertExpectations(t)
+	refreshDAO.AssertExpectations(t)
+}
+
+func TestLoginWithGoogle_RejectsUnverifiedEmail(t *testing.T) {
+	userDAO := &mocks.MockUserDAO{}
+	refreshDAO := &mocks.MockRefreshTokenDAO{}
+	service := NewAuthService(userDAO, refreshDAO)
+
+	_, _, _, _, _, err := service.LoginWithGoogle(GoogleProfile{
+		Subject:       "google-subject",
+		Email:         "test@example.com",
+		EmailVerified: false,
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, "Google email is not verified", err.Error())
+}
+
+func TestLoginWithGoogle_ReusesGoogleSubject(t *testing.T) {
+	userDAO := &mocks.MockUserDAO{}
+	refreshDAO := &mocks.MockRefreshTokenDAO{}
+
+	existing := &models.User{ID: 1, Username: "linked", Email: "linked@example.com"}
+	userDAO.On("FindByGoogleID", "google-subject").Return(existing, nil)
+	refreshDAO.On("Create", mock.AnythingOfType("*models.RefreshToken")).Return(nil)
+
+	service := NewAuthService(userDAO, refreshDAO)
+
+	user, _, _, _, _, err := service.LoginWithGoogle(GoogleProfile{
+		Subject:       "google-subject",
+		Email:         "linked@example.com",
+		EmailVerified: true,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "linked", user.Username)
+	assert.Empty(t, user.Password)
+	userDAO.AssertExpectations(t)
+	refreshDAO.AssertExpectations(t)
+}
+
+func TestLoginWithGoogle_UsernameCollision(t *testing.T) {
+	userDAO := &mocks.MockUserDAO{}
+	refreshDAO := &mocks.MockRefreshTokenDAO{}
+
+	userDAO.On("FindByGoogleID", "google-subject").Return(nil, gorm.ErrRecordNotFound)
+	userDAO.On("FindByEmail", "taken@example.com").Return(nil, gorm.ErrRecordNotFound)
+	userDAO.On("FindByUsername", "taken").Return(&models.User{ID: 1}, nil)
+	userDAO.On("FindByUsername", "taken1").Return(nil, gorm.ErrRecordNotFound)
+	userDAO.On("Create", mock.MatchedBy(func(user *models.User) bool {
+		if user.ID == 0 {
+			user.ID = 2
+		}
+		return user.Username == "taken1"
+	})).Return(nil)
+	refreshDAO.On("Create", mock.AnythingOfType("*models.RefreshToken")).Return(nil)
+
+	service := NewAuthService(userDAO, refreshDAO)
+
+	user, _, _, _, _, err := service.LoginWithGoogle(GoogleProfile{
+		Subject:       "google-subject",
+		Email:         "taken@example.com",
+		EmailVerified: true,
+		Name:          "taken",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "taken1", user.Username)
+	userDAO.AssertExpectations(t)
+	refreshDAO.AssertExpectations(t)
 }
 
 func TestRefresh_Success(t *testing.T) {

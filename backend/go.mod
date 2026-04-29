@@ -4,7 +4,12 @@ go 1.24.11
 
 require github.com/gin-gonic/gin v1.10.1
 
-require github.com/golang-jwt/jwt/v5 v5.2.2
+require (
+	github.com/golang-jwt/jwt/v5 v5.2.2
+	golang.org/x/oauth2 v0.30.0
+)
+
+require cloud.google.com/go/compute/metadata v0.3.0 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

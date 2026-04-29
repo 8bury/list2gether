@@ -10,6 +10,7 @@ import (
 type UserDAO interface {
 	Create(user *models.User) error
 	FindByEmail(email string) (*models.User, error)
+	FindByGoogleID(googleID string) (*models.User, error)
 	FindByUsername(username string) (*models.User, error)
 	FindByID(id int64) (*models.User, error)
 	Update(user *models.User) error
@@ -30,6 +31,15 @@ func (d *userDAO) Create(user *models.User) error {
 func (d *userDAO) FindByEmail(email string) (*models.User, error) {
 	var user models.User
 	err := d.db.Where("email = ?", email).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &user, err
+}
+
+func (d *userDAO) FindByGoogleID(googleID string) (*models.User, error) {
+	var user models.User
+	err := d.db.Where("google_id = ?", googleID).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, gorm.ErrRecordNotFound
 	}

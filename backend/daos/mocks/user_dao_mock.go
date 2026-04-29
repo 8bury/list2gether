@@ -25,6 +25,15 @@ func (m *MockUserDAO) FindByEmail(email string) (*models.User, error) {
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
+// FindByGoogleID mocks the FindByGoogleID method.
+func (m *MockUserDAO) FindByGoogleID(googleID string) (*models.User, error) {
+	args := m.Called(googleID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
 // FindByUsername mocks the FindByUsername method.
 func (m *MockUserDAO) FindByUsername(username string) (*models.User, error) {
 	args := m.Called(username)

@@ -1,4 +1,4 @@
-import { requestJson } from './api'
+import { apiBaseUrl, requestJson } from './api'
 import { clearStoredAuth } from './auth_storage'
 
 export interface UserDTO {
@@ -35,6 +35,10 @@ export async function login(email: string, password: string): Promise<LoginRespo
     method: 'POST',
     body: { email, password },
   })
+}
+
+export function startGoogleLogin(): void {
+  window.location.assign(`${apiBaseUrl}/auth/google/login`)
 }
 
 export async function register(body: RegisterBodyDTO): Promise<RegisterResponseDTO> {
@@ -92,5 +96,4 @@ export async function updateProfile(body: UpdateProfileBodyDTO): Promise<UpdateP
     body,
   })
 }
-
 
