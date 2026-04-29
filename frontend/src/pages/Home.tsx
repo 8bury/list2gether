@@ -320,26 +320,20 @@ export default function HomePage() {
       <Header />
       <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
 
-        {/* Stats bar */}
-        {stats !== null && (
-          <div className="flex gap-3">
-            <div className="inline-flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3">
-              <div className="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
-                <Film className="w-4.5 h-4.5 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold leading-none">{stats.watched_this_month}</p>
-                <p className="text-xs text-neutral-400 mt-0.5">{t('home.watchedThisMonth')}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Header row */}
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
-            {t('lists.title')}
-          </h2>
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
+              {t('lists.title')}
+            </h2>
+            {stats !== null && (
+              <p className="flex items-center gap-1.5 mt-1 text-sm text-neutral-500">
+                <Film className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span className="text-white/80 font-medium tabular-nums">{stats.watched_this_month}</span>
+                {t('home.watchedThisMonth')}
+              </p>
+            )}
+          </div>
 
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
