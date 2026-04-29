@@ -738,16 +738,16 @@ func (d *movieListDAO) FetchRecentActivity(userID int64, limit int) ([]ActivityI
 		LIMIT ?
 	`
 	type activityRow struct {
-		ActivityType    string     `gorm:"column:activity_type"`
-		Ts              time.Time  `gorm:"column:ts"`
-		ListID          int64      `gorm:"column:list_id"`
-		ListName        string     `gorm:"column:list_name"`
-		MovieID         *int64     `gorm:"column:movie_id"`
-		MovieTitle      *string    `gorm:"column:movie_title"`
-		MoviePosterPath *string    `gorm:"column:movie_poster_path"`
-		ActorUserID     *int64     `gorm:"column:actor_user_id"`
-		ActorUsername   *string    `gorm:"column:actor_username"`
-		ActorAvatarURL  *string    `gorm:"column:actor_avatar_url"`
+		ActivityType    string    `gorm:"column:activity_type"`
+		Ts              time.Time `gorm:"column:ts"`
+		ListID          int64     `gorm:"column:list_id"`
+		ListName        string    `gorm:"column:list_name"`
+		MovieID         *int64    `gorm:"column:movie_id"`
+		MovieTitle      *string   `gorm:"column:movie_title"`
+		MoviePosterPath *string   `gorm:"column:movie_poster_path"`
+		ActorUserID     *int64    `gorm:"column:actor_user_id"`
+		ActorUsername   *string   `gorm:"column:actor_username"`
+		ActorAvatarURL  *string   `gorm:"column:actor_avatar_url"`
 	}
 	var rows []activityRow
 	if err := d.db.Raw(sql, userID, userID, userID, userID, limit).Scan(&rows).Error; err != nil {

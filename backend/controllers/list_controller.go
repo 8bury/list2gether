@@ -1867,10 +1867,10 @@ func (c *ListController) getUserActivity(ctx *gin.Context) {
 	payload := make([]gin.H, 0, len(items))
 	for _, item := range items {
 		entry := gin.H{
-			"type":       item.Type,
-			"timestamp":  item.Timestamp,
-			"list_id":    item.ListID,
-			"list_name":  item.ListName,
+			"type":      item.Type,
+			"timestamp": item.Timestamp,
+			"list_id":   item.ListID,
+			"list_name": item.ListName,
 		}
 		if item.MovieID != nil {
 			entry["movie_id"] = item.MovieID
