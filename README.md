@@ -35,6 +35,35 @@ A collaborative movie list web app for couples and friends to track movies they 
 - MySQL
 - TMDB API key
 
+### Docker development
+
+The simplest local workflow is to run the full stack with Docker Compose:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Services:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8080`
+- MySQL: `localhost:3306`
+
+The compose setup mounts `./backend` and `./frontend` into their containers, so local source edits are picked up by the development servers. The backend runs `go run .`; restart the backend container after Go code changes if needed. Frontend changes are handled by Vite HMR.
+
+Set `TMDB_API_TOKEN` in `.env` to enable movie search, watch providers, and recommendations.
+
+Useful commands:
+
+```bash
+docker compose up
+docker compose down
+docker compose down -v # also removes the local MySQL volume
+docker compose logs -f backend
+docker compose logs -f frontend
+```
+
 ### Backend
 
 1. Navigate to the backend directory:

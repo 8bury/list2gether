@@ -1,0 +1,12 @@
+.git
+.context
+.github
+**/.env
+**/node_modules
+**/dist
+**/coverage
+**/coverage.out
+**/coverage.html
+backend/list2gether
+backend/list2gether-backend
+frontend/.vite
