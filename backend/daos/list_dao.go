@@ -685,6 +685,7 @@ func (d *movieListDAO) CountWatchedThisMonth(userID int64) (int64, error) {
 	var count int64
 	if err := d.db.Table("list_movies lm").
 		Joins("JOIN list_members mem ON mem.list_id = lm.list_id AND mem.user_id = ?", userID).
+		Joins("JOIN movie_lists ml ON ml.id = lm.list_id AND ml.deleted_at IS NULL").
 		Where("lm.status = ? AND lm.watched_at >= ?", string(models.StatusWatched), firstOfMonth).
 		Count(&count).Error; err != nil {
 		return 0, err
