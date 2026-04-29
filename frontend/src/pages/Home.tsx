@@ -316,9 +316,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen lg:h-dvh lg:overflow-hidden flex flex-col bg-black text-white">
       <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
 
         {/* Stats bar */}
         {stats !== null && (
@@ -455,10 +455,11 @@ export default function HomePage() {
 
         {/* Main content: lists + activity feed */}
         {(loading || lists.length > 0) && (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 lg:flex-1 lg:min-h-0">
 
             {/* Lists column */}
-            <ul className="space-y-3">
+            <div className="lg:overflow-y-auto lg:min-h-0">
+              <ul className="space-y-3">
               {loading
                 ? [0, 1, 2].map((i) => <SkeletonListItem key={i} />)
                 : lists.map((list) => {
@@ -565,33 +566,41 @@ export default function HomePage() {
                       </li>
                     )
                   })}
-            </ul>
+              </ul>
+            </div>
 
             {/* Activity feed */}
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4 lg:sticky lg:top-6">
-              <h3 className="text-sm font-semibold text-white/80 mb-3">{t('home.recentActivity')}</h3>
-              {loading ? (
-                <div className="space-y-3">
-                  {[0, 1, 2, 4].map((i) => (
-                    <div key={i} className="flex gap-3 animate-pulse">
-                      <Skeleton className="w-8 h-11 rounded bg-white/10 shrink-0" />
-                      <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-3 w-3/4 bg-white/10" />
-                        <Skeleton className="h-3 w-1/2 bg-white/10" />
-                        <Skeleton className="h-2 w-1/4 bg-white/10" />
+            <div className="rounded-xl border border-white/10 bg-white/5 flex flex-col overflow-hidden lg:min-h-0">
+              <div className="px-4 pt-4 pb-3 shrink-0 border-b border-white/5">
+                <h3 className="text-sm font-semibold text-white/80">{t('home.recentActivity')}</h3>
+              </div>
+              <div
+                className="overflow-y-auto min-h-0 px-4 pb-4 flex-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20"
+                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}
+              >
+                {loading ? (
+                  <div className="space-y-3 pt-3">
+                    {[0, 1, 2, 4].map((i) => (
+                      <div key={i} className="flex gap-3 animate-pulse">
+                        <Skeleton className="w-8 h-11 rounded bg-white/10 shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-3 w-3/4 bg-white/10" />
+                          <Skeleton className="h-3 w-1/2 bg-white/10" />
+                          <Skeleton className="h-2 w-1/4 bg-white/10" />
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : activity.length === 0 ? (
-                <p className="text-xs text-neutral-500">{t('home.noActivity')}</p>
-              ) : (
-                <div>
-                  {activity.map((item, i) => (
-                    <ActivityFeedItem key={i} item={item} />
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                ) : activity.length === 0 ? (
+                  <p className="text-xs text-neutral-500 pt-3">{t('home.noActivity')}</p>
+                ) : (
+                  <div className="pt-1">
+                    {activity.map((item, i) => (
+                      <ActivityFeedItem key={i} item={item} />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
           </div>
