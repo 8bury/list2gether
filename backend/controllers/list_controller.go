@@ -48,6 +48,10 @@ func NewListController(router *gin.Engine, service services.ListService, recomme
 	group.POST("/:id/movies/:movieId/comments", c.authMiddleware.Handler(), c.createComment)
 	group.PATCH("/:id/movies/:movieId/comments/:commentId", c.authMiddleware.Handler(), c.updateComment)
 	group.DELETE("/:id/movies/:movieId/comments/:commentId", c.authMiddleware.Handler(), c.deleteComment)
+	// User home routes
+	userGroup := router.Group("/api/users")
+	userGroup.GET("/stats", c.authMiddleware.Handler(), c.getUserStats)
+	userGroup.GET("/activity", c.authMiddleware.Handler(), c.getUserActivity)
 	return c
 }
 
@@ -138,19 +142,45 @@ func (c *ListController) list(ctx *gin.Context) {
 		return
 	}
 
+	listIDs := make([]int64, 0, len(memberships))
+	for _, m := range memberships {
+		listIDs = append(listIDs, m.ListID)
+	}
+	posterURLs, memberPreviews, lastActivityMap, enrichErr := c.service.FetchListEnrichments(listIDs)
+	if enrichErr != nil {
+		posterURLs = map[int64][]string{}
+		memberPreviews = map[int64][]daos.MemberPreview{}
+		lastActivityMap = map[int64]time.Time{}
+	}
+
 	lists := make([]gin.H, 0, len(memberships))
 	for _, m := range memberships {
 		l := m.List
+		lastActivity := l.UpdatedAt
+		if t, ok := lastActivityMap[l.ID]; ok && t.After(lastActivity) {
+			lastActivity = t
+		}
+		membersPayload := make([]gin.H, 0)
+		for _, mp := range memberPreviews[l.ID] {
+			membersPayload = append(membersPayload, gin.H{
+				"user_id":    mp.UserID,
+				"username":   mp.Username,
+				"avatar_url": mp.AvatarURL,
+			})
+		}
 		lists = append(lists, gin.H{
-			"id":           l.ID,
-			"name":         l.Name,
-			"description":  l.Description,
-			"invite_code":  l.InviteCode,
-			"your_role":    m.Role,
-			"created_at":   l.CreatedAt,
-			"updated_at":   l.UpdatedAt,
-			"member_count": memberCounts[l.ID],
-			"movie_count":  movieCounts[l.ID],
+			"id":               l.ID,
+			"name":             l.Name,
+			"description":      l.Description,
+			"invite_code":      l.InviteCode,
+			"your_role":        m.Role,
+			"created_at":       l.CreatedAt,
+			"updated_at":       l.UpdatedAt,
+			"member_count":     memberCounts[l.ID],
+			"movie_count":      movieCounts[l.ID],
+			"poster_urls":      posterURLs[l.ID],
+			"members":          membersPayload,
+			"last_activity_at": lastActivity,
 		})
 	}
 
@@ -1780,6 +1810,88 @@ func (c *ListController) deleteComment(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Comentário excluído com sucesso",
+	})
+}
+
+func (c *ListController) getUserStats(ctx *gin.Context) {
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+	stats, err := c.service.GetUserStats(userID)
+	if err != nil {
+		ctx.Header("Cache-Control", "no-store")
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error":     "Failed to fetch stats",
+			"code":      "INTERNAL_ERROR",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, stats)
+}
+
+func (c *ListController) getUserActivity(ctx *gin.Context) {
+	rawClaims, _ := ctx.Get("auth_claims")
+	claims := rawClaims.(jwt.MapClaims)
+	sub, _ := claims["sub"].(string)
+	userID, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		respondTokenInvalid(ctx)
+		return
+	}
+	limit := 20
+	if v := ctx.Query("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			if n > 50 {
+				n = 50
+			}
+			limit = n
+		}
+	}
+	items, err := c.service.GetUserActivity(userID, limit)
+	if err != nil {
+		ctx.Header("Cache-Control", "no-store")
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error":     "Failed to fetch activity",
+			"code":      "INTERNAL_ERROR",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+	payload := make([]gin.H, 0, len(items))
+	for _, item := range items {
+		entry := gin.H{
+			"type":      item.Type,
+			"timestamp": item.Timestamp,
+			"list_id":   item.ListID,
+			"list_name": item.ListName,
+		}
+		if item.MovieID != nil {
+			entry["movie_id"] = item.MovieID
+		}
+		if item.MovieTitle != nil {
+			entry["movie_title"] = item.MovieTitle
+		}
+		if item.MoviePosterPath != nil {
+			entry["movie_poster_url"] = item.MoviePosterPath
+		}
+		if item.UserID != nil {
+			entry["user_id"] = item.UserID
+			entry["username"] = item.Username
+			entry["avatar_url"] = item.AvatarURL
+		}
+		payload = append(payload, entry)
+	}
+	ctx.Header("Cache-Control", "no-store")
+	ctx.JSON(http.StatusOK, gin.H{
+		"activity": payload,
+		"count":    len(payload),
 	})
 }
 

@@ -17,6 +17,11 @@ import (
 	"gorm.io/gorm"
 )
 
+// UserStats holds per-user statistics for the home page.
+type UserStats struct {
+	WatchedThisMonth int64 `json:"watched_this_month"`
+}
+
 type ListService interface {
 	CreateList(name string, description *string, createdBy int64) (*models.MovieList, error)
 	JoinListByInviteCode(inviteCode string, userID int64) (*models.MovieList, models.ListMemberRole, bool, int64, error)
@@ -34,6 +39,10 @@ type ListService interface {
 	GetComments(listID, userID, movieID int64, limit, offset int) ([]models.Comment, int64, error)
 	UpdateComment(listID, userID, commentID int64, content string) (*models.Comment, error)
 	DeleteComment(listID, userID, commentID int64) error
+	// Home enrichment methods
+	FetchListEnrichments(listIDs []int64) (posterURLs map[int64][]string, members map[int64][]daos.MemberPreview, lastActivity map[int64]time.Time, err error)
+	GetUserStats(userID int64) (*UserStats, error)
+	GetUserActivity(userID int64, limit int) ([]daos.ActivityItem, error)
 }
 
 type listService struct {
@@ -798,6 +807,52 @@ func (s *listService) UpdateComment(listID, userID, commentID int64, content str
 	}
 
 	return s.lists.UpdateComment(commentID, content)
+}
+
+func (s *listService) FetchListEnrichments(listIDs []int64) (map[int64][]string, map[int64][]daos.MemberPreview, map[int64]time.Time, error) {
+	posterPaths, err := s.lists.FetchPostersBatch(listIDs)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	posterURLs := make(map[int64][]string, len(posterPaths))
+	for listID, paths := range posterPaths {
+		urls := make([]string, 0, len(paths))
+		for _, p := range paths {
+			urls = append(urls, "https://image.tmdb.org/t/p/w92"+p)
+		}
+		posterURLs[listID] = urls
+	}
+	members, err := s.lists.FetchMembersBatch(listIDs)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	lastActivity, err := s.lists.FetchLastActivityBatch(listIDs)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return posterURLs, members, lastActivity, nil
+}
+
+func (s *listService) GetUserStats(userID int64) (*UserStats, error) {
+	count, err := s.lists.CountWatchedThisMonth(userID)
+	if err != nil {
+		return nil, err
+	}
+	return &UserStats{WatchedThisMonth: count}, nil
+}
+
+func (s *listService) GetUserActivity(userID int64, limit int) ([]daos.ActivityItem, error) {
+	items, err := s.lists.FetchRecentActivity(userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	for i, item := range items {
+		if item.MoviePosterPath != nil && *item.MoviePosterPath != "" {
+			url := "https://image.tmdb.org/t/p/w92" + *item.MoviePosterPath
+			items[i].MoviePosterPath = &url
+		}
+	}
+	return items, nil
 }
 
 func (s *listService) DeleteComment(listID, userID, commentID int64) error {

@@ -1,5 +1,11 @@
 import { requestJson } from './api'
 
+export interface ListMemberPreviewDTO {
+  user_id: number
+  username: string
+  avatar_url?: string | null
+}
+
 export interface UserListDTO {
   id: number
   name: string
@@ -10,6 +16,47 @@ export interface UserListDTO {
   updated_at: string
   member_count: number
   movie_count: number
+  poster_urls?: string[] | null
+  members?: ListMemberPreviewDTO[] | null
+  last_activity_at?: string | null
+}
+
+export interface UserStatsDTO {
+  watched_this_month: number
+}
+
+export interface ActivityItemDTO {
+  type: 'movie_added' | 'movie_watched' | 'comment' | 'member_joined'
+  timestamp: string
+  list_id: number
+  list_name: string
+  movie_id?: number | null
+  movie_title?: string | null
+  movie_poster_url?: string | null
+  user_id?: number | null
+  username?: string | null
+  avatar_url?: string | null
+}
+
+export interface ActivityResponseDTO {
+  activity: ActivityItemDTO[]
+  count: number
+}
+
+export async function getUserStats(): Promise<UserStatsDTO> {
+  const token = localStorage.getItem('access_token')
+  return requestJson<UserStatsDTO>('/api/users/stats', {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+}
+
+export async function getUserActivity(limit = 20): Promise<ActivityResponseDTO> {
+  const token = localStorage.getItem('access_token')
+  return requestJson<ActivityResponseDTO>(`/api/users/activity?limit=${limit}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
 }
 
 export interface ListsResponseDTO {
