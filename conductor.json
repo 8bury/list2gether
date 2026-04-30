@@ -1,0 +1,7 @@
+{
+    "scripts": {
+        "setup": "cp -n .env.example .env",
+        "run": "docker compose up --build",
+        "archive": "docker compose down"
+    }
+}
