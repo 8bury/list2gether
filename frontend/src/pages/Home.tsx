@@ -467,7 +467,11 @@ export default function HomePage() {
                     return (
                       <li
                         key={list.id}
-                        className="group rounded-xl border border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07] transition-all p-4 sm:p-5 shadow-lg shadow-black/20 hover:-translate-y-0.5"
+                        className="group rounded-xl border border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07] transition-all p-4 sm:p-5 shadow-lg shadow-black/20 hover:-translate-y-0.5 cursor-pointer"
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('button')) return
+                          navigate(`/list/${list.id}`)
+                        }}
                       >
                         <div className="flex items-start gap-4">
                           {/* Poster stack */}
