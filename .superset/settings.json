@@ -1,0 +1,11 @@
+{
+  "setup": [
+    "cp -n .env.example .env"
+  ],
+  "teardown": [
+    "docker compose down"
+  ],
+  "run": [
+    "docker compose up --build"
+  ]
+}
